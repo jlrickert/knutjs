@@ -1,0 +1,10 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"extends": "@jlrickert/knutjs-tsconfig/base.json",
+	"compilerOptions": {
+		"rootDir": "src",
+		"moduleResolution": "Bundler"
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["dist", "build", "node_modules"]
+}

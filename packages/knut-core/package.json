@@ -1,0 +1,47 @@
+{
+	"$schema": "https://json.schemastore.org/package.json",
+	"name": "@jlrickert/knutjs-core",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"main": "dist/index.cjs",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"module": "./dist/index.js",
+			"types": "./dist/index.d.ts",
+			"require": "./dist/index.cjs"
+		},
+		"./*": {
+			"module": "./dist/*.js",
+			"types": "./dist/*.d.ts",
+			"require": "./dist/*.cjs"
+		}
+	},
+	"files": [
+		"dist",
+		"package.json"
+	],
+	"sideEffects": false,
+	"type": "module",
+	"scripts": {
+		"build": "cross-env NODE_ENV=production tsup",
+		"clean": "rimraf dist",
+		"dev": "tsup --watch",
+		"typecheck": "tsc --noEmit",
+		"lint": "eslint src/",
+		"test": "vitest"
+	},
+	"private": false,
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@jlrickert/knutjs-tsconfig": "workspace:*",
+		"@types/node": "^20.10.4",
+		"cross-env": "^7.0.3",
+		"rimraf": "^5.0.5",
+		"tsup": "^8.0.1",
+		"typescript": "^5.3.3",
+		"vitest": "^1.0.4"
+	}
+}
