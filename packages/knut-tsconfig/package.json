@@ -1,0 +1,10 @@
+{
+	"$schema": "https://json.schemastore.org/package.json",
+	"name": "@jlrickert/knutjs-tsconfig",
+	"version": "0.0.0",
+	"private": true,
+	"license": "Apache-2.0",
+	"publishConfig": {
+		"access": "public"
+	}
+}
