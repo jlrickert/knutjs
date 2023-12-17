@@ -5,18 +5,13 @@ const env = process.env.NODE_ENV;
 const isProduction = env === 'production';
 
 const commonConfig: Options = {
-	banner: {
-		// js: "'use client'"
-	},
 	sourcemap: isProduction,
 	format: ['cjs', 'esm'],
-	bundle: isProduction,
+	bundle: true,
 	minify: isProduction,
 	dts: true,
 	treeshake: true,
-	external: ['react'],
-	splitting: true,
-	target: 'es2020',
+	target: 'es2018',
 	outDir: 'dist',
 	tsconfig: path.resolve(__dirname, './tsconfig.json'),
 	skipNodeModulesBundle: true,
@@ -30,12 +25,13 @@ export default defineConfig(() => {
 			esbuildOptions: (options) => {
 				options.outbase = 'src';
 			},
-			// the index doesn't need to be bundled
-			bundle: false,
 		},
 		{
-			entry: ['./src/**/!(index).ts'],
+			entry: ['./src/cli.ts'],
 			...commonConfig,
+			banner: {
+				js: '#!/usr/bin/env node',
+			},
 			esbuildOptions: (options) => {
 				options.outbase = 'src';
 			},

@@ -42,6 +42,8 @@ export type FilterOperators<TValue> = {
 	$all?: ReadonlyArray<any>;
 	$elemMatch?: Document;
 	$size?: TValue extends ReadonlyArray<any> ? number : never;
+	// Searching
+	$query?: string;
 };
 
 export type RootFilterOperators<TSchema> = {

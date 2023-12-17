@@ -33,8 +33,8 @@ export class Keg {
 	 * - <git repo>/keg
 	 * - <git repo>/docs/keg
 	 */
-	static findNearest(): Keg | null {
-		return null;
+	static findNearest(): string {
+		return '';
 	}
 
 	/**

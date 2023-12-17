@@ -61,6 +61,8 @@ type PublishOptions = {
 	target: 'git' | 'mkdocs' | 'knut';
 };
 
+export type SearchStrategy = 'classic' | 'semantic';
+
 /**
  * Knut Provides a high level api for managing a keg
  **/
