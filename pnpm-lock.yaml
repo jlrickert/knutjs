@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@jlrickert/knutjs-cli':
+        specifier: workspace:*
+        version: link:packages/knut-cli
     devDependencies:
       '@changesets/cli':
         specifier: ^2.27.1
