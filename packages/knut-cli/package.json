@@ -35,7 +35,6 @@
 	"devDependencies": {
 		"@jlrickert/knutjs-tsconfig": "workspace:*",
 		"@types/node": "^20.10.4",
-		"commander": "^11.1.0",
 		"cross-env": "^7.0.3",
 		"rimraf": "^5.0.5",
 		"tsup": "^8.0.1",
@@ -43,6 +42,7 @@
 		"vitest": "^1.0.4"
 	},
 	"dependencies": {
-		"@jlrickert/knutjs-core": "workspace:*"
+		"@jlrickert/knutjs-core": "workspace:*",
+		"commander": "^11.1.0"
 	}
 }
