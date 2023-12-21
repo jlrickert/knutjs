@@ -3,7 +3,13 @@
 	"useTabs": true,
 	"singleQuote": true,
 	"trailingComma": "all",
-	"proseWrap": "always",
 	"printWidth": 80,
-	"overrides": []
+	"overrides": [
+		{
+			"files": "*.yaml",
+			"options": {
+				"proseWrap": "never"
+			}
+		}
+	]
 }
