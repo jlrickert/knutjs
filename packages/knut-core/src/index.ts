@@ -1,7 +1,7 @@
-export { Config } from './config';
-export { Dex } from './dex';
-export { Knut } from './knut';
-export { Node } from './node';
+export { Config } from './config.js';
+export { Dex } from './dex.js';
+export { Knut } from './knut.js';
+export { Node } from './node.js';
 
 // const log = (cmd: string): void => {
 // 	console.log(`Running "${cmd}"`);

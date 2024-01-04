@@ -3,8 +3,14 @@
 	"extends": "@jlrickert/knutjs-tsconfig/base.json",
 	"compilerOptions": {
 		"rootDir": "src",
-		"moduleResolution": "Bundler"
+		"outDir": "dist",
+		"esModuleInterop": true,
+		"declaration": true,
+		"target": "ES2022",
+		"lib": ["ES2022"],
+		"module": "NodeNext",
+		"moduleResolution": "Node16"
 	},
 	"include": ["src/**/*.ts"],
-	"exclude": ["dist", "build", "node_modules"]
+	"exclude": ["**/dist/", "**/node_modules/"]
 }

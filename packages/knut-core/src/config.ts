@@ -1,5 +1,5 @@
-import { NodeId } from './node';
-import { createId } from './utils';
+import { NodeId } from './node.js';
+import { createId } from './utils.js';
 
 export class Config {
 	static load(kegpath: string): Config | null {

@@ -1,4 +1,4 @@
-import { Keg } from './keg';
+import { KegFile } from './kegFile.js';
 
 /**
  * Plain old data representing an Index. This data is found in the **keg**
@@ -25,10 +25,14 @@ export class IndexEntry {
 }
 
 export type HookContext = {
-	keg: Keg;
+	keg: KegFile;
 	changedNodes: Node[];
 };
 
 export type Hook = (ctx: HookContext) => void;
 
 export const latestChangeHook: Hook = () => {};
+
+export class Index {
+	// static fromDex({});
+}

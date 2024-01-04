@@ -1,15 +1,16 @@
-import { Config } from './config';
-import { Filter } from './filterTypes';
-import { Meta, MetaData } from './meta';
-import { Node, NodeId } from './node';
-import { createId } from './utils';
+import { Config } from './config.js';
+import { DexEntry } from './dex.js';
+import { Dex } from './dex.js';
+import { Filter } from './filterTypes.js';
+import { KegFile, KegFileData } from './kegFile.js';
+import { Meta, MetaData } from './meta.js';
+import { Node, NodeId } from './node.js';
+import { Storage, SystemStorage } from './storage.js';
+import { now } from './utils.js';
 
 export type KegOptions = {
-	kegs?: string[];
 	autoIndex?: boolean;
-	nextId?: (ctx: NodeId[]) => NodeId;
-	write?: (data: string) => void;
-	read?: (filepath: string) => string;
+	storage: Storage | string;
 };
 
 export type NodeCreateOptions = {
@@ -28,7 +29,7 @@ export type NodeUpdateOptions = {
 	kegpath: string;
 	nodeId: string;
 	content?: string;
-	meta?: Meta;
+	meta?: Meta | ((meta: Meta) => void);
 };
 
 export type NodeDeleteOptions = {
@@ -43,12 +44,14 @@ export type NodeFilterOptions = {
 	date: string;
 	links: string[];
 	backlinks: string[];
-	frontmater: string;
+	meta: Meta;
 };
 
 export type NodeSearchResult = {
 	kegpath: string;
 	nodeId: string;
+	title: string;
+	updated: string;
 	rank: number;
 };
 
@@ -63,6 +66,12 @@ type PublishOptions = {
 
 export type SearchStrategy = 'classic' | 'semantic';
 
+type Repo = {
+	keg: KegFile;
+	dex: Dex;
+	storage: Storage;
+};
+
 /**
  * Knut Provides a high level api for managing a keg
  **/
@@ -72,13 +81,15 @@ export class Knut {
 	// indexList: IndexEntry[] = [];
 	//
 	// counter = 0;
+	//
+	private repoMap = new Map<string, Repo>();
 
-	static load(options?: Record<string, KegOptions>): Knut {
+	static load(options: Record<string, KegOptions>): Knut {
 		const knut = new Knut();
 		if (options) {
-			for (const kegpath in options) {
-				const o = options[kegpath];
-				knut.loadKeg(kegpath, o);
+			for (const kegAlias in options) {
+				const o = options[kegAlias];
+				knut.loadKeg(kegAlias, o);
 			}
 		}
 		return knut;
@@ -89,57 +100,167 @@ export class Knut {
 	/**
 	 * Loads required data for a keg
 	 */
-	loadKeg(kegpath: string, options?: KegOptions) {}
+	async loadKeg(kegAlias: string, options: KegOptions): Promise<void> {
+		const storage =
+			typeof options.storage === 'string'
+				? new SystemStorage({ kegpath: options.storage })
+				: options.storage;
+		const dex = await Dex.load(storage);
+		const keg = await KegFile.load(storage);
+		if (keg !== null && dex !== null) {
+			this.repoMap.set(kegAlias, { keg, dex, storage });
+			console.log({ message: 'after', keg, dex, repoMap: this.repoMap });
+		}
+	}
 
-	updateConfig(kegpath: string, updater: (config: Config) => void) {}
+	async updateConfig(
+		kegAlias: string,
+		updater: (config: Config) => void,
+	): Promise<void> {}
 
-	indexUpdate(kegpath: string): boolean {
+	async indexUpdate(kegAlias: string): Promise<boolean> {
 		return false;
 	}
 
-	nodeCreate(options: NodeCreateOptions): Node {
-		const nodeId = createId({ count: 5, postfix: 'A' });
-		throw new Error('Not implemented');
+	async nodeCreate(options: NodeCreateOptions): Promise<Node | null> {
+		const repo = this.repoMap.get(options.kegpath);
+		if (!repo) {
+			return null;
+		}
+		const { keg, dex } = repo;
+		const updated = now('Y-m-D H:M');
+		repo.keg.update((data) => {
+			data.updated = updated;
+		});
+
+		const nodeId = keg.getNodeId();
+		const node = new Node({
+			content: '',
+			meta: new Meta(),
+			updated: updated,
+		});
+		repo.dex.addNode({ nodeId, title: '', updated });
+		return node;
 	}
 
-	nodeRead(options: NodeReadOptions): Node {
-		throw new Error('not implemented');
+	async nodeRead(options: NodeReadOptions): Promise<Node | null> {
+		const repo = this.repoMap.get(options.kegpath);
+		if (!repo) {
+			return null;
+		}
+		const { storage } = repo;
+		const node = await Node.load(options.nodeId, storage);
+		return node;
 	}
 
-	nodeUpdate(options: NodeUpdateOptions): Node {
-		throw new Error('not implemented');
+	async nodeUpdate({
+		nodeId,
+		kegpath,
+		content,
+		meta,
+	}: NodeUpdateOptions): Promise<void> {
+		const repo = this.repoMap.get(kegpath);
+		if (!repo) {
+			return;
+		}
+		const { storage } = repo;
+		const node = await Node.load(nodeId, storage);
+		if (!node) {
+			return;
+		}
+		if (content) {
+			node.updateContent(content);
+		}
+		if (meta) {
+			node.updateMeta(meta);
+		}
 	}
 
-	nodeDelete(options: NodeDeleteOptions): void {
-		throw new Error('not implemented');
+	async nodeList(
+		kegpath: string,
+		filter?: Filter<DexEntry>,
+	): Promise<DexEntry[] | null> {
+		const repo = this.repoMap.get(kegpath);
+		if (!repo) {
+			return null;
+		}
+		const dex = repo.dex;
+		return [...dex.getNodes()];
 	}
 
-	search(
+	async search(
 		kegpath: string | string[],
 		filter?: Filter<NodeFilterOptions>,
-	): NodeSearchResult[] {
+	): Promise<NodeSearchResult[]> {
+		if (Array.isArray(kegpath)) {
+			return [];
+		}
+		const repo = this.repoMap.get(kegpath);
+		console.log({ message: 'HERE', repo });
+		if (!repo) {
+			return [];
+		}
+		const { keg, storage } = repo;
+		console.log({ keg, storage });
 		return [];
+	}
+
+	async setConfig(
+		kegpath: string,
+		config: Partial<KegFileData>,
+	): Promise<void> {
+		const repo = this.repoMap.get(kegpath);
+		if (!repo) {
+			return;
+		}
+		const { keg, storage } = repo;
+		keg.update((data) => {
+			for (const key in config) {
+				if (config.hasOwnProperty(key)) {
+					const element = (config as any)[key];
+					(data as any)[key] = element;
+				}
+			}
+		});
+		storage.write('keg', keg.toYAML());
 	}
 
 	/**
 	 * Export keg to an external source. This could be with git.
 	 */
-	publish(kegpath: string, options?: PublishOptions): void {}
+	async publish(kegpath: string, options?: PublishOptions): Promise<void> {}
 
 	/**
 	 * Share a specific shareable node by providing a link.
 	 */
-	share(options: ShareOptions): string {
-		return '';
+	async share({ kegpath, nodeId }: ShareOptions): Promise<string | null> {
+		const repo = this.repoMap.get(kegpath);
+		if (!repo) {
+			return null;
+		}
+		const { keg, storage } = repo;
+		const link = keg.getLink(nodeId);
+		const node = await Node.load(nodeId, storage);
+		return link;
 	}
 
 	/**
 	 * Remove access to a node
 	 **/
-	unshare(options: ShareOptions): void {}
+	async unshare(options: ShareOptions): Promise<void> {}
 
 	/**
 	 * import nodes from another keg. Used for combining multiple kegs into 1.
 	 */
-	merge(from: string | string[], to: string): void {}
+	async merge(from: string | string[], to: string): Promise<void> {}
+
+	getKeg(kegpath: string): KegFile | null {
+		const repo = this.repoMap.get(kegpath);
+		return repo?.keg ?? null;
+	}
+
+	getDex(kegpath: string): Dex | null {
+		const repo = this.repoMap.get(kegpath);
+		return repo?.dex ?? null;
+	}
 }

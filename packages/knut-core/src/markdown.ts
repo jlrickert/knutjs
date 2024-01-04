@@ -3,7 +3,7 @@ import { toMarkdown } from 'mdast-util-to-markdown';
 import { gfmFromMarkdown, gfmToMarkdown } from 'mdast-util-gfm';
 import { gfm } from 'micromark-extension-gfm';
 import * as Mdast from 'mdast';
-import { DexEntry } from './dex';
+import { DexEntry } from './dex.js';
 
 export type MarkdownOptions = {};
 export class Markdown {

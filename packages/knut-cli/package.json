@@ -2,21 +2,24 @@
 	"$schema": "https://json.schemastore.org/package.json",
 	"name": "@jlrickert/knutjs-cli",
 	"version": "0.1.0",
+	"license": "Apache-2.0",
 	"bin": {
-		"knut": "./dist/cli.js"
+		"knut": "./dist/main.js"
 	},
 	"main": "./dist/index.js",
+	"module": "./dist/index.js",
 	"types": "dist/index.d.ts",
+	"type": "module",
 	"exports": {
 		".": {
-			"module": "./dist/index.mjs",
+			"module": "./dist/index.js",
 			"types": "./dist/index.d.ts",
-			"require": "./dist/index.js"
+			"require": "./dist/index.cjs"
 		},
 		"./*": {
-			"module": "./dist/*.mjs",
+			"module": "./dist/*.js",
 			"types": "./dist/*.d.ts",
-			"require": "./dist/*.js"
+			"require": "./dist/*.cjs"
 		}
 	},
 	"files": [
@@ -24,9 +27,9 @@
 		"package.json"
 	],
 	"scripts": {
-		"build": "cross-env NODE_ENV=production tsup",
-		"clean": "rimraf dist",
-		"dev": "tsup --watch",
+		"build": "pnpm run clean && cross-env NODE_ENV=production tsc --build && pnpm run typecheck",
+		"clean": "tsc --build --clean",
+		"dev": "pnpm run clean && tsc --build && tsc --build --watch",
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint src/",
 		"test": "vitest",

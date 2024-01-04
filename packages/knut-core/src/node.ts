@@ -1,77 +1,113 @@
 import { EventEmitter } from 'events';
-import { Meta, MetaData, Tag } from './meta';
-import { createId } from './utils';
+import { Meta, Tag } from './meta.js';
+import { Storage } from './storage.js';
+import { now } from './utils.js';
+import { Markdown } from './markdown.js';
 
 export type NodeId = string;
 
-export type NodeOptions = {
-	nodeId: NodeId;
+export type NodeData = {
+	title: string;
 	content: string;
-	meta: MetaData;
+	updated: string;
+	meta: Meta;
 };
 
 export class Node extends EventEmitter {
-	private _id: string;
-	private _title: string = '';
-	/**
-	 * Content is in markdown format
-	 */
-	content: string = '';
-	/**
-	 * List of other content in the node other than README.md and meta.yaml
-	 */
-	items: string[] = [];
-	meta: Meta;
+	private data: NodeData;
 
-	static load(nodepath: string): Node | null {
-		return null;
+	static isNode(obj: any): obj is Node {
+		return obj instanceof Node;
 	}
 
-	static create(options: NodeOptions) {
-		return new Node(options);
+	static async load(nodeId: string, storage: Storage): Promise<Node | null> {
+		const nodePath = Node.nodePath(nodeId);
+		const metaPath = Meta.metaPath(nodeId);
+		const content = await storage.read(nodePath);
+		const yaml = await storage.read(metaPath);
+		const meta = yaml ? Meta.fromYAML(yaml) : new Meta();
+		const stats = await storage.stats(nodePath);
+		if (!content || !stats || !stats) {
+			return null;
+		}
+		const node = new Node({ content, updated: stats.mtime, meta });
+		return node;
 	}
 
-	constructor(options: NodeOptions) {
+	static nodePath(nodeId: string): string {
+		return `${nodeId}/README.md`;
+	}
+
+	static parseNodeId(filepath: string): string | null {
+		const parts = filepath.split('/');
+		parts.pop();
+		const nodeId = parts.pop();
+		return nodeId ?? null;
+	}
+
+	static metaPath(nodeId: string): string {
+		return `${nodeId}/meta.yaml`;
+	}
+
+	private mdAst: Markdown;
+	constructor({
+		content,
+		updated: updatedAt,
+		meta,
+	}: {
+		content: string;
+		updated: string;
+		meta: Meta;
+	}) {
 		super();
-		this._id = options.nodeId;
-		this.content = options.content;
-		this.meta = new Meta({});
+		this.mdAst = Markdown.parse(content);
+		this.data = {
+			updated: updatedAt,
+			title: this.mdAst.getTitle() ?? '',
+			content: content,
+			meta: meta,
+		};
 	}
 
-	get id() {
-		return this._id;
+	get meta(): Meta {
+		return this.data.meta;
 	}
 
 	get title(): string {
-		return this._title;
+		return this.data.title;
 	}
 
-	set title(value: string) {
-		this._id = value;
+	get updatedAt(): string {
+		return this.data.updated;
 	}
 
-	update(content: string): void {
-		this.content = content;
-		const firstNewline = content.indexOf('\n');
-		const index = firstNewline > 0 ? firstNewline : this.content.length;
-		this._title = content.slice(0, index);
+	updateContent(content: string): void {
+		this.data.content = content;
+		this.mdAst = Markdown.parse(content);
+		this.data.updated = now('Y-m-D H:M');
+
 		this.emit('update', {
-			nodeId: this._id,
+			node: this,
 		});
 	}
 
-	save(kegpath: string): void {
-		this.emit('save', {
-			kegpath,
-			nodeId: this.id,
-		});
+	updateMeta(f: Meta | ((meta: Meta) => void)): void {
+		if (f instanceof Meta) {
+			this.data.meta = f;
+		} else {
+			f(this.data.meta);
+		}
 	}
 
 	addTag(tag: Tag): void {
-		this.meta.addTag(tag);
+		this.data.meta.addTag(tag);
 	}
 
 	addDate(datetime: string): void {
-		this.meta.add('date', datetime);
+		this.data.meta.add('date', datetime);
+	}
+
+	stringify(): string {
+		return this.data.content;
 	}
 }

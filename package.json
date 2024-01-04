@@ -3,6 +3,7 @@
 	"name": "knut",
 	"private": true,
 	"description": "Knowledge utilities for managing and maintaining KEGs",
+	"type": "module",
 	"scripts": {
 		"cli": "knut",
 		"build": "turbo build",

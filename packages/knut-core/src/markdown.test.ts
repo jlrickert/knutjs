@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { Markdown } from './markdown';
+import { Markdown } from './markdown.js';
 
 describe('title parsing in markdown file', () => {
 	const table: Array<{

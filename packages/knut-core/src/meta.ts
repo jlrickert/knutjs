@@ -1,5 +1,6 @@
+import * as YAML from 'yaml';
 import invariant from 'tiny-invariant';
-import { JSONObject, type JSON, unsafeCoerce } from './utils';
+import { JSONObject, type JSON, unsafeCoerce } from './utils.js';
 
 export type MetaData = JSONObject & {
 	tags?: Tag[];
@@ -15,15 +16,19 @@ const makeTag = (value: string): Tag => {
 };
 
 export class Meta {
-	/**
-	 * Looks for the **meta** file in the nodepath. Typically, this will be in
-	 * yaml format. **meta** should have a yaml, or json format.
-	 **/
-	static load(nodepath: string): Meta | null {
-		throw new Error('Not implemented');
+	static fromYAML(yaml: string): Meta {
+		const data = YAML.parse(yaml);
+		const meta = new Meta(data);
+		return meta;
 	}
 
-	constructor(private data: MetaData) {
+	static metaPath(nodeId: string): string {
+		return `${nodeId}/meta.yaml`;
+	}
+
+	private data: MetaData;
+	constructor(data?: MetaData) {
+		this.data = data ?? {};
 		// Ensure that tags is a set of at least 1 item or doesn't exist
 		if (this.data.tags && !Array.isArray(this.data.tags)) {
 			delete this.data['tags'];
@@ -78,11 +83,15 @@ export class Meta {
 		this.data[key] = value;
 	}
 
+	addDate(datetime: string): void {
+		this.add('date', datetime);
+	}
+
 	remove(key: string) {
 		delete this.data[key];
 	}
 
-	exportData(format: 'yaml' | 'json'): string {
-		return JSON.stringify(this.data);
+	stringify() {
+		return YAML.stringify(this.data);
 	}
 }

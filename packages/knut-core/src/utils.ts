@@ -1,5 +1,5 @@
 import { randomInt } from 'crypto';
-import { NodeId } from './node';
+import { type NodeId } from './node.js';
 
 export type JSONObject = { [key: string]: JSON };
 export type JSONArray = JSON[];
@@ -32,4 +32,26 @@ export const createId = (options: {
 		id.push(n);
 	}
 	return `${options.prefix ?? ''}${id.join('')}${options.postfix ?? ''}`;
+};
+
+export const absurd = <T>(value: never): T => {
+	throw new Error('This is absurd');
+};
+
+export type DateFormat = 'Y-m-D' | 'Y-m-D H:M' | 'DD/MM/YY';
+export const now = (format: DateFormat): string => {
+	switch (format) {
+		case 'Y-m-D': {
+			return Date.now().toString();
+		}
+		case 'DD/MM/YY': {
+			return Date.now().toString();
+		}
+		case 'Y-m-D H:M': {
+			return Date.now().toString();
+		}
+		default: {
+			return absurd(format);
+		}
+	}
 };

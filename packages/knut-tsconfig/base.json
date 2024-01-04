@@ -3,10 +3,12 @@
 	"display": "Default",
 	"compilerOptions": {
 		"composite": false,
+		"customConditions": ["development"],
 		"declaration": true,
 		"declarationMap": true,
-		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
+		"exactOptionalPropertyTypes": true,
+		"checkJs": true,
 		"inlineSources": false,
 		"resolveJsonModule": true,
 		"isolatedModules": true,
@@ -17,7 +19,5 @@
 		"skipLibCheck": true,
 		"strict": true
 	},
-	"exclude": [
-		"node_modules"
-	]
+	"exclude": ["node_modules"]
 }
