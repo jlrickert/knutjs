@@ -1,0 +1,26 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"id": "https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/knutSchema.json",
+	"title": "JSON schema for the KnutJS's configuration file",
+	"type": "object",
+	"allowTrailingCommas": false,
+	"properties": {
+		"kegs": {
+			"type": "array",
+			"description": "Config for a keg",
+			"items": {
+				"type": "object",
+				"properties": {
+					"alias": {
+						"description": "Shorthand alias to reference the keg",
+						"type": "string"
+					},
+					"url": {
+						"description": "URL pointing to the keg. This could be a file path or an http url to a valid keg",
+						"type": "string"
+					}
+				}
+			}
+		}
+	}
+}
