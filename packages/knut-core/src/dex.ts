@@ -1,17 +1,131 @@
-import { Markdown } from './markdown.js';
-import { Node } from './node.js';
+import { Node, NodeId } from './node.js';
 import { Storage } from './storage.js';
 
 export type DexEntry = {
-	nodeId: string;
+	nodeId: NodeId;
 	updated: string;
 	title: string;
+	tags?: string[];
 };
 
-export class Dex {
-	private entries: DexEntry[];
+export type KegIndex = {
+	addNode(nodeId: NodeId, node: Node): void;
+	getFilepath(): string;
+	stringify(): string;
+};
 
-	static async load(storage: Storage) {
+export class TagsIndex implements KegIndex {
+	addNode(nodeId: NodeId, node: Node): void {
+		throw new Error('Method not implemented.');
+	}
+	getFilepath(): string {
+		return `dex/tags`;
+	}
+	stringify(): string {
+		throw new Error('Method not implemented.');
+	}
+}
+
+export class ChangeIndex implements KegIndex {
+	private entryList: DexEntry[] = [];
+
+	fromEntries(entries: DexEntry[]) {
+		const index = new ChangeIndex();
+		for (const entry of entries ?? []) {
+			this.addEntry(entry);
+		}
+		return index;
+	}
+
+	constructor() {}
+
+	addNode(nodeId: NodeId, node: Node): void {
+		this.addEntry({
+			nodeId: nodeId,
+			title: node.title ?? '',
+			updated: node.updated,
+		});
+	}
+
+	addEntry(entry: DexEntry) {
+		this.entryList.push(entry);
+		this.entryList.sort((a, b) => {
+			return (
+				new Date(a.updated).getUTCSeconds() -
+				new Date(b.updated).getUTCSeconds()
+			);
+		});
+	}
+
+	getFilepath(): string {
+		return `dex/changes.md`;
+	}
+
+	stringify(): string {
+		const items: string[] = [];
+		for (const entry of this.entryList) {
+			const id = entry.nodeId.stringify();
+			const line = `* ${entry.updated} [${entry.title}](../${id})`;
+			items.push(line);
+		}
+		return items.join('\n');
+	}
+}
+
+export class NodeIndex implements KegIndex {
+	private entryList: DexEntry[] = [];
+
+	static fromEntries(entries: DexEntry[]): NodeIndex {
+		const index = new NodeIndex();
+		for (const entry of entries) {
+			index.addEntry(entry);
+		}
+		return index;
+	}
+
+	constructor() {}
+
+	addNode(nodeId: NodeId, node: Node): void {
+		this.addEntry({
+			title: node.title ?? '',
+			updated: node.updated,
+			nodeId,
+		});
+	}
+
+	getFilepath(): string {
+		return `dex/nodes.tsv`;
+	}
+
+	getEntries(): readonly DexEntry[] {
+		return this.entryList;
+	}
+
+	addEntry(entry: DexEntry) {
+		this.entryList.push(entry);
+		this.entryList.sort((a, b) => (a.nodeId.lt(b.nodeId) ? -1 : 1));
+	}
+
+	stringify(): string {
+		const items: string[] = [];
+		for (const entry of this.entryList) {
+			const id = entry.nodeId.stringify();
+			const line = `${id}\t${entry.updated}\t ${entry.title}`;
+			items.push(line);
+		}
+		return items.join('\n');
+	}
+}
+
+/**
+ * Maintains list of index for the keg
+ */
+export class Dex {
+	private changesIndex = new ChangeIndex();
+	private nodesIndex = new NodeIndex();
+	private indexes = new Map<string, KegIndex>();
+
+	static async fromStorage(storage: Storage) {
 		const content = await storage.read('dex/nodes.tsv');
 		if (content === null) {
 			return null;
@@ -19,50 +133,38 @@ export class Dex {
 		const lines = content.split('\n');
 		const dex = new Dex();
 		for (const line of lines) {
-			const [nodeId, updated, title] = line.split('\t');
-			dex.addNode({ title, updated, nodeId });
+			// ingore empty last line if it exists
+			if (line === '') {
+				continue;
+			}
+			const [id, updated, title] = line.split('\t');
+			const nodeId = new NodeId(id);
+			const entry: DexEntry = { title, updated, nodeId };
+			dex.nodesIndex.addEntry(entry);
+			dex.changesIndex.addEntry(entry);
 		}
 		return dex;
 	}
 
-	constructor() {
-		this.entries = [];
+	constructor() {}
+
+	getEntries(): readonly DexEntry[] {
+		return this.nodesIndex.getEntries();
 	}
 
-	getNodeIndex(): string {
-		const lines = [];
-		for (const entry of this.entries) {
-			const { nodeId, updated, title } = entry;
-			const line = `${nodeId}\t${updated}\t${title}`;
-			lines.push(line);
+	getNodeIndex(): NodeIndex {
+		return this.nodesIndex;
+	}
+
+	getChangesIndex(): ChangeIndex {
+		return this.changesIndex;
+	}
+
+	addNode(nodeId: NodeId, node: Node) {
+		this.nodesIndex.addNode(nodeId, node);
+		this.changesIndex.addNode(nodeId, node);
+		for (const [, index] of this.indexes) {
+			index.addNode(nodeId, node);
 		}
-		return lines.join('\n');
-	}
-
-	getChangesIndex(): string {
-		const entries = { ...this.entries };
-		entries.sort((a, b) => {
-			if (a.updated === b.updated) {
-				return 0;
-			}
-			return a.updated < b.updated ? -1 : 1;
-		});
-		const markdown = Markdown.createIndex({ entries: [] });
-		return markdown.stringify();
-	}
-
-	getNodes(): DexEntry[] {
-		return this.entries;
-	}
-
-	addNode(entry: DexEntry): this {
-		this.entries.push(entry);
-		this.entries.sort((a, b) => {
-			if (a.nodeId === b.nodeId) {
-				return 0;
-			}
-			return a.nodeId < b.nodeId ? -1 : 1;
-		});
-		return this;
 	}
 }

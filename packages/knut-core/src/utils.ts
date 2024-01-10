@@ -24,7 +24,7 @@ export const createId = (options: {
 	prefix?: string;
 	count: number;
 	postfix?: string;
-}): NodeId => {
+}): string => {
 	const CHARS = '1234567890abcdefghijklmnopqrstufwqyz';
 	let id = [];
 	for (let i = 0; i < options.count; i++) {

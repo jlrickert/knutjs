@@ -1,39 +1,43 @@
-import { Config } from './config.js';
+import { expect } from 'vitest';
+import { ConfigFile } from './configFile.js';
 import { DexEntry } from './dex.js';
 import { Dex } from './dex.js';
 import { Filter } from './filterTypes.js';
 import { KegFile, KegFileData } from './kegFile.js';
-import { Meta, MetaData } from './meta.js';
+import { Meta, MetaData } from './metaFile.js';
 import { Node, NodeId } from './node.js';
-import { Storage, SystemStorage } from './storage.js';
+import { Storage, FileSystemStorage } from './storage.js';
 import { now } from './utils.js';
 
 export type KegOptions = {
 	autoIndex?: boolean;
+	/**
+	 * Storage or a filesystem path to the keg if a file system is present
+	 */
 	storage: Storage | string;
 };
 
 export type NodeCreateOptions = {
-	kegpath: string;
+	kegalias: string;
 	content: string;
 	meta?: MetaData;
 	items?: Buffer[];
 };
 
 export type NodeReadOptions = {
-	kegpath: string;
+	kegalias: string;
 	nodeId: NodeId;
 };
 
 export type NodeUpdateOptions = {
-	kegpath: string;
+	kegalias: string;
 	nodeId: string;
 	content?: string;
 	meta?: Meta | ((meta: Meta) => void);
 };
 
 export type NodeDeleteOptions = {
-	kegpath: string;
+	kegalias: string;
 	nodeId: NodeId;
 };
 
@@ -48,7 +52,7 @@ export type NodeFilterOptions = {
 };
 
 export type NodeSearchResult = {
-	kegpath: string;
+	kegalias: string;
 	nodeId: string;
 	title: string;
 	updated: string;
@@ -56,7 +60,7 @@ export type NodeSearchResult = {
 };
 
 export type ShareOptions = {
-	kegpath: string;
+	kegalias: string;
 	nodeId: NodeId;
 };
 
@@ -76,20 +80,14 @@ type Repo = {
  * Knut Provides a high level api for managing a keg
  **/
 export class Knut {
-	// keg: Keg = new Keg({});
-	// dex: Dex = new Dex();
-	// indexList: IndexEntry[] = [];
-	//
-	// counter = 0;
-	//
 	private repoMap = new Map<string, Repo>();
 
-	static load(options: Record<string, KegOptions>): Knut {
+	static async load(options: Record<string, KegOptions>): Promise<Knut> {
 		const knut = new Knut();
 		if (options) {
 			for (const kegAlias in options) {
-				const o = options[kegAlias];
-				knut.loadKeg(kegAlias, o);
+				const option = options[kegAlias];
+				await knut.loadKeg(kegAlias, option);
 			}
 		}
 		return knut;
@@ -103,19 +101,20 @@ export class Knut {
 	async loadKeg(kegAlias: string, options: KegOptions): Promise<void> {
 		const storage =
 			typeof options.storage === 'string'
-				? new SystemStorage({ kegpath: options.storage })
+				? new FileSystemStorage({ kegpath: options.storage })
 				: options.storage;
-		const dex = await Dex.load(storage);
+		const dex = await Dex.fromStorage(storage);
 		const keg = await KegFile.load(storage);
-		if (keg !== null && dex !== null) {
-			this.repoMap.set(kegAlias, { keg, dex, storage });
-			console.log({ message: 'after', keg, dex, repoMap: this.repoMap });
+		if (keg === null || dex === null) {
+			return;
 		}
+
+		this.repoMap.set(kegAlias, { keg: keg, dex: dex, storage });
 	}
 
 	async updateConfig(
 		kegAlias: string,
-		updater: (config: Config) => void,
+		updater: (config: ConfigFile) => void,
 	): Promise<void> {}
 
 	async indexUpdate(kegAlias: string): Promise<boolean> {
@@ -123,7 +122,7 @@ export class Knut {
 	}
 
 	async nodeCreate(options: NodeCreateOptions): Promise<Node | null> {
-		const repo = this.repoMap.get(options.kegpath);
+		const repo = this.repoMap.get(options.kegalias);
 		if (!repo) {
 			return null;
 		}
@@ -134,17 +133,16 @@ export class Knut {
 		});
 
 		const nodeId = keg.getNodeId();
-		const node = new Node({
-			content: '',
-			meta: new Meta(),
-			updated: updated,
+		const node = await Node.fromContent({
+			content: options.content,
+			updated,
 		});
-		repo.dex.addNode({ nodeId, title: '', updated });
+		repo.dex.addNode(nodeId, node);
 		return node;
 	}
 
 	async nodeRead(options: NodeReadOptions): Promise<Node | null> {
-		const repo = this.repoMap.get(options.kegpath);
+		const repo = this.repoMap.get(options.kegalias);
 		if (!repo) {
 			return null;
 		}
@@ -153,18 +151,18 @@ export class Knut {
 		return node;
 	}
 
-	async nodeUpdate({
+	async nodeWrite({
 		nodeId,
-		kegpath,
+		kegalias,
 		content,
 		meta,
 	}: NodeUpdateOptions): Promise<void> {
-		const repo = this.repoMap.get(kegpath);
+		const repo = this.repoMap.get(kegalias);
 		if (!repo) {
 			return;
 		}
 		const { storage } = repo;
-		const node = await Node.load(nodeId, storage);
+		const node = await Node.load(new NodeId(nodeId), storage);
 		if (!node) {
 			return;
 		}
@@ -176,33 +174,30 @@ export class Knut {
 		}
 	}
 
-	async nodeList(
-		kegpath: string,
-		filter?: Filter<DexEntry>,
-	): Promise<DexEntry[] | null> {
-		const repo = this.repoMap.get(kegpath);
-		if (!repo) {
-			return null;
-		}
-		const dex = repo.dex;
-		return [...dex.getNodes()];
-	}
-
 	async search(
-		kegpath: string | string[],
+		kegalias: string | string[],
 		filter?: Filter<NodeFilterOptions>,
 	): Promise<NodeSearchResult[]> {
-		if (Array.isArray(kegpath)) {
-			return [];
+		const kegs = Array.isArray(kegalias) ? kegalias : [kegalias];
+		const results: NodeSearchResult[] = [];
+		for (const kegalias of kegs) {
+			const repo = this.repoMap.get(kegalias);
+			if (!repo) {
+				continue;
+			}
+			const { dex } = repo;
+			const entryList = dex.getEntries();
+			for (const entry of entryList) {
+				results.push({
+					nodeId: entry.nodeId.stringify(),
+					kegalias,
+					rank: -1,
+					title: entry.title,
+					updated: entry.updated,
+				});
+			}
 		}
-		const repo = this.repoMap.get(kegpath);
-		console.log({ message: 'HERE', repo });
-		if (!repo) {
-			return [];
-		}
-		const { keg, storage } = repo;
-		console.log({ keg, storage });
-		return [];
+		return results;
 	}
 
 	async setConfig(
@@ -233,7 +228,10 @@ export class Knut {
 	/**
 	 * Share a specific shareable node by providing a link.
 	 */
-	async share({ kegpath, nodeId }: ShareOptions): Promise<string | null> {
+	async share({
+		kegalias: kegpath,
+		nodeId,
+	}: ShareOptions): Promise<string | null> {
 		const repo = this.repoMap.get(kegpath);
 		if (!repo) {
 			return null;

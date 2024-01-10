@@ -1,0 +1,62 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"id": "https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json",
+	"title": "JSON schema for a KEG configuration file",
+	"type": "object",
+	"allowTrailingCommas": false,
+	"properties": {
+		"updated": {
+			"type": "string",
+			"description": "last time updated in "
+		},
+		"kegv": {
+			"type": "string",
+			"description": "Version of keg schema to use",
+			"enum": ["2023-01"]
+		},
+		"title": {
+			"type": "string",
+			"description": "title of keg"
+		},
+		"url": {
+			"type": "string",
+			"description": "URL for the keg"
+		},
+		"linkfmt": {
+			"type": "string",
+			"description": "Format string for a url"
+		},
+		"creator": {
+			"type": "string",
+			"description": "URL for the creator of the keg"
+		},
+		"state": {
+			"type": "string",
+			"description": "Too lazy to look up what this is",
+			"enum": ["living"]
+		},
+		"summary": {
+			"type": "string",
+			"description": "Summary of the keg"
+		},
+		"indexes": {
+			"type": "array",
+			"description": "List of index",
+			"items": {
+				"type": "object",
+				"properties": {
+					"file": {
+						"type": "string",
+						"description": "File to use"
+					},
+					"summary": {
+						"type": "string",
+						"description": "Summary for the index"
+					}
+				},
+				"required": ["file", "summary"]
+			}
+		}
+	},
+	"required": ["kegv"]
+}

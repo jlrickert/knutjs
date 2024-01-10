@@ -1,41 +1,102 @@
 import { EventEmitter } from 'events';
-import { Meta, Tag } from './meta.js';
-import { Storage } from './storage.js';
+import { Meta as MetaFile, Tag } from './metaFile.js';
+import { Storage, Stringer } from './storage.js';
 import { now } from './utils.js';
-import { Markdown } from './markdown.js';
+import { NodeContent } from './nodeContent.js';
 
-export type NodeId = string;
-
-export type NodeData = {
-	title: string;
-	content: string;
-	updated: string;
-	meta: Meta;
+type PartialOrder<T> = {
+	lt: (other: T) => boolean;
+	gt: (other: T) => boolean;
 };
 
-export class Node extends EventEmitter {
-	private data: NodeData;
+type Equality<T> = {
+	equals: (other: T) => boolean;
+};
 
+type Order<T> = (PartialOrder<T> & Equality<T>) & {
+	lte: (other: T) => boolean;
+	gte: (other: T) => boolean;
+};
+
+export class NodeId implements Stringer, Order<NodeId> {
+	constructor(public readonly id: string) {}
+
+	lt(other: NodeId): boolean {
+		return Number(this.id) < Number(other.id);
+	}
+
+	lte(other: NodeId): boolean {
+		return Number(this.id) <= Number(other.id);
+	}
+
+	gt(other: NodeId): boolean {
+		return Number(this.id) > Number(other.id);
+	}
+
+	gte(other: NodeId): boolean {
+		return Number(this.id) >= Number(other.id);
+	}
+
+	equals(other: NodeId): boolean {
+		return this.id === other.id;
+	}
+
+	getMetaPath(): string {
+		return `${this.id}/meta.yaml`;
+	}
+
+	getReadmePath(): string {
+		return `${this.id}/README.md`;
+	}
+
+	stringify(): string {
+		return this.id;
+	}
+}
+
+export type NodeData = {
+	content: NodeContent;
+	updated: string;
+	meta: MetaFile;
+};
+
+export type NodeOptions = {
+	content: string;
+	updated: string;
+	meta?: MetaFile;
+};
+
+/**
+ * Node represents an in memory object containing all data
+ * to be consisdered a keg node
+ **/
+export class Node extends EventEmitter {
 	static isNode(obj: any): obj is Node {
 		return obj instanceof Node;
 	}
 
-	static async load(nodeId: string, storage: Storage): Promise<Node | null> {
-		const nodePath = Node.nodePath(nodeId);
-		const metaPath = Meta.metaPath(nodeId);
-		const content = await storage.read(nodePath);
-		const yaml = await storage.read(metaPath);
-		const meta = yaml ? Meta.fromYAML(yaml) : new Meta();
-		const stats = await storage.stats(nodePath);
-		if (!content || !stats || !stats) {
+	static async load(nodeId: NodeId, storage: Storage): Promise<Node | null> {
+		const nodePath = NodeContent.filePath(nodeId);
+		const metaPath = MetaFile.filePath(nodeId);
+		const contentData = await storage.read(nodePath);
+		if (!contentData) {
 			return null;
 		}
-		const node = new Node({ content, updated: stats.mtime, meta });
+		const yamlData = await storage.read(metaPath);
+		const metaData = yamlData
+			? MetaFile.fromYAML(yamlData)
+			: new MetaFile();
+		const stats = await storage.stats(nodePath);
+		if (!contentData || !stats) {
+			return null;
+		}
+		const content = await NodeContent.fromMarkdown(contentData);
+		const node = new Node({
+			content,
+			updated: stats.mtime,
+			meta: metaData,
+		});
 		return node;
-	}
-
-	static nodePath(nodeId: string): string {
-		return `${nodeId}/README.md`;
 	}
 
 	static parseNodeId(filepath: string): string | null {
@@ -45,45 +106,45 @@ export class Node extends EventEmitter {
 		return nodeId ?? null;
 	}
 
-	static metaPath(nodeId: string): string {
+	static metaPath(nodeId: NodeId): string {
 		return `${nodeId}/meta.yaml`;
 	}
 
-	private mdAst: Markdown;
-	constructor({
-		content,
-		updated: updatedAt,
-		meta,
-	}: {
-		content: string;
-		updated: string;
-		meta: Meta;
-	}) {
-		super();
-		this.mdAst = Markdown.parse(content);
-		this.data = {
-			updated: updatedAt,
-			title: this.mdAst.getTitle() ?? '',
-			content: content,
-			meta: meta,
-		};
+	static async fromContent(options: NodeOptions): Promise<Node> {
+		const content = await NodeContent.fromMarkdown(options.content);
+		return new Node({
+			content,
+			meta: options.meta ?? new MetaFile(),
+			updated: options.updated,
+		});
 	}
 
-	get meta(): Meta {
+	private constructor(private data: NodeData) {
+		super();
+	}
+
+	get title(): string | null {
+		return this.content.title;
+	}
+
+	set title(value: string) {
+		this.content.title = value;
+	}
+
+	get content(): NodeContent {
+		return this.data.content;
+	}
+
+	get meta(): MetaFile {
 		return this.data.meta;
 	}
 
-	get title(): string {
-		return this.data.title;
-	}
-
-	get updatedAt(): string {
+	get updated(): string {
 		return this.data.updated;
 	}
 
-	updateContent(content: string): void {
-		this.data.content = content;
-		this.mdAst = Markdown.parse(content);
+	async updateContent(content: string): Promise<void> {
+		this.data.content = await NodeContent.fromMarkdown(content);
 		this.data.updated = now('Y-m-D H:M');
 
 		this.emit('update', {
@@ -91,8 +152,8 @@ export class Node extends EventEmitter {
 		});
 	}
 
-	updateMeta(f: Meta | ((meta: Meta) => void)): void {
-		if (f instanceof Meta) {
+	updateMeta(f: MetaFile | ((meta: MetaFile) => void)): void {
+		if (f instanceof MetaFile) {
 			this.data.meta = f;
 		} else {
 			f(this.data.meta);
@@ -105,9 +166,5 @@ export class Node extends EventEmitter {
 
 	addDate(datetime: string): void {
 		this.data.meta.add('date', datetime);
-	}
-
-	stringify(): string {
-		return this.data.content;
 	}
 }

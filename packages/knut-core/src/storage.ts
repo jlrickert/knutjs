@@ -3,12 +3,19 @@ import invariant from 'tiny-invariant';
 import { readFile, writeFile, readdir, stat } from 'fs/promises';
 import { Node } from './node.js';
 import { now } from './utils.js';
+import { Dex } from './dex.js';
+import { KegFile } from './kegFile.js';
+
+export type Stringer = {
+	stringify: () => string;
+};
 
 export type Storage = {
 	read(filepath: string): Promise<string | null>;
-	write(filepath: string, contents: string): Promise<void>;
+	write(filepath: string | Stringer, contents: string): Promise<void>;
 	stats(filepath: string): Promise<KegFsStats | null>;
-	listNodes(): Promise<string[] | null>;
+	listIndexPaths(): Promise<string[] | null>;
+	listNodePaths(): Promise<string[] | null>;
 };
 
 type KegFsStats = {
@@ -28,11 +35,54 @@ type KegFs = {
 
 export type memoryStorageOptions = {};
 export class MemoryStorage implements Storage {
-	private data: KegFs = { version: '0.1', nodes: [], index: {} };
+	private data: KegFs = {
+		version: '0.1',
+		nodes: [],
+		index: {},
+	};
 
-	constructor() {}
+	static async copyFrom(
+		storage: FileSystemStorage,
+	): Promise<MemoryStorage | null> {
+		const memStorage = new MemoryStorage();
+		const dex = await Dex.fromStorage(storage);
+		const kegFile = await KegFile.load(storage);
+		if (kegFile === null || dex === null) {
+			return null;
+		}
+		await memStorage.write(kegFile.getFilepath(), kegFile);
 
-	async listNodes(): Promise<string[] | null> {
+		const nodeIndex = dex.getNodeIndex();
+		await memStorage.write(nodeIndex.getFilepath(), nodeIndex);
+
+		const changesIndex = dex.getChangesIndex();
+		await memStorage.write(changesIndex.getFilepath(), changesIndex);
+
+		const nodeList = await storage.listNodePaths();
+		if (nodeList === null) {
+			return null;
+		}
+		for (const filepath of nodeList) {
+			const content = await storage.read(filepath);
+			if (content === null) {
+				continue;
+			}
+			await memStorage.write(filepath, content);
+		}
+		return memStorage;
+	}
+
+	async listIndexPaths(): Promise<string[] | null> {
+		const paths: string[] = [];
+		for (const indexName in this.data.index) {
+			if (this.data.index.hasOwnProperty(indexName)) {
+				paths.push(`dex/${indexName}`);
+			}
+		}
+		return paths;
+	}
+
+	async listNodePaths(): Promise<string[] | null> {
 		const keypaths = [];
 		for (const filepath in this.data.index) {
 			if (this.data.index.hasOwnProperty(filepath)) {
@@ -55,9 +105,14 @@ export class MemoryStorage implements Storage {
 		return data.content;
 	}
 
-	async write(filepath: string, content: string): Promise<void> {
+	async write(filepath: string, content: string | Stringer): Promise<void> {
 		this.data.index[filepath] = this.data.nodes.length;
-		this.data.nodes.push({ content, stats: { mtime: now('Y-m-D H:M') } });
+		const data =
+			typeof content === 'string' ? content : content.stringify();
+		this.data.nodes.push({
+			content: data,
+			stats: { mtime: now('Y-m-D H:M') },
+		});
 	}
 
 	async stats(filepath: string): Promise<KegFsStats | null> {
@@ -76,13 +131,17 @@ export type ApiStorageOptions = {
 export class ApiStorage implements Storage {
 	constructor(options: ApiStorageOptions) {}
 
-	async listNodes(): Promise<string[] | null> {
+	listIndexPaths(): Promise<string[] | null> {
+		throw new Error('Method not implemented.');
+	}
+
+	async listNodePaths(): Promise<string[] | null> {
 		throw new Error('Method not implemented.');
 	}
 	async read(filepath: string): Promise<string | null> {
 		return null;
 	}
-	async write(filepath: string, content: string): Promise<void> {}
+	async write(filepath: string, content: string | Stringer): Promise<void> {}
 
 	async stats(filepath: string): Promise<KegFsStats | null> {
 		return null;
@@ -100,23 +159,31 @@ export class WebStorage implements Storage {
 			throw new Error('WebStorage not supported');
 		}
 	}
+	listIndexPaths(): Promise<string[] | null> {
+		throw new Error('Method not implemented.');
+	}
 	async read(filepath: string): Promise<string | null> {
 		const fs = this.getFS();
 		const index = fs.index[filepath];
 		return fs.nodes[index]?.content ?? null;
 	}
 
-	async write(filepath: string, content: string): Promise<void> {
+	async write(filepath: string, content: string | Stringer): Promise<void> {
+		const data =
+			typeof content === 'string' ? content : content.stringify();
 		this.updateFs((fs) => {
 			const index = fs.index[filepath];
 			if (!index) {
 				fs.index[filepath] = fs.nodes.length;
-				fs.nodes.push({ content, stats: { mtime: now('Y-m-D H:M') } });
+				fs.nodes.push({
+					content: data,
+					stats: { mtime: now('Y-m-D H:M') },
+				});
 			}
 		});
 	}
 
-	async listNodes(): Promise<string[]> {
+	async listNodePaths(): Promise<string[]> {
 		const fs = this.getFS();
 		return Object.keys(fs.index);
 	}
@@ -151,10 +218,8 @@ export class WebStorage implements Storage {
 	}
 }
 
-export type SystemStorageOptions = {
-	kegpath: string;
-};
-export class SystemStorage implements Storage {
+export type FileSystemStorageOptions = { kegpath: string };
+export class FileSystemStorage implements Storage {
 	/**
 	 * Finds the nearest keg file. Here is where it will look for in order
 	 * of higher precendence to lowest:
@@ -166,18 +231,24 @@ export class SystemStorage implements Storage {
 	 * - <git repo>/keg
 	 * - <git repo>/docs/keg
 	 */
-	static async findNearestKegFile(): Promise<string | null> {
+	static async findNearestKegpath(): Promise<string | null> {
 		const env = process.env.KEG_CURRENT;
+		const exists = async (filepath: string): Promise<boolean> => {
+			const stats = await stat(filepath);
+			return stats.isFile();
+		};
 		if (env) {
 			try {
 				const path = Path.join(env, 'keg');
-				await stat(path);
-				return path;
-			} catch (_) {}
+				if (await exists(path)) {
+					return Path.dirname(path);
+				}
+			} catch (e) {}
 			try {
 				const path = Path.join(env, 'docs', 'keg');
-				await stat(path);
-				return path;
+				if (await exists(path)) {
+					return Path.dirname(path);
+				}
 			} catch (e) {}
 		}
 
@@ -203,36 +274,52 @@ export class SystemStorage implements Storage {
 		return null;
 	}
 
-	static fromKegpath(kegpath: string) {}
+	static async findNearest(): Promise<Storage | null> {
+		const kegpath = await FileSystemStorage.findNearestKegpath();
+		if (kegpath === null) {
+			return null;
+		}
+		const storage = new FileSystemStorage({ kegpath });
+		return storage;
+	}
 
 	public readonly kegpath: string;
-	public constructor(options: SystemStorageOptions) {
+	public constructor(options: FileSystemStorageOptions) {
 		this.kegpath = options.kegpath;
 	}
 
-	async listNodes(): Promise<string[] | null> {
+	async listIndexPaths(): Promise<string[] | null> {
+		const dexDir = Path.join(this.kegpath, 'dex');
+		const fileList = await readdir(dexDir);
+		return fileList;
+	}
+
+	async listNodePaths(): Promise<string[] | null> {
 		const dirs = await readdir(this.kegpath);
 		return dirs.filter((dir) => {
 			return !(dir.includes('keg') || dir.includes('dex'));
 		});
 	}
 	async read(filepath: string): Promise<string | null> {
+		const path = Path.join(this.kegpath, filepath);
 		try {
-			const path = Path.join(this.kegpath, filepath);
 			const content = await readFile(path, { encoding: 'utf-8' });
 			return content;
 		} catch (error) {
 			return null;
 		}
 	}
-	async write(filepath: string, contents: string): Promise<void> {
+	async write(filepath: string, contents: string | Stringer): Promise<void> {
+		const data =
+			typeof contents === 'string' ? contents : contents.stringify();
 		try {
 			const path = Path.join(this.kegpath, filepath);
-			writeFile(path, contents, 'utf-8');
+			writeFile(path, data, 'utf-8');
 		} catch (error) {
 			return;
 		}
 	}
+
 	async stats(filepath: string): Promise<KegFsStats | null> {
 		const path = Path.join(this.kegpath, filepath);
 		try {

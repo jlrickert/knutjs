@@ -1,6 +1,7 @@
 import * as YAML from 'yaml';
 import invariant from 'tiny-invariant';
 import { JSONObject, type JSON, unsafeCoerce } from './utils.js';
+import { NodeId } from './node.js';
 
 export type MetaData = JSONObject & {
 	tags?: Tag[];
@@ -22,11 +23,12 @@ export class Meta {
 		return meta;
 	}
 
-	static metaPath(nodeId: string): string {
-		return `${nodeId}/meta.yaml`;
+	static filePath(nodeId: NodeId): string {
+		return `${nodeId.stringify()}/meta.yaml`;
 	}
 
 	private data: MetaData;
+
 	constructor(data?: MetaData) {
 		this.data = data ?? {};
 		// Ensure that tags is a set of at least 1 item or doesn't exist
@@ -63,6 +65,10 @@ export class Meta {
 			'Expect to be a list of strings',
 		);
 		this.data.tags = this.data.tags.filter((a) => a !== tag);
+	}
+
+	getTags(): readonly Tag[] {
+		return this.data.tags ?? [];
 	}
 
 	add(key: string, value: JSON) {

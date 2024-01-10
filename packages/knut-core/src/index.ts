@@ -1,4 +1,4 @@
-export { Config } from './config.js';
+export { ConfigFile } from './configFile.js';
 export { Dex } from './dex.js';
 export { Knut } from './knut.js';
 export { Node } from './node.js';

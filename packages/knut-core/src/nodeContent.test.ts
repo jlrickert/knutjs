@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { Markdown } from './markdown.js';
+import { NodeContent } from './nodeContent.js';
 
-describe('title parsing in markdown file', () => {
+describe('title parsing in markdown file', async () => {
 	const table: Array<{
 		input: string;
 		expected: string;
@@ -21,10 +21,9 @@ describe('title parsing in markdown file', () => {
 	];
 
 	for (const { input, expected } of table) {
-		test(`should be able to parse title ${expected} from ${input}`, () => {
-			const tree = Markdown.parse(input);
-			const actual = tree.getTitle();
-			expect(actual).toBe(expected);
+		test(`should be able to parse title ${expected} from ${input}`, async () => {
+			const content = await NodeContent.fromMarkdown(input);
+			expect(content.title).toBe(expected);
 		});
 	}
 });

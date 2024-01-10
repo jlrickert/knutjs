@@ -10,6 +10,7 @@ export type KegVersion = '2023-01';
  * Plain old data representing a keg
  **/
 export type KegFileData = {
+	$schema: 'https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json';
 	/**
 	 * last time the index has been updated.
 	 **/
@@ -25,21 +26,6 @@ export type KegFileData = {
 };
 
 export class KegFile {
-	/**
-	 * Finds the nearest keg file. Here is where it will look for in order
-	 * of higher precendence to lowest:
-	 *
-	 * - $KEG_CURRENT/keg
-	 * - $KEG_CURRENT/docs/keg
-	 * - ./keg
-	 * - ./docs/keg
-	 * - <git repo>/keg
-	 * - <git repo>/docs/keg
-	 */
-	static findNearest(): string {
-		return '';
-	}
-
 	/**
 	 * Load a keg file for the given path
 	 */
@@ -58,10 +44,20 @@ export class KegFile {
 
 	static default(): KegFile {
 		return new KegFile({
+			$schema:
+				'https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json',
 			updated: currentDate(),
 			kegv: '2023-01',
 			state: 'living',
 		});
+	}
+
+	static getFilepath(): string {
+		return 'keg';
+	}
+
+	getFilepath(): string {
+		return 'keg';
 	}
 
 	private constructor(private data: KegFileData) {}
@@ -71,12 +67,13 @@ export class KegFile {
 	}
 
 	getNodeId(): NodeId {
-		return createId({ count: 5, postfix: 'A' });
+		const id = createId({ count: 5, postfix: 'A' });
+		return new NodeId(id);
 	}
 
 	getLink(nodeId: NodeId): string | null {
 		const linkfmt = this.data.linkfmt;
-		return linkfmt ? linkfmt.replace('{{id}}', nodeId) : null;
+		return linkfmt ? linkfmt.replace('{{id}}', nodeId.stringify()) : null;
 	}
 
 	getIndexList(): IndexEntry[] | null {
@@ -93,10 +90,17 @@ export class KegFile {
 	}
 
 	toYAML(): string {
-		return YAML.stringify(this.data);
+		const schemaLine =
+			'# yaml-language-server: $schema=https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json';
+		const content = YAML.stringify(this.data);
+		return [schemaLine, content].join('\n');
 	}
 
 	toJSON(pretty?: boolean): string {
 		return JSON.stringify(this.data, undefined, pretty ? 2 : undefined);
+	}
+
+	stringify(): string {
+		return this.toJSON();
 	}
 }
