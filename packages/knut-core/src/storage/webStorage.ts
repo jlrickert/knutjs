@@ -1,5 +1,5 @@
-import { isNode, now } from '../utils.js';
-import { KegFsStats, KegStorage, Stringer } from './storage.js';
+import { Stringer, currentEnvironment, now } from '../utils.js';
+import { KegFsStats, KegStorage } from './storage.js';
 
 export type KegFsNode = {
 	content: string;
@@ -17,7 +17,7 @@ export class WebStorage implements KegStorage {
 	private prefix: string;
 	constructor(prefix?: string) {
 		this.prefix = prefix ?? 'kegfs';
-		if (isNode) {
+		if (currentEnvironment !== 'dom') {
 			throw new Error('WebStorage not supported');
 		}
 	}

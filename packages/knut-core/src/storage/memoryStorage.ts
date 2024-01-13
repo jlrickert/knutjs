@@ -2,8 +2,8 @@ import invariant from 'tiny-invariant';
 import { Dex } from '../dex.js';
 import { KegFile } from '../kegFile.js';
 import { Node } from '../node.js';
-import { KegStorage, KegFsStats, Stringer } from './storage.js';
-import { now } from '../utils.js';
+import { KegStorage, KegFsStats } from './storage.js';
+import { Stringer, now } from '../utils.js';
 import { SystemStorage } from './systemStorage.js';
 
 export type KegFsNode = {

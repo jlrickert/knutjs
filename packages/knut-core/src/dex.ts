@@ -1,5 +1,5 @@
-import { Node, NodeId } from './node.js';
-import { Storage } from './storage.js';
+import { KegNode, NodeId } from './node.js';
+import { KegStorage } from './storage/storage.js';
 
 export type DexEntry = {
 	nodeId: NodeId;
@@ -9,13 +9,13 @@ export type DexEntry = {
 };
 
 export type KegIndex = {
-	addNode(nodeId: NodeId, node: Node): void;
+	addNode(nodeId: NodeId, node: KegNode): void;
 	getFilepath(): string;
 	stringify(): string;
 };
 
 export class TagsIndex implements KegIndex {
-	addNode(nodeId: NodeId, node: Node): void {
+	addNode(nodeId: NodeId, node: KegNode): void {
 		throw new Error('Method not implemented.');
 	}
 	getFilepath(): string {
@@ -39,7 +39,7 @@ export class ChangeIndex implements KegIndex {
 
 	constructor() {}
 
-	addNode(nodeId: NodeId, node: Node): void {
+	addNode(nodeId: NodeId, node: KegNode): void {
 		this.addEntry({
 			nodeId: nodeId,
 			title: node.title ?? '',
@@ -85,7 +85,7 @@ export class NodeIndex implements KegIndex {
 
 	constructor() {}
 
-	addNode(nodeId: NodeId, node: Node): void {
+	addNode(nodeId: NodeId, node: KegNode): void {
 		this.addEntry({
 			title: node.title ?? '',
 			updated: node.updated,
@@ -125,7 +125,7 @@ export class Dex {
 	private nodesIndex = new NodeIndex();
 	private indexes = new Map<string, KegIndex>();
 
-	static async fromStorage(storage: Storage) {
+	static async fromStorage(storage: KegStorage) {
 		const content = await storage.read('dex/nodes.tsv');
 		if (content === null) {
 			return null;
@@ -160,7 +160,7 @@ export class Dex {
 		return this.changesIndex;
 	}
 
-	addNode(nodeId: NodeId, node: Node) {
+	addNode(nodeId: NodeId, node: KegNode) {
 		this.nodesIndex.addNode(nodeId, node);
 		this.changesIndex.addNode(nodeId, node);
 		for (const [, index] of this.indexes) {

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { Meta as MetaFile, Tag } from './metaFile.js';
-import { Storage, Stringer } from './storage.js';
-import { now } from './utils.js';
+import { KegStorage } from './storage/storage.js';
+import { Stringer, now } from './utils.js';
 import { NodeContent } from './nodeContent.js';
 
 type PartialOrder<T> = {
@@ -75,7 +75,10 @@ export class Node extends EventEmitter {
 		return obj instanceof Node;
 	}
 
-	static async load(nodeId: NodeId, storage: Storage): Promise<Node | null> {
+	static async load(
+		nodeId: NodeId,
+		storage: KegStorage,
+	): Promise<Node | null> {
 		const nodePath = NodeContent.filePath(nodeId);
 		const metaPath = MetaFile.filePath(nodeId);
 		const contentData = await storage.read(nodePath);

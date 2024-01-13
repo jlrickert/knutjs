@@ -1,10 +1,6 @@
-import { currentEnvironment, isBrowser, isNode } from '../utils.js';
+import { Stringer, currentEnvironment } from '../utils.js';
 import { SystemStorage } from './systemStorage.js';
 import { WebStorage } from './webStorage.js';
-
-export type Stringer = {
-	stringify: () => string;
-};
 
 export type KegStorage = {
 	read(filepath: string): Promise<string | null>;

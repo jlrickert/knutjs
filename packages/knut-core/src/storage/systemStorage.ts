@@ -1,7 +1,8 @@
 import * as Path from 'path';
 import { readFile, writeFile, readdir, stat } from 'fs/promises';
 
-import { KegFsStats, KegStorage, Stringer } from './storage.js';
+import { KegFsStats, KegStorage } from './storage.js';
+import { Stringer } from '../utils.js';
 
 export type SystemStorageOptions = { kegpath: string };
 export class SystemStorage implements KegStorage {

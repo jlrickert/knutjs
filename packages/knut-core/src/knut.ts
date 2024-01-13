@@ -4,7 +4,7 @@ import { Dex } from './dex.js';
 import { Filter } from './filterTypes.js';
 import { KegFile, KegFileData } from './kegFile.js';
 import { Meta, MetaData } from './metaFile.js';
-import { Node, NodeId } from './node.js';
+import { KegNode, NodeId } from './node.js';
 import { JSON, now } from './utils.js';
 import { KegStorage, loadStorage } from './storage/storage.js';
 
@@ -131,7 +131,7 @@ export class Knut {
 		return false;
 	}
 
-	async nodeCreate(options: NodeCreateOptions): Promise<Node | null> {
+	async nodeCreate(options: NodeCreateOptions): Promise<KegNode | null> {
 		const repo = this.repoMap.get(options.kegalias);
 		if (!repo) {
 			return null;
@@ -143,7 +143,7 @@ export class Knut {
 		});
 
 		const nodeId = keg.getNodeId();
-		const node = await Node.fromContent({
+		const node = await KegNode.fromContent({
 			content: options.content,
 			updated,
 		});
@@ -151,13 +151,13 @@ export class Knut {
 		return node;
 	}
 
-	async nodeRead(options: NodeReadOptions): Promise<Node | null> {
+	async nodeRead(options: NodeReadOptions): Promise<KegNode | null> {
 		const repo = this.repoMap.get(options.kegalias);
 		if (!repo) {
 			return null;
 		}
 		const { storage } = repo;
-		const node = await Node.load(options.nodeId, storage);
+		const node = await KegNode.load(options.nodeId, storage);
 		return node;
 	}
 
@@ -172,7 +172,7 @@ export class Knut {
 			return;
 		}
 		const { storage } = repo;
-		const node = await Node.load(new NodeId(nodeId), storage);
+		const node = await KegNode.load(new NodeId(nodeId), storage);
 		if (!node) {
 			return;
 		}
@@ -332,7 +332,7 @@ export class Knut {
 		}
 		const { keg, storage } = repo;
 		const link = keg.getLink(nodeId);
-		const node = await Node.load(nodeId, storage);
+		const node = await KegNode.load(nodeId, storage);
 		return link;
 	}
 

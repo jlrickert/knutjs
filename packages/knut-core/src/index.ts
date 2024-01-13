@@ -1,7 +1,7 @@
 export { ConfigFile } from './configFile.js';
 export { Dex } from './dex.js';
 export { Knut } from './knut.js';
-export { Node } from './node.js';
+export { KegNode as Node } from './node.js';
 
 // const log = (cmd: string): void => {
 // 	console.log(`Running "${cmd}"`);

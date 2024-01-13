@@ -1,5 +1,4 @@
 import { randomInt } from 'crypto';
-import { type NodeId } from './node.js';
 
 export type JSONObject = { [key: string]: JSON };
 export type JSONArray = JSON[];
@@ -62,3 +61,7 @@ const isBrowser =
 
 type Environment = 'node' | 'dom';
 export const currentEnvironment: Environment = isBrowser ? 'dom' : 'node';
+
+export type Stringer = {
+	stringify: () => string;
+};
