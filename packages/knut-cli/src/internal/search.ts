@@ -17,9 +17,13 @@ export const search = async (query: string, options: SearchOptions) => {
 			storage: kegpath,
 		});
 	}
-	const results = await knut.search(options.kegpaths, {
-		content: { $query: query },
-		tags: options?.tags,
+	const results = await knut.search({
+		kegalias: options.kegpaths,
+		filter: {
+			$text: { $search: query },
+			content: { $query: query },
+			tags: options.tags,
+		},
 	});
 	if (options.raw) {
 		console.log(JSON.stringify(results));
