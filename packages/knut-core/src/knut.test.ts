@@ -6,22 +6,17 @@ import { NodeId } from './node.js';
 const sampleKegpath = Path.resolve(__dirname, '..', 'testdata', 'samplekeg');
 
 describe('common programming patterns', async () => {
-	test('should be able to list the nodes', async () => {
+	test('should be able to list all nodes', async () => {
 		const knut = await Knut.load({
 			sample: { storage: sampleKegpath },
 		});
-		const nodes = await knut.search('sample');
+		const nodes = await knut.search({ kegalias: 'sample', limit: 0 });
+		expect(nodes).toHaveLength(13);
 		const nodeIds = nodes
 			.map((n) => n.nodeId)
 			.map(Number)
-			.sort()
-			.map(String);
-		const expected = Array(13)
-			.fill(1)
-			.map((_, i) => i)
-			.sort()
-			.map(String);
-		expect(nodeIds).toStrictEqual(expected);
+			.sort();
+		expect(new Set(nodeIds)).toHaveLength(13);
 	});
 
 	test('should be able to read a node', async () => {

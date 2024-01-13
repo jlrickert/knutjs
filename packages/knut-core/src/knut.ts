@@ -1,13 +1,12 @@
-import { expect } from 'vitest';
+import Fuse, { FuseOptionKey, FuseSearchOptions } from 'fuse.js';
 import { ConfigFile } from './configFile.js';
-import { DexEntry } from './dex.js';
 import { Dex } from './dex.js';
 import { Filter } from './filterTypes.js';
 import { KegFile, KegFileData } from './kegFile.js';
 import { Meta, MetaData } from './metaFile.js';
 import { Node, NodeId } from './node.js';
 import { Storage, FileSystemStorage } from './storage.js';
-import { now } from './utils.js';
+import { JSON, now } from './utils.js';
 
 export type KegOptions = {
 	autoIndex?: boolean;
@@ -48,7 +47,15 @@ export type NodeFilterOptions = {
 	date: string;
 	links: string[];
 	backlinks: string[];
+	author: string;
 	meta: Meta;
+};
+
+export type SearchOptions = {
+	kegalias: string | string[];
+	filter?: Filter<NodeFilterOptions>;
+	limit?: number;
+	strategy?: SearchStrategy;
 };
 
 export type NodeSearchResult = {
@@ -57,6 +64,9 @@ export type NodeSearchResult = {
 	title: string;
 	updated: string;
 	rank: number;
+	tags: string[];
+	author: string | null;
+	meta: JSON;
 };
 
 export type ShareOptions = {
@@ -174,28 +184,112 @@ export class Knut {
 		}
 	}
 
-	async search(
-		kegalias: string | string[],
-		filter?: Filter<NodeFilterOptions>,
-	): Promise<NodeSearchResult[]> {
+	async search({
+		kegalias,
+		limit,
+		filter,
+	}: SearchOptions): Promise<NodeSearchResult[]> {
 		const kegs = Array.isArray(kegalias) ? kegalias : [kegalias];
 		const results: NodeSearchResult[] = [];
+		type Data = {
+			nodeId: string;
+			kegalias: string;
+			content: string;
+			title: string;
+			author: string | null;
+			tags: string[];
+			updated: string;
+			meta: JSON;
+		};
+		const data: Data[] = [];
 		for (const kegalias of kegs) {
 			const repo = this.repoMap.get(kegalias);
 			if (!repo) {
 				continue;
 			}
-			const { dex } = repo;
+			const { keg, dex } = repo;
+			const author = keg.getAuthor();
 			const entryList = dex.getEntries();
 			for (const entry of entryList) {
-				results.push({
-					nodeId: entry.nodeId.stringify(),
+				const node = await this.nodeRead({
 					kegalias,
-					rank: -1,
-					title: entry.title,
-					updated: entry.updated,
+					nodeId: entry.nodeId,
+				});
+				const content = node?.content.stringify() ?? '';
+				const tags = node?.getTags() ?? [];
+				// Only include if node has the expected tag
+				if (Array.isArray(filter?.tags)) {
+					if (
+						!filter.tags.reduce(
+							(acc, tag) => acc && tags.includes(tag),
+							true,
+						)
+					) {
+						continue;
+					}
+				}
+				data.push({
+					content,
+					kegalias,
+					nodeId: entry.nodeId.stringify(),
+					title: node?.title ?? '',
+					author,
+					tags: [...tags],
+					updated: node?.updated ?? '',
+					meta: node?.meta.export() ?? null,
 				});
 			}
+		}
+		const search = filter?.$text?.$search ?? '';
+		if ((filter && Object.keys(filter).length === 0) || search === '') {
+			const results: NodeSearchResult[] = [];
+			for (let i = 0; i < data.length; i++) {
+				const item = data[i];
+				results.push({
+					author: item.author,
+					meta: item.meta,
+					title: item.title,
+					tags: item.tags,
+					nodeId: item.nodeId,
+					updated: item.updated,
+					rank: 1,
+					kegalias: item.kegalias,
+				});
+			}
+			return results;
+		}
+		const keys: FuseOptionKey<Data>[] = [
+			{ name: 'title', weight: 2 },
+			'content',
+		];
+		const indexData = Fuse.createIndex(keys, data);
+		const index = Fuse.parseIndex<Data>(indexData);
+		const fuse = new Fuse(
+			data,
+			{
+				keys,
+				includeScore: true,
+				isCaseSensitive: false,
+				findAllMatches: true,
+			},
+			index,
+		);
+
+		const fuseOptions: FuseSearchOptions | undefined =
+			!limit || limit <= 0 ? undefined : { limit };
+		const fuseResult = fuse.search(search, fuseOptions);
+
+		for (const result of fuseResult) {
+			results.push({
+				kegalias: result.item.kegalias,
+				nodeId: result.item.nodeId,
+				title: result.item.title,
+				rank: result.score ?? 0,
+				updated: result.item.updated,
+				author: result.item.author,
+				tags: result.item.tags,
+				meta: result.item.meta,
+			});
 		}
 		return results;
 	}

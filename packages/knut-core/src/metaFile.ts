@@ -97,6 +97,10 @@ export class Meta {
 		delete this.data[key];
 	}
 
+	export(): JSON {
+		return { ...this.data };
+	}
+
 	stringify() {
 		return YAML.stringify(this.data);
 	}

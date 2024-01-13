@@ -71,6 +71,10 @@ export class KegFile {
 		return new NodeId(id);
 	}
 
+	getAuthor(): string | null {
+		return this.data.creator ?? null;
+	}
+
 	getLink(nodeId: NodeId): string | null {
 		const linkfmt = this.data.linkfmt;
 		return linkfmt ? linkfmt.replace('{{id}}', nodeId.stringify()) : null;

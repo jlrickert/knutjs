@@ -164,6 +164,10 @@ export class Node extends EventEmitter {
 		this.data.meta.addTag(tag);
 	}
 
+	getTags(): readonly string[] {
+		return this.data.meta.getTags();
+	}
+
 	addDate(datetime: string): void {
 		this.data.meta.add('date', datetime);
 	}
