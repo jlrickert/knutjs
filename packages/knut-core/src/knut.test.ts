@@ -1,9 +1,10 @@
 import Path from 'path';
+import { readFile } from 'fs/promises';
 import { test, describe, expect } from 'vitest';
 import { Knut } from './knut.js';
 import { NodeId } from './node.js';
-
-const sampleKegpath = Path.resolve(__dirname, '..', 'testdata', 'samplekeg');
+import { NodeContent } from './nodeContent.js';
+import { sampleKegpath } from './internal/testUtils.js';
 
 describe('common programming patterns', async () => {
 	test('should be able to list all nodes', async () => {
@@ -28,15 +29,10 @@ describe('common programming patterns', async () => {
 			nodeId: new NodeId('0'),
 		});
 		expect(node?.title).toEqual('Sorry, planned but not yet available');
-		expect(node?.content.stringify()).toEqual(
-			`
-# Sorry, planned but not yet available
-
-This is a filler until I can provide someone better for the link that brought
-you here. If you are really anxious, consider opening an issue describing why
-you would like this missing content created before the rest.
-`.trimStart(),
+		const nodeContent = await readFile(
+			Path.join(sampleKegpath, NodeContent.filePath(new NodeId('0'))),
 		);
+		expect(node?.content.stringify()).toEqual(nodeContent.toString());
 	});
 
 	test('should be able to create a new node', () => {

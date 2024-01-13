@@ -59,8 +59,7 @@ linking to [a file](somefile) must be local[^1].
 - [Include node 3 as a lede paragraph](../3?L)
 - [Include node 4 with no heading](../4?0)
 
-[^1]:
-    This footnote explains that local is same directory as README.md (no slash).
+[^1]: This footnote explains that local is same directory as README.md (no slash).
 ```
 
 [^start]: <https://rwxrob.github.com/keg>

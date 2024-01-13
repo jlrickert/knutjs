@@ -19,6 +19,5 @@ Content nodes are written in KEGML. Have a look at the [sample content node](1) 
 
 Being the main entry point, KEGMLX is allowed which includes the following:
 
-* Multiple headings
-* Special node include links (no `../`, but have **query code**)
-
+- Multiple headings
+- Special node include links (no `../`, but have **query code**)

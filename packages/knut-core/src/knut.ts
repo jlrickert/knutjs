@@ -5,15 +5,15 @@ import { Filter } from './filterTypes.js';
 import { KegFile, KegFileData } from './kegFile.js';
 import { Meta, MetaData } from './metaFile.js';
 import { Node, NodeId } from './node.js';
-import { Storage, FileSystemStorage } from './storage.js';
 import { JSON, now } from './utils.js';
+import { KegStorage, loadStorage } from './storage/storage.js';
 
 export type KegOptions = {
 	autoIndex?: boolean;
 	/**
 	 * Storage or a filesystem path to the keg if a file system is present
 	 */
-	storage: Storage | string;
+	storage: KegStorage | string;
 };
 
 export type NodeCreateOptions = {
@@ -83,7 +83,7 @@ export type SearchStrategy = 'classic' | 'semantic';
 type Repo = {
 	keg: KegFile;
 	dex: Dex;
-	storage: Storage;
+	storage: KegStorage;
 };
 
 /**
@@ -111,7 +111,7 @@ export class Knut {
 	async loadKeg(kegAlias: string, options: KegOptions): Promise<void> {
 		const storage =
 			typeof options.storage === 'string'
-				? new FileSystemStorage({ kegpath: options.storage })
+				? loadStorage(options.storage)
 				: options.storage;
 		const dex = await Dex.fromStorage(storage);
 		const keg = await KegFile.load(storage);

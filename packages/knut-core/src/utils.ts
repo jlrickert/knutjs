@@ -55,3 +55,10 @@ export const now = (format: DateFormat): string => {
 		}
 	}
 };
+
+const isBrowser =
+	typeof global.window !== 'undefined' &&
+	typeof window.localStorage !== 'undefined';
+
+type Environment = 'node' | 'dom';
+export const currentEnvironment: Environment = isBrowser ? 'dom' : 'node';
