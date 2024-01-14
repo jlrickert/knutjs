@@ -1,7 +1,7 @@
 import invariant from 'tiny-invariant';
 import { Dex } from '../dex.js';
 import { KegFile } from '../kegFile.js';
-import { Node } from '../node.js';
+import { KegNode } from '../node.js';
 import { KegStorage, KegFsStats } from './storage.js';
 import { Stringer, now } from '../utils.js';
 import { SystemStorage } from './systemStorage.js';
@@ -71,7 +71,7 @@ export class MemoryStorage implements KegStorage {
 		const keypaths = [];
 		for (const filepath in this.data.index) {
 			if (this.data.index.hasOwnProperty(filepath)) {
-				const nodeId = Node.parseNodeId(filepath);
+				const nodeId = KegNode.parseNodeId(filepath);
 				if (nodeId) {
 					keypaths.push(nodeId);
 				}

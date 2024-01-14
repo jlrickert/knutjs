@@ -70,15 +70,15 @@ export type NodeOptions = {
  * Node represents an in memory object containing all data
  * to be consisdered a keg node
  **/
-export class Node extends EventEmitter {
-	static isNode(obj: any): obj is Node {
-		return obj instanceof Node;
+export class KegNode extends EventEmitter {
+	static isNode(obj: any): obj is KegNode {
+		return obj instanceof KegNode;
 	}
 
 	static async load(
 		nodeId: NodeId,
 		storage: KegStorage,
-	): Promise<Node | null> {
+	): Promise<KegNode | null> {
 		const nodePath = NodeContent.filePath(nodeId);
 		const metaPath = MetaFile.filePath(nodeId);
 		const contentData = await storage.read(nodePath);
@@ -94,7 +94,7 @@ export class Node extends EventEmitter {
 			return null;
 		}
 		const content = await NodeContent.fromMarkdown(contentData);
-		const node = new Node({
+		const node = new KegNode({
 			content,
 			updated: stats.mtime,
 			meta: metaData,
@@ -113,9 +113,9 @@ export class Node extends EventEmitter {
 		return `${nodeId}/meta.yaml`;
 	}
 
-	static async fromContent(options: NodeOptions): Promise<Node> {
+	static async fromContent(options: NodeOptions): Promise<KegNode> {
 		const content = await NodeContent.fromMarkdown(options.content);
-		return new Node({
+		return new KegNode({
 			content,
 			meta: options.meta ?? new MetaFile(),
 			updated: options.updated,
