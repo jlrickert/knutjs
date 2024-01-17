@@ -1,11 +1,12 @@
 import * as Path from 'path';
 import { readFile, writeFile, readdir, stat } from 'fs/promises';
 
-import { KegFsStats, KegStorage } from './storage.js';
+import { KegFsStats, KegStorage } from './kegStorage.js';
 import { Stringer } from '../utils.js';
+import { Dex } from '../dex.js';
 
-export type SystemStorageOptions = { kegpath: string };
-export class SystemStorage implements KegStorage {
+export type KegSystemStorageOptions = { kegpath: string };
+export class KegSystemStorage implements KegStorage {
 	/**
 	 * Finds the nearest keg file. Here is where it will look for in order
 	 * of higher precendence to lowest:
@@ -17,29 +18,9 @@ export class SystemStorage implements KegStorage {
 	 * - <git repo>/keg
 	 * - <git repo>/docs/keg
 	 */
-	static async findNearestKegpath(): Promise<string | null> {
-		const env = process.env.KEG_CURRENT;
-		const exists = async (filepath: string): Promise<boolean> => {
-			const stats = await stat(filepath);
-			return stats.isFile();
-		};
-		if (env) {
-			try {
-				const path = Path.join(env, 'keg');
-				if (await exists(path)) {
-					return Path.dirname(path);
-				}
-			} catch (e) {}
-			try {
-				const path = Path.join(env, 'docs', 'keg');
-				if (await exists(path)) {
-					return Path.dirname(path);
-				}
-			} catch (e) {}
-		}
-
+	static async findNearestKegpath(rootDir?: string): Promise<string | null> {
 		// Look for a child keg from root
-		let root: string | null = process.cwd();
+		let root: string | null = rootDir ?? process.cwd();
 		const thingsToCheck: string[] = [];
 		while (root) {
 			let dirs = await readdir(root);
@@ -57,21 +38,45 @@ export class SystemStorage implements KegStorage {
 			}
 			root = thingsToCheck.shift() ?? null;
 		}
+		root = rootDir ?? process.cwd();
+		if (root === '/') {
+			return null;
+		}
+		this.findNearestKegpath(Path.dirname(root));
 		return null;
 	}
 
 	static async findNearest(): Promise<KegStorage | null> {
-		const kegpath = await SystemStorage.findNearestKegpath();
+		const env = process.env.KEG_CURRENT;
+		const exists = async (filepath: string): Promise<boolean> => {
+			const stats = await stat(filepath);
+			return stats.isFile();
+		};
+
+		// Check for a keg file in KEG_CURRENT
+		if (env) {
+			try {
+				const path = Path.join(env, 'keg');
+				if (await exists(path)) {
+					return new KegSystemStorage({ kegpath: env });
+				}
+			} catch (e) {
+				// TODO: Add some sort of warning here
+				return null;
+			}
+		}
+
+		const kegpath = await KegSystemStorage.findNearestKegpath();
 		if (kegpath === null) {
 			return null;
 		}
-		const storage = new SystemStorage({ kegpath });
+		const storage = new KegSystemStorage({ kegpath });
 		return storage;
 	}
 
 	public readonly kegpath: string;
-	public constructor(options: SystemStorageOptions) {
-		this.kegpath = options.kegpath;
+	public constructor(options: KegSystemStorageOptions) {
+		this.kegpath = Path.resolve(options.kegpath);
 	}
 
 	async listIndexPaths(): Promise<string[] | null> {
@@ -81,11 +86,14 @@ export class SystemStorage implements KegStorage {
 	}
 
 	async listNodePaths(): Promise<string[] | null> {
-		const dirs = await readdir(this.kegpath);
-		return dirs.filter((dir) => {
-			return !(dir.includes('keg') || dir.includes('dex'));
-		});
+		const dex = await Dex.fromStorage(this);
+		if (!dex) {
+			return null;
+		}
+		const entries = dex.getEntries();
+		return entries.map((entry) => entry.nodeId.stringify());
 	}
+
 	async read(filepath: string): Promise<string | null> {
 		const path = Path.join(this.kegpath, filepath);
 		try {

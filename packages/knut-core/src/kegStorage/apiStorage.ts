@@ -1,5 +1,5 @@
 import { Stringer } from '../utils.js';
-import { KegFsStats, KegStorage } from './storage.js';
+import { KegFsStats, KegStorage } from './kegStorage.js';
 
 export type ApiStorageOptions = {
 	url: string;

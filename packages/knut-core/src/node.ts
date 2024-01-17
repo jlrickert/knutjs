@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { Meta as MetaFile, Tag } from './metaFile.js';
-import { KegStorage } from './storage/storage.js';
+import { KegStorage } from './kegStorage/index.js';
 import { Stringer, now } from './utils.js';
 import { NodeContent } from './nodeContent.js';
 

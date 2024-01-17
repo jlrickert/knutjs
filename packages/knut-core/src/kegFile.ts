@@ -1,6 +1,6 @@
 import * as YAML from 'yaml';
 import { IndexEntry, type IndexEntryData } from './indexes.js';
-import { KegStorage } from './storage/storage.js';
+import { KegStorage } from './kegStorage/index.js';
 import { createId, currentDate } from './utils.js';
 import { NodeId } from './node.js';
 
@@ -29,7 +29,7 @@ export class KegFile {
 	/**
 	 * Load a keg file for the given path
 	 */
-	static async load(storage: KegStorage): Promise<KegFile | null> {
+	static async fromStorage(storage: KegStorage): Promise<KegFile | null> {
 		const kegdata = await storage.read('keg');
 		if (!kegdata) {
 			return null;

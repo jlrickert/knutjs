@@ -1,0 +1,5 @@
+# yaml-language-server: $schema=../../../knutSchema.json
+format: yaml
+kegs:
+  - url: ../../samplekeg
+    alias: sample

@@ -5,6 +5,16 @@
 	"type": "object",
 	"allowTrailingCommas": false,
 	"properties": {
+		"version": {
+			"type": "string",
+			"description": "knut config file version",
+			"enum": ["draft-0.1"]
+		},
+		"format": {
+			"type": "string",
+			"description": "prefered format to use",
+			"enum": ["yaml", "json"]
+		},
 		"kegs": {
 			"type": "array",
 			"description": "Config for a keg",

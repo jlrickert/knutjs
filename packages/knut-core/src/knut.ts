@@ -1,12 +1,13 @@
 import Fuse, { FuseOptionKey, FuseSearchOptions } from 'fuse.js';
-import { ConfigFile } from './configFile.js';
+import { KnutConfigFile } from './configFile.js';
 import { Dex } from './dex.js';
 import { Filter } from './filterTypes.js';
 import { KegFile, KegFileData } from './kegFile.js';
 import { Meta, MetaData } from './metaFile.js';
 import { KegNode, NodeId } from './node.js';
 import { JSON, now } from './utils.js';
-import { KegStorage, loadStorage } from './storage/storage.js';
+import { KegStorage, loadKegStorage } from './kegStorage/index.js';
+import { KnutStorage, loadKnutStorage } from './knutStorage/knutStorage.js';
 
 export type KegOptions = {
 	autoIndex?: boolean;
@@ -42,6 +43,7 @@ export type NodeDeleteOptions = {
 
 export type NodeFilterOptions = {
 	title: string;
+	kegalias: string;
 	content: string;
 	tags: string[];
 	date: string;
@@ -52,7 +54,6 @@ export type NodeFilterOptions = {
 };
 
 export type SearchOptions = {
-	kegalias: string | string[];
 	filter?: Filter<NodeFilterOptions>;
 	limit?: number;
 	strategy?: SearchStrategy;
@@ -80,6 +81,10 @@ type PublishOptions = {
 
 export type SearchStrategy = 'classic' | 'semantic';
 
+export type KnutOptions = {
+	storage: KnutStorage;
+};
+
 type Repo = {
 	keg: KegFile;
 	dex: Dex;
@@ -91,19 +96,29 @@ type Repo = {
  **/
 export class Knut {
 	private repoMap = new Map<string, Repo>();
+	private storage: KnutStorage;
 
-	static async load(options: Record<string, KegOptions>): Promise<Knut> {
-		const knut = new Knut();
-		if (options) {
-			for (const kegAlias in options) {
-				const option = options[kegAlias];
-				await knut.loadKeg(kegAlias, option);
-			}
+	static async loadDefaults(): Promise<Knut | null> {
+		const storage = await loadKnutStorage();
+		if (!storage) {
+			return null;
 		}
+		return Knut.fromStorage(storage);
+	}
+
+	static async fromStorage(storage?: KnutStorage): Promise<Knut> {
+		const store = storage ?? (await loadKnutStorage());
+		const userConfig = await KnutConfigFile.fromUserConfig(store);
+		const dataConfig = await KnutConfigFile.fromUserData(store);
+		const config = dataConfig.concat(userConfig);
+		const knut = new Knut({ storage: store });
+		await knut.init(config);
 		return knut;
 	}
 
-	constructor() {}
+	private constructor(options: KnutOptions) {
+		this.storage = options?.storage;
+	}
 
 	/**
 	 * Loads required data for a keg
@@ -111,10 +126,10 @@ export class Knut {
 	async loadKeg(kegAlias: string, options: KegOptions): Promise<void> {
 		const storage =
 			typeof options.storage === 'string'
-				? loadStorage(options.storage)
+				? loadKegStorage(options.storage)
 				: options.storage;
 		const dex = await Dex.fromStorage(storage);
-		const keg = await KegFile.load(storage);
+		const keg = await KegFile.fromStorage(storage);
 		if (keg === null || dex === null) {
 			return;
 		}
@@ -122,10 +137,25 @@ export class Knut {
 		this.repoMap.set(kegAlias, { keg: keg, dex: dex, storage });
 	}
 
-	async updateConfig(
-		kegAlias: string,
-		updater: (config: ConfigFile) => void,
-	): Promise<void> {}
+	async updateUserConfig(
+		updater: (config: KnutConfigFile) => void,
+	): Promise<void> {
+		const userConfig = await KnutConfigFile.fromUserConfig(this.storage);
+		const dataConfig = await KnutConfigFile.fromUserData(this.storage);
+
+		updater(userConfig);
+		this.storage.writeConfig(userConfig.filepath, userConfig);
+
+		const config = dataConfig.concat(userConfig);
+		this.init(config);
+	}
+
+	private async init(config: KnutConfigFile) {
+		this.repoMap.clear();
+		for (const keg of config.data.kegs) {
+			await this.loadKeg(keg.alias, { storage: keg.url });
+		}
+	}
 
 	async indexUpdate(kegAlias: string): Promise<boolean> {
 		return false;
@@ -185,11 +215,9 @@ export class Knut {
 	}
 
 	async search({
-		kegalias,
 		limit,
 		filter,
 	}: SearchOptions): Promise<NodeSearchResult[]> {
-		const kegs = Array.isArray(kegalias) ? kegalias : [kegalias];
 		const results: NodeSearchResult[] = [];
 		type Data = {
 			nodeId: string;
@@ -202,11 +230,7 @@ export class Knut {
 			meta: JSON;
 		};
 		const data: Data[] = [];
-		for (const kegalias of kegs) {
-			const repo = this.repoMap.get(kegalias);
-			if (!repo) {
-				continue;
-			}
+		for (const [kegalias, repo] of this.repoMap) {
 			const { keg, dex } = repo;
 			const author = keg.getAuthor();
 			const entryList = dex.getEntries();
@@ -346,13 +370,13 @@ export class Knut {
 	 */
 	async merge(from: string | string[], to: string): Promise<void> {}
 
-	getKeg(kegpath: string): KegFile | null {
-		const repo = this.repoMap.get(kegpath);
+	getKegFile(kegalias: string): KegFile | null {
+		const repo = this.repoMap.get(kegalias);
 		return repo?.keg ?? null;
 	}
 
-	getDex(kegpath: string): Dex | null {
-		const repo = this.repoMap.get(kegpath);
+	getDex(kegalias: string): Dex | null {
+		const repo = this.repoMap.get(kegalias);
 		return repo?.dex ?? null;
 	}
 }

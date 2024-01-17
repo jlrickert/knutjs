@@ -2,9 +2,9 @@ import invariant from 'tiny-invariant';
 import { Dex } from '../dex.js';
 import { KegFile } from '../kegFile.js';
 import { KegNode } from '../node.js';
-import { KegStorage, KegFsStats } from './storage.js';
+import { KegStorage, KegFsStats } from './kegStorage.js';
 import { Stringer, now } from '../utils.js';
-import { SystemStorage } from './systemStorage.js';
+import { KegSystemStorage } from './systemStorage.js';
 
 export type KegFsNode = {
 	content: string;
@@ -18,8 +18,8 @@ export type KegFs = {
 	index: { [filepath: string]: number };
 };
 
-export type MemoryStorageOptions = {};
-export class MemoryStorage implements KegStorage {
+export type KegMemoryStorageOptions = {};
+export class KegMemoryStorage implements KegStorage {
 	private data: KegFs = {
 		version: '0.1',
 		nodes: [],
@@ -27,11 +27,11 @@ export class MemoryStorage implements KegStorage {
 	};
 
 	static async copyFrom(
-		storage: SystemStorage,
-	): Promise<MemoryStorage | null> {
-		const memStorage = new MemoryStorage();
+		storage: KegSystemStorage,
+	): Promise<KegMemoryStorage | null> {
+		const memStorage = new KegMemoryStorage();
 		const dex = await Dex.fromStorage(storage);
-		const kegFile = await KegFile.load(storage);
+		const kegFile = await KegFile.fromStorage(storage);
 		if (kegFile === null || dex === null) {
 			return null;
 		}

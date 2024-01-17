@@ -1,5 +1,5 @@
 import { Stringer, currentEnvironment, now } from '../utils.js';
-import { KegFsStats, KegStorage } from './storage.js';
+import { KegFsStats, KegStorage } from './kegStorage.js';
 
 export type KegFsNode = {
 	content: string;

@@ -1,17 +1,36 @@
 import Path from 'path';
-import { readFile } from 'fs/promises';
-import { test, describe, expect } from 'vitest';
+import { readFile, mkdtemp, rmdir } from 'fs/promises';
+import { test, describe, expect, beforeAll, afterAll } from 'vitest';
 import { Knut } from './knut.js';
 import { NodeId } from './node.js';
 import { NodeContent } from './nodeContent.js';
-import { sampleKegpath } from './internal/testUtils.js';
+import { knutConfigPath, sampleKegpath } from './internal/testUtils.js';
+import { KnutSystemStorage } from './knutStorage/systemStorage.js';
+import { tmpdir } from 'os';
+
+const cacheRoot = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
+const sampleKnutStorage = new KnutSystemStorage({
+	configRoot: knutConfigPath,
+	dataRoot: knutConfigPath,
+	cacheRoot: cacheRoot,
+});
 
 describe('common programming patterns', async () => {
+	beforeAll(async () => {});
+
+	afterAll(async () => {
+		await rmdir(cacheRoot);
+	});
+
+	test('should be able to load keg file details from sample keg', async () => {
+		const knut = await Knut.fromStorage(sampleKnutStorage);
+		const kegFile = knut.getKegFile('sample');
+		expect(kegFile?.getAuthor()).toEqual('git@github.com:YOU/YOU.git');
+	});
+
 	test('should be able to list all nodes', async () => {
-		const knut = await Knut.load({
-			sample: { storage: sampleKegpath },
-		});
-		const nodes = await knut.search({ kegalias: 'sample', limit: 0 });
+		const knut = await Knut.fromStorage(sampleKnutStorage);
+		const nodes = await knut.search({ limit: 0 });
 		expect(nodes).toHaveLength(13);
 		const nodeIds = nodes
 			.map((n) => n.nodeId)
@@ -21,9 +40,7 @@ describe('common programming patterns', async () => {
 	});
 
 	test('should be able to read a node', async () => {
-		const knut = await Knut.load({
-			sample: { storage: sampleKegpath },
-		});
+		const knut = await Knut.fromStorage(sampleKnutStorage);
 		const node = await knut.nodeRead({
 			kegalias: 'sample',
 			nodeId: new NodeId('0'),
@@ -35,45 +52,5 @@ describe('common programming patterns', async () => {
 		expect(node?.content.stringify()).toEqual(nodeContent.toString());
 	});
 
-	test('should be able to create a new node', () => {
-		// const node = knut.nodeCreate({
-		// 	kegpath: sampleKegpath,
-		// 	content: `# Some title`,
-		// });
-		// const nodeList = knut.search(sampleKegpath);
-		// expect(nodeList).contains(node.id);
-	});
-
-	// test('should be able to find the nearest keg', () => {
-	// 	const knut = Knut.load({ [sampleKegpath]: {} });
-	// });
-	//
-	// test('should be able read a node for a given node path', () => {
-	// 	const knut = Knut.load({
-	// 		[sampleKegpath]: {
-	// 			storage: new SystemStorage({ kegpath: sampleKegpath }),
-	// 		},
-	// 	});
-	//
-	// 	const node = knut.nodeRead({ kegpath: sampleKegpath, nodeId: '2' });
-	// 	expect(node.content).toEqual('# Some title for 2');
-	// 	expect(node.title).toEqual('Some title for 2');
-	// });
-	//
-	// test('should be able to find nodes with a specific tag', () => {
-	// 	const knut = Knut.load({ [sampleKegpath]: {} });
-	//
-	// 	const list = knut.search(sampleKegpath, {
-	// 		tags: { $eq: 'example' },
-	// 	});
-	// 	expect(list).includes(10);
-	// 	expect(list).includes(12);
-	// });
-	//
-	// test('should be able to share with some one', () => {
-	// 	const knut = Knut.load({ [sampleKegpath]: {} });
-	//
-	// 	const link = knut.share({ kegpath: sampleKegpath, nodeId: '12' });
-	// 	expect(link).toEqual('https://whatisthis.com');
-	// });
+	test('should be able to create a new node', () => {});
 });

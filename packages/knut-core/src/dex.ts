@@ -1,5 +1,5 @@
 import { KegNode, NodeId } from './node.js';
-import { KegStorage } from './storage/storage.js';
+import { KegStorage } from './kegStorage/kegStorage.js';
 
 export type DexEntry = {
 	nodeId: NodeId;
