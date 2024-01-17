@@ -1,5 +1,11 @@
 # @jlrickert/knutjs-core
 
+## 0.2.1
+
+### Patch Changes
+
+- bc4bec4: remove test files from released code
+
 ## 0.2.0
 
 ### Minor Changes
