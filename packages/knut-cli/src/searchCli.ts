@@ -14,6 +14,7 @@ import { search } from './internal/search.js';
 export const searchCli = KnutCommand('search')
 	.argument('[query]')
 	.option('-t, --tag <tag...>', 'comma separated list of tags')
+	.option('-l, --limit <limit>', 'limit of search results')
 	.addOption(jsonOption)
 	.addOption(rawOption)
 	.addOption(yamlOption)
@@ -23,7 +24,7 @@ export const searchCli = KnutCommand('search')
 			options: YAMLOption &
 				JSONOption &
 				KegPathOption &
-				RawOption & { tag?: string[] },
+				RawOption & { tag?: string[]; limit?: string },
 			command: Command,
 		) => {
 			await search(query ?? '', {
@@ -33,6 +34,7 @@ export const searchCli = KnutCommand('search')
 				pager: false,
 				kegpaths: options.kegpath ?? [],
 				raw: options.raw,
+				limit: options.limit ? parseInt(options.limit) : 10,
 			});
 		},
 	);
