@@ -1,0 +1,5 @@
+{
+	"$schema": "https://raw.githubusercontent.com/changesets/changesets/main/packages/config/schema.json",
+	"name": "Monorepo with Changesets",
+	"description": "Simple Next.js monorepo preconfigured to publish packages via Changesets"
+}

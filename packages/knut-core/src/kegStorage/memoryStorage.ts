@@ -1,12 +1,13 @@
 import invariant from 'tiny-invariant';
-import { Dex } from '../dex.js';
-import { KegFile } from '../kegFile.js';
-import { KegNode } from '../node.js';
-import { KegStorage, KegFsStats } from './kegStorage.js';
-import { Stringer, now } from '../utils.js';
-import { KegSystemStorage } from './systemStorage.js';
+import { KegNode, NodeId } from '../node.js';
+import { KegStorage, StorageNodeStats } from './kegStorage.js';
+import { Stringer, now, stringify } from '../utils.js';
+import { Keg } from '../keg.js';
+import { NodeContent } from '../nodeContent.js';
+import { Meta } from '../metaFile.js';
 
 export type KegFsNode = {
+	filepath: string;
 	content: string;
 	stats: {
 		mtime: string;
@@ -27,34 +28,42 @@ export class KegMemoryStorage implements KegStorage {
 	};
 
 	static async copyFrom(
-		storage: KegSystemStorage,
+		storage: KegStorage,
 	): Promise<KegMemoryStorage | null> {
 		const memStorage = new KegMemoryStorage();
-		const dex = await Dex.fromStorage(storage);
-		const kegFile = await KegFile.fromStorage(storage);
-		if (kegFile === null || dex === null) {
+		const keg = await Keg.fromStorage(storage);
+		if (keg === null) {
 			return null;
 		}
-		await memStorage.write(kegFile.getFilepath(), kegFile);
 
-		const nodeIndex = dex.getNodeIndex();
-		await memStorage.write(nodeIndex.getFilepath(), nodeIndex);
-
-		const changesIndex = dex.getChangesIndex();
-		await memStorage.write(changesIndex.getFilepath(), changesIndex);
-
-		const nodeList = await storage.listNodePaths();
-		if (nodeList === null) {
-			return null;
+		const kegFile = await storage.read('keg');
+		if (kegFile) {
+			await memStorage.write('keg', kegFile);
 		}
-		for (const filepath of nodeList) {
-			const content = await storage.read(filepath);
-			if (content === null) {
-				continue;
+
+		for await (const [, { merge }] of keg.dex.getIndexList()) {
+			if (merge) {
+				await merge(memStorage);
 			}
-			await memStorage.write(filepath, content);
 		}
+
+		for await (const [nodeId, node] of keg.getNodeList()) {
+			await memStorage.write(NodeContent.filePath(nodeId), node.content);
+			await memStorage.write(Meta.filePath(nodeId), node.meta);
+		}
+
 		return memStorage;
+	}
+
+	private subpath?: string;
+
+	child(subpath: string | Stringer): KegStorage {
+		const storage = new KegMemoryStorage();
+		storage.subpath = this.subpath
+			? `${this.subpath}/${stringify(subpath)}`
+			: stringify(subpath);
+		storage.data = this.data;
+		return storage;
 	}
 
 	async listIndexPaths(): Promise<string[] | null> {
@@ -90,21 +99,42 @@ export class KegMemoryStorage implements KegStorage {
 		return data.content;
 	}
 
-	async write(filepath: string, content: string | Stringer): Promise<void> {
+	async write(
+		filepath: string,
+		content: string | Stringer,
+		stats?: StorageNodeStats,
+	): Promise<void> {
 		this.data.index[filepath] = this.data.nodes.length;
 		const data =
 			typeof content === 'string' ? content : content.stringify();
 		this.data.nodes.push({
+			filepath,
 			content: data,
-			stats: { mtime: now('Y-m-D H:M') },
+			stats: { mtime: stats?.mtime ?? now('Y-m-D H:M') },
 		});
 	}
 
-	async stats(filepath: string): Promise<KegFsStats | null> {
+	async stats(filepath: string): Promise<StorageNodeStats | null> {
 		const index = this.data.index[filepath];
 		if (index === undefined) {
 			return null;
 		}
 		return this.data.nodes[index].stats ?? null;
+	}
+
+	async listNodes(): Promise<NodeId[]> {
+		const set = new Set<number>();
+		for (const filepath in this.data.index) {
+			if (this.data.index.hasOwnProperty(filepath)) {
+				const [id] = filepath.split('/');
+				const nodeId = NodeId.parse(id);
+				if (nodeId) {
+					set.add(nodeId.id);
+				}
+			}
+		}
+		const results = [...set].map((id) => new NodeId(id));
+		results.sort((a, b) => (a.gt(b) ? 1 : -1));
+		return results;
 	}
 }

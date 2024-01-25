@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Knut } from '@jlrickert/knutjs-core/knut';
 import {
 	JSONOption,
 	KegPathOption,
@@ -9,7 +9,34 @@ import {
 	rawOption,
 	yamlOption,
 } from './knutCli.js';
-import { search } from './internal/search.js';
+
+export const search = async (
+	query: string,
+	options: YAMLOption &
+		JSONOption &
+		KegPathOption &
+		RawOption & { tag?: string[]; limit?: string },
+): Promise<void> => {
+	const knut = await Knut.fromStorage();
+	const results = await knut.search({
+		limit: Number(options.limit),
+		strategy: 'classic',
+		filter: {
+			$text: { $search: query },
+			tags: options.tag,
+		},
+	});
+
+	results.sort((a, b) => {
+		return b.rank - a.rank;
+	});
+
+	if (options.raw) {
+		console.log(JSON.stringify(results));
+	} else {
+		console.log(results);
+	}
+};
 
 export const searchCli = KnutCommand('search')
 	.argument('[query]')
@@ -18,23 +45,4 @@ export const searchCli = KnutCommand('search')
 	.addOption(jsonOption)
 	.addOption(rawOption)
 	.addOption(yamlOption)
-	.action(
-		async (
-			query: string,
-			options: YAMLOption &
-				JSONOption &
-				KegPathOption &
-				RawOption & { tag?: string[]; limit?: string },
-			command: Command,
-		) => {
-			await search(query ?? '', {
-				tags: options.tag,
-				json: options.json,
-				yaml: options.yaml,
-				pager: false,
-				kegpaths: options.kegpath ?? [],
-				raw: options.raw,
-				limit: options.limit ? parseInt(options.limit) : 10,
-			});
-		},
-	);
+	.action(search);

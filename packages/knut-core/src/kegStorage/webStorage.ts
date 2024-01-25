@@ -1,5 +1,6 @@
+import { NodeId } from '../node.js';
 import { Stringer, currentEnvironment, now } from '../utils.js';
-import { KegFsStats, KegStorage } from './kegStorage.js';
+import { StorageNodeStats, KegStorage } from './kegStorage.js';
 
 export type KegFsNode = {
 	content: string;
@@ -15,15 +16,34 @@ export type KegFs = {
 
 export class WebStorage implements KegStorage {
 	private prefix: string;
-	constructor(prefix?: string) {
+	private subpath?: string;
+
+	constructor(prefix?: string, subpath?: string | Stringer) {
 		this.prefix = prefix ?? 'kegfs';
+		this.subpath =
+			typeof subpath === 'string' ? subpath : subpath?.stringify();
 		if (currentEnvironment !== 'dom') {
 			throw new Error('WebStorage not supported');
 		}
 	}
-	listIndexPaths(): Promise<string[] | null> {
-		throw new Error('Method not implemented.');
+
+	async listNodes(): Promise<NodeId[]> {
+		const fs = this.getFS();
+		const set = new Set<number>();
+		for (const filepath in fs.index) {
+			if (fs.index.hasOwnProperty(filepath)) {
+				const [id] = filepath.split('/');
+				const nodeId = NodeId.parse(id);
+				if (nodeId) {
+					set.add(nodeId.id);
+				}
+			}
+		}
+		const results = [...set].map((id) => new NodeId(id));
+		results.sort((a, b) => (a.gt(b) ? 1 : -1));
+		return results;
 	}
+
 	async read(filepath: string): Promise<string | null> {
 		const fs = this.getFS();
 		const index = fs.index[filepath];
@@ -50,13 +70,20 @@ export class WebStorage implements KegStorage {
 		return Object.keys(fs.index);
 	}
 
-	async stats(filepath: string): Promise<KegFsStats | null> {
+	async stats(filepath: string): Promise<StorageNodeStats | null> {
 		const fs = this.getFS();
 		const index = fs.index[filepath];
 		if (!index) {
 			return null;
 		}
 		return fs.nodes[index].stats;
+	}
+
+	child(subpath: string | Stringer): KegStorage {
+		return new WebStorage(
+			this.prefix,
+			this.subpath ? `${this.subpath}/${subpath}` : subpath,
+		);
 	}
 
 	private getFS(): KegFs {

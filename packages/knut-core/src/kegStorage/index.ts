@@ -1,7 +1,7 @@
 export {
 	loadKegStorage,
 	type KegStorage,
-	type KegFsStats,
+	type StorageNodeStats as KegFsStats,
 } from './kegStorage.js';
 export { ApiStorage, type ApiStorageOptions } from './apiStorage.js';
 export {
@@ -9,3 +9,7 @@ export {
 	type KegSystemStorageOptions,
 } from './systemStorage.js';
 export { WebStorage, type KegFsNode, type KegFs } from './webStorage.js';
+export {
+	KegMemoryStorage,
+	type KegMemoryStorageOptions,
+} from './memoryStorage.js';

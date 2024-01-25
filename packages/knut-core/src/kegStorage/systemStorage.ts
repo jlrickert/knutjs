@@ -1,9 +1,9 @@
 import * as Path from 'path';
 import { readFile, writeFile, readdir, stat } from 'fs/promises';
 
-import { KegFsStats, KegStorage } from './kegStorage.js';
-import { Stringer } from '../utils.js';
-import { Dex } from '../dex.js';
+import { StorageNodeStats, KegStorage } from './kegStorage.js';
+import { Stringer, stringify } from '../utils.js';
+import { NodeId } from '../node.js';
 
 export type KegSystemStorageOptions = { kegpath: string };
 export class KegSystemStorage implements KegStorage {
@@ -79,19 +79,25 @@ export class KegSystemStorage implements KegStorage {
 		this.kegpath = Path.resolve(options.kegpath);
 	}
 
-	async listIndexPaths(): Promise<string[] | null> {
-		const dexDir = Path.join(this.kegpath, 'dex');
-		const fileList = await readdir(dexDir);
-		return fileList;
+	child(subpath: string | Stringer): KegStorage {
+		return new KegSystemStorage({
+			kegpath: `${this.kegpath}/${stringify(subpath)}`,
+		});
 	}
 
-	async listNodePaths(): Promise<string[] | null> {
-		const dex = await Dex.fromStorage(this);
-		if (!dex) {
-			return null;
+	async listNodes(): Promise<NodeId[]> {
+		const fileList = await readdir(this.kegpath);
+		const nodeList: NodeId[] = [];
+		for (const filepath of fileList) {
+			const nodeId = NodeId.parse(filepath);
+			if (nodeId) {
+				nodeList.push(nodeId);
+			}
 		}
-		const entries = dex.getEntries();
-		return entries.map((entry) => entry.nodeId.stringify());
+		nodeList.sort((a, b) => {
+			return a.gt(b) ? 1 : -1;
+		});
+		return nodeList;
 	}
 
 	async read(filepath: string): Promise<string | null> {
@@ -103,6 +109,7 @@ export class KegSystemStorage implements KegStorage {
 			return null;
 		}
 	}
+
 	async write(filepath: string, contents: string | Stringer): Promise<void> {
 		const data =
 			typeof contents === 'string' ? contents : contents.stringify();
@@ -114,12 +121,13 @@ export class KegSystemStorage implements KegStorage {
 		}
 	}
 
-	async stats(filepath: string): Promise<KegFsStats | null> {
+	async stats(filepath: string): Promise<StorageNodeStats | null> {
 		const path = Path.join(this.kegpath, filepath);
 		try {
-			const stats = await stat(path);
+			const { mtime, atime } = await stat(path);
 			return {
-				mtime: stats.mtime.toString(),
+				mtime: mtime.toString(),
+				atime: atime.toString(),
 			};
 		} catch (error) {
 			return null;

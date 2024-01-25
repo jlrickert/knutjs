@@ -12,7 +12,7 @@ export const updateIndex = async () => {
 		console.log('No keg found');
 		return;
 	}
-	await knut.indexUpdate(kegpath);
+	await knut.update();
 };
 
 export const share = async (kegalias: string, nodeId: NodeId) => {

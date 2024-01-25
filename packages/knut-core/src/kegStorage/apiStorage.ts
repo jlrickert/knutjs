@@ -1,5 +1,6 @@
+import { NodeId } from '../node.js';
 import { Stringer } from '../utils.js';
-import { KegFsStats, KegStorage } from './kegStorage.js';
+import { StorageNodeStats, KegStorage } from './kegStorage.js';
 
 export type ApiStorageOptions = {
 	url: string;
@@ -7,20 +8,19 @@ export type ApiStorageOptions = {
 
 export class ApiStorage implements KegStorage {
 	constructor(options: ApiStorageOptions) {}
-
-	listIndexPaths(): Promise<string[] | null> {
+	read(filepath: string | Stringer): Promise<string | null> {
 		throw new Error('Method not implemented.');
 	}
-
-	async listNodePaths(): Promise<string[] | null> {
+	write(
+		filepath: string | Stringer,
+		contents: string | Stringer,
+	): Promise<void> {
 		throw new Error('Method not implemented.');
 	}
-	async read(filepath: string): Promise<string | null> {
-		return null;
+	stats(filepath: string): Promise<StorageNodeStats | null> {
+		throw new Error('Method not implemented.');
 	}
-	async write(filepath: string, content: string | Stringer): Promise<void> {}
-
-	async stats(filepath: string): Promise<KegFsStats | null> {
-		return null;
+	listNodes(): Promise<NodeId[]> {
+		throw new Error('Method not implemented.');
 	}
 }

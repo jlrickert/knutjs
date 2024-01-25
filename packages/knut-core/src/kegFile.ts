@@ -1,7 +1,6 @@
 import * as YAML from 'yaml';
-import { IndexEntry, type IndexEntryData } from './indexes.js';
 import { KegStorage } from './kegStorage/index.js';
-import { createId, currentDate } from './utils.js';
+import { currentDate } from './utils.js';
 import { NodeId } from './node.js';
 
 export type KegVersion = '2023-01';
@@ -22,7 +21,7 @@ export type KegFileData = {
 	creator?: string;
 	state?: string;
 	summary?: string;
-	indexes?: IndexEntryData[];
+	indexes?: { file: string; summary: string }[];
 };
 
 export class KegFile {
@@ -66,11 +65,6 @@ export class KegFile {
 		f(this.data);
 	}
 
-	getNodeId(): NodeId {
-		const id = createId({ count: 5, postfix: 'A' });
-		return new NodeId(id);
-	}
-
 	getAuthor(): string | null {
 		return this.data.creator ?? null;
 	}
@@ -78,19 +72,6 @@ export class KegFile {
 	getLink(nodeId: NodeId): string | null {
 		const linkfmt = this.data.linkfmt;
 		return linkfmt ? linkfmt.replace('{{id}}', nodeId.stringify()) : null;
-	}
-
-	getIndexList(): IndexEntry[] | null {
-		const indexDataList = this.data.indexes ?? [];
-		const indexList: IndexEntry[] = [];
-		for (const data of indexDataList) {
-			const index = IndexEntry.load(data);
-			if (!index) {
-				return null;
-			}
-			indexList.push(index);
-		}
-		return indexList;
 	}
 
 	toYAML(): string {

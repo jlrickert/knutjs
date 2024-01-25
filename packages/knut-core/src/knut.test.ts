@@ -24,7 +24,7 @@ describe('common programming patterns', async () => {
 
 	test('should be able to load keg file details from sample keg', async () => {
 		const knut = await Knut.fromStorage(sampleKnutStorage);
-		const kegFile = knut.getKegFile('sample');
+		const kegFile = knut.getKeg('sample')?.kegFile;
 		expect(kegFile?.getAuthor()).toEqual('git@github.com:YOU/YOU.git');
 	});
 
@@ -43,11 +43,11 @@ describe('common programming patterns', async () => {
 		const knut = await Knut.fromStorage(sampleKnutStorage);
 		const node = await knut.nodeRead({
 			kegalias: 'sample',
-			nodeId: new NodeId('0'),
+			nodeId: new NodeId(0),
 		});
 		expect(node?.title).toEqual('Sorry, planned but not yet available');
 		const nodeContent = await readFile(
-			Path.join(sampleKegpath, NodeContent.filePath(new NodeId('0'))),
+			Path.join(sampleKegpath, NodeContent.filePath(new NodeId(0))),
 		);
 		expect(node?.content.stringify()).toEqual(nodeContent.toString());
 	});

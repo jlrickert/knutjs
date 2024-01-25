@@ -8,8 +8,9 @@ const commonConfig: Options = {
 	banner: {
 		// js: "'use client'"
 	},
+	clean: true,
 	sourcemap: isProduction,
-	format: ['cjs', 'esm'],
+	format: ['esm'],
 	bundle: isProduction,
 	minify: isProduction,
 	dts: true,

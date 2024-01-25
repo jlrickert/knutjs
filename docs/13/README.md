@@ -46,7 +46,3 @@ indexes:
 This will tell knut to update the indexes on node changes.
 
 - [ ] TODO: implement automatic indexing based on metadata criteria
-
-## Meta
-
-    tags: #todo

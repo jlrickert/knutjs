@@ -18,7 +18,7 @@ export class NodeContent {
 
 	private constructor(private root: Root) {}
 
-	get title(): string | null {
+	get title(): string {
 		for (const child of this.root.children) {
 			if (MarkdownAST.isTitleToken(child)) {
 				const markdown = MarkdownAST.to({
@@ -29,7 +29,7 @@ export class NodeContent {
 				return title;
 			}
 		}
-		return null;
+		return '';
 	}
 
 	set title(title: string) {

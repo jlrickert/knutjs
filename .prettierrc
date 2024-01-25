@@ -10,6 +10,12 @@
 			"options": {
 				"proseWrap": "never"
 			}
+		},
+		{
+			"files": "*.md",
+			"options": {
+				"proseWrap": "never"
+			}
 		}
 	]
 }

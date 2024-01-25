@@ -6,11 +6,11 @@ const isProduction = env === 'production';
 
 const commonConfig: Options = {
 	sourcemap: isProduction,
-	format: ['cjs', 'esm'],
+	format: ['esm'],
 	bundle: true,
 	minify: isProduction,
 	dts: true,
-	treeshake: true,
+	treeshake: false,
 	target: 'es2018',
 	outDir: 'dist',
 	tsconfig: path.resolve(__dirname, './tsconfig.json'),
@@ -25,10 +25,19 @@ export default defineConfig(() => {
 			esbuildOptions: (options) => {
 				options.outbase = 'src';
 			},
+			bundle: false,
 		},
 		{
-			entry: ['./src/cli.ts'],
+			entry: ['./src/**/!(index).ts'],
 			...commonConfig,
+			esbuildOptions: (options) => {
+				options.outbase = 'src';
+			},
+		},
+		{
+			entry: ['./src/main.ts'],
+			...commonConfig,
+			format: 'cjs',
 			banner: {
 				js: '#!/usr/bin/env node',
 			},

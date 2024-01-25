@@ -3,9 +3,11 @@ import { share } from './index.js';
 import { kegCli } from './kegCli.js';
 import { KnutCommand, knutCli } from './knutCli.js';
 import { searchCli } from './searchCli.js';
+import { updateCli } from './updateCli.js';
 
 knutCli.addCommand(searchCli);
 knutCli.addCommand(kegCli);
+knutCli.addCommand(updateCli);
 
 // const kegCli = KegCommand('keg').addCommand(
 // 	new Command('directory').action((options, parent: Command) => {

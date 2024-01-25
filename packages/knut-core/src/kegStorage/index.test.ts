@@ -18,7 +18,7 @@ describe('system storage for a node environment', () => {
 		invariant(storage !== null, 'Expect to be true');
 		const md = await storage.read('0/README.md');
 		const content = await readFile(
-			Path.join(sampleKegpath, NodeContent.filePath(new NodeId('0'))),
+			Path.join(sampleKegpath, NodeContent.filePath(new NodeId(0))),
 		);
 		expect(md).toEqual(content.toString());
 	});

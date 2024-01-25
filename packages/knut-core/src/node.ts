@@ -10,7 +10,7 @@ type PartialOrder<T> = {
 };
 
 type Equality<T> = {
-	equals: (other: T) => boolean;
+	eq: (other: T) => boolean;
 };
 
 type Order<T> = (PartialOrder<T> & Equality<T>) & {
@@ -19,7 +19,15 @@ type Order<T> = (PartialOrder<T> & Equality<T>) & {
 };
 
 export class NodeId implements Stringer, Order<NodeId> {
-	constructor(public readonly id: string) {}
+	static parse(value: string): NodeId | null {
+		const id = Number(value);
+		if (Number.isNaN(id)) {
+			return null;
+		}
+		return new NodeId(id);
+	}
+
+	constructor(public readonly id: number) {}
 
 	lt(other: NodeId): boolean {
 		return Number(this.id) < Number(other.id);
@@ -37,7 +45,7 @@ export class NodeId implements Stringer, Order<NodeId> {
 		return Number(this.id) >= Number(other.id);
 	}
 
-	equals(other: NodeId): boolean {
+	eq(other: NodeId): boolean {
 		return this.id === other.id;
 	}
 
@@ -50,7 +58,7 @@ export class NodeId implements Stringer, Order<NodeId> {
 	}
 
 	stringify(): string {
-		return this.id;
+		return String(this.id);
 	}
 }
 
@@ -126,8 +134,8 @@ export class KegNode extends EventEmitter {
 		super();
 	}
 
-	get title(): string | null {
-		return this.content.title;
+	get title(): string {
+		return this.content.title ?? '';
 	}
 
 	set title(value: string) {
@@ -174,4 +182,6 @@ export class KegNode extends EventEmitter {
 	addDate(datetime: string): void {
 		this.data.meta.add('date', datetime);
 	}
+
+	async merge(storage: KegStorage): Keg {}
 }

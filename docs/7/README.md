@@ -1,5 +1,7 @@
 # Knut cli usage
 
+WIP: This a work in progress draft.
+
 ## `knut index`
 
 Managing indexes

@@ -1,15 +1,29 @@
+import { NodeId } from '../node.js';
 import { Stringer, currentEnvironment } from '../utils.js';
 import { ApiStorage } from './apiStorage.js';
 import { KegSystemStorage } from './systemStorage.js';
 import { WebStorage } from './webStorage.js';
 
-export type KegStorage = {
-	read(filepath: string): Promise<string | null>;
-	write(filepath: string | Stringer, contents: string): Promise<void>;
-	stats(filepath: string): Promise<KegFsStats | null>;
+export type KegMergeable = {
+	merge(storage: KegStorage): Promise<void>;
 };
 
-export type KegFsStats = {
+export type GenericStorage = {
+	read(filepath: string | Stringer): Promise<string | null>;
+	write(
+		filepath: string | Stringer,
+		contents: string | Stringer,
+		stats?: StorageNodeStats,
+	): Promise<void>;
+	stats(filepath: string): Promise<StorageNodeStats | null>;
+	child(subpath: string | Stringer): KegStorage;
+};
+
+export type KegStorage = GenericStorage & {
+	listNodes(): Promise<NodeId[]>;
+};
+
+export type StorageNodeStats = {
 	mtime: string;
 };
 

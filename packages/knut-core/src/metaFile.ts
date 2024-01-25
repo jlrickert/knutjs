@@ -1,6 +1,6 @@
 import * as YAML from 'yaml';
 import invariant from 'tiny-invariant';
-import { JSONObject, type JSON, unsafeCoerce } from './utils.js';
+import { JSONObject, JSON as MY_JSON, unsafeCoerce } from './utils.js';
 import { NodeId } from './node.js';
 
 export type MetaData = JSONObject & {
@@ -71,7 +71,7 @@ export class Meta {
 		return this.data.tags ?? [];
 	}
 
-	add(key: string, value: JSON) {
+	add(key: string, value: MY_JSON) {
 		if (key === 'tags') {
 			if (!Array.isArray(value)) {
 				this.data['tags'] = [];
@@ -89,19 +89,39 @@ export class Meta {
 		this.data[key] = value;
 	}
 
+	get(key: string): MY_JSON {
+		return this.data[key] ?? null;
+	}
+
 	addDate(datetime: string): void {
 		this.add('date', datetime);
+	}
+
+	getDate(): string | null {
+		const date = this.get('date');
+		if (typeof date === 'string' || typeof date === 'number') {
+			return new Date(date).toISOString();
+		}
+		return null;
 	}
 
 	remove(key: string) {
 		delete this.data[key];
 	}
 
-	export(): JSON {
+	export(): MY_JSON {
 		return { ...this.data };
 	}
 
-	stringify() {
+	toJSON(): MY_JSON {
+		return JSON.stringify(this.data);
+	}
+
+	toYAML(): string {
 		return YAML.stringify(this.data);
+	}
+
+	stringify() {
+		return this.toYAML();
 	}
 }
