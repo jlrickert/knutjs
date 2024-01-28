@@ -55,6 +55,13 @@ export const now = (format: DateFormat): string => {
 	}
 };
 
+export const parseDate = (value: string): Date | null => {
+	return new Date(value);
+};
+export const stringifyDate = (date: Date): string => {
+	return date.toISOString();
+};
+
 const isBrowser =
 	typeof global.window !== 'undefined' &&
 	typeof window.localStorage !== 'undefined';
@@ -62,6 +69,21 @@ const isBrowser =
 type Environment = 'node' | 'dom';
 export const currentEnvironment: Environment = isBrowser ? 'dom' : 'node';
 
-export type Stringer = {
-	stringify: () => string;
+export type Stringer =
+	| string
+	| {
+			stringify: () => string;
+	  };
+
+export const stringify = (value: number | Date | Stringer): string => {
+	if (typeof value === 'string') {
+		return value;
+	} else if (typeof value === 'number') {
+		return String(value);
+	} else if (value instanceof Date) {
+		return value.toISOString();
+	} else if ('stringify' in value) {
+		value.stringify();
+	}
+	return value.toString();
 };
