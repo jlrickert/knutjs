@@ -1,6 +1,6 @@
 import * as Path from 'path';
 import invariant from 'tiny-invariant';
-import { Stringer, absurd, stringify } from '../utils.js';
+import { Stringer, stringify } from '../utils.js';
 import {
 	GenericStorage,
 	StorageNodeStats,
@@ -52,20 +52,6 @@ const makeDirnode = ({
 
 type FsNode = FsFileNode | FsDirNode;
 
-const copyNode = (node: FsNode): FsNode => {
-	switch (node.type) {
-		case 'file': {
-			return makeFilenode(node);
-		}
-		case 'directory': {
-			return makeDirnode(node);
-		}
-		default: {
-			return absurd(node);
-		}
-	}
-};
-
 type Fs = {
 	version: '0.1';
 	nodes: FsNode[];
@@ -73,18 +59,16 @@ type Fs = {
 };
 
 export class MemoryStorage implements GenericStorage {
-	static copyFrom(storage: GenericStorage): MemoryStorage {
-		if (storage instanceof MemoryStorage) {
-			const other = storage.fs;
-			const fs: Fs = {
-				version: other.version,
-				nodes: other.nodes.map(copyNode),
-				index: { ...other.index },
-			};
-			return new MemoryStorage('/', fs);
+	static parse(content: string): MemoryStorage | null {
+		const fs = JSON.parse(content) as Fs;
+		switch (fs.version) {
+			case '0.1': {
+				return new MemoryStorage('/', fs);
+			}
+			default: {
+				return null;
+			}
 		}
-		const store = MemoryStorage.create();
-		throw new Error('Method not implemented.');
 	}
 
 	/**
@@ -123,7 +107,8 @@ export class MemoryStorage implements GenericStorage {
 	 * the current working directory
 	 **/
 	private getFullPath(path: Stringer) {
-		return Path.join(this.cwd, stringify(path));
+		const fullpath = Path.join(this.cwd, stringify(path));
+		return fullpath;
 	}
 
 	private getDirpath(fullpath: string): string | null {
@@ -149,6 +134,11 @@ export class MemoryStorage implements GenericStorage {
 			const { path } = this.fs.nodes[i];
 			this.fs.index[path] = i;
 		}
+	}
+
+	async resolve(path: string): Promise<string> {
+		const fullpath = this.getFullPath(path);
+		return fullpath;
 	}
 
 	async read(path: Stringer): Promise<string | null> {
@@ -257,7 +247,9 @@ export class MemoryStorage implements GenericStorage {
 			await this.utime(parentPath, { atime: now });
 		}
 
-		return node.children;
+		return node.children.map((child) => {
+			return Path.relative(this.cwd, child);
+		});
 	}
 
 	async utime(path: Stringer, stats: StorageNodeTime): Promise<boolean> {
@@ -398,5 +390,9 @@ export class MemoryStorage implements GenericStorage {
 			this.fs,
 		);
 		return storage;
+	}
+
+	toJSON(): string {
+		return JSON.stringify(this.fs);
 	}
 }

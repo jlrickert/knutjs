@@ -28,6 +28,12 @@ describe('describe memory storage', () => {
 		expect(stats?.ctime).toEqual(stringify(now));
 	});
 
+	test('should be able to handle pathing', async () => {
+		const storage = MemoryStorage.create();
+		await storage.write('a/b/c', 'content');
+		expect(await storage.child('a/b').read('c')).toEqual('content');
+	});
+
 	test('should create directories and updated modified time for parent directory when adding a new file', async () => {
 		vi.useFakeTimers();
 		const now = new Date('2023-03-23');
@@ -90,6 +96,30 @@ describe('describe memory storage', () => {
 		await check('/path/to/some/example', later);
 	});
 
+	test('should be able to list the expected directories', async () => {
+		const storage = MemoryStorage.create();
+		await storage.write('/path/a/a', 'file a');
+		await storage.write('/path/b/b', 'file b');
+		await storage.write('/path/c/c', 'file c');
+		await storage.write('/path/d/d', 'file d');
+		const directories = await storage.readdir('/path');
+		expect(directories).toStrictEqual([
+			'path/a',
+			'path/b',
+			'path/c',
+			'path/d',
+		]);
+		const childStorage = storage.child('path');
+		expect(await childStorage.readdir('path')).toStrictEqual(null);
+		expect(await childStorage.readdir('a')).toStrictEqual(['a/a']);
+		expect(await childStorage.readdir('')).toStrictEqual([
+			'a',
+			'b',
+			'c',
+			'd',
+		]);
+	});
+
 	test('should create parent directories when needed', async () => {
 		vi.useFakeTimers();
 		const now = new Date('2023-03-23');
@@ -103,22 +133,22 @@ describe('describe memory storage', () => {
 
 		{
 			const files = await storage.readdir('/path/to');
-			expect(files).toStrictEqual(['/path/to/example']);
+			expect(files).toStrictEqual(['path/to/example']);
 		}
 
 		{
 			const files = await storage.readdir('/path');
-			expect(files).toStrictEqual(['/path/to']);
+			expect(files).toStrictEqual(['path/to']);
 		}
 
 		{
 			const files = await storage.readdir('/');
-			expect(files).toStrictEqual(['/path']);
+			expect(files).toStrictEqual(['path']);
 		}
 
 		{
 			const files = await storage.readdir('');
-			expect(files).toStrictEqual(['/path']);
+			expect(files).toStrictEqual(['path']);
 		}
 
 		{
