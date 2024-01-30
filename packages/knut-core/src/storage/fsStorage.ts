@@ -1,74 +1,137 @@
-import { Stringer, now, stringify } from '../utils.js';
+import { Stringer, stringify } from '../utils.js';
 import { GenericStorage, StorageNodeStats } from './storage.js';
 import * as Path from 'path';
-import { readFile, writeFile, readdir, stat, utimes } from 'fs/promises';
-import invariant from 'tiny-invariant';
+import * as FS from 'fs/promises';
+import { NodeId } from '../node.js';
 
 export class FsStorage implements GenericStorage {
 	constructor(private root: string) {}
 
-	async read(filepath: string | Stringer): Promise<string | null> {
-		const path = Path.join(this.root, stringify(filepath));
+	private getFullPath(path: Stringer): string {
+		const fullpath = Path.join(this.root, stringify(path));
+		return fullpath;
+	}
+
+	private getDirname(fullpath: string): string {
+		return Path.dirname(fullpath);
+	}
+
+	async resolve(path: string): Promise<string> {
+		const fullpath = this.getFullPath(path);
+		return fullpath;
+	}
+
+	async read(filepath: Stringer): Promise<string | null> {
+		const fullpath = this.getFullPath(filepath);
 		try {
-			const content = await readFile(path, { encoding: 'utf-8' });
+			const content = await FS.readFile(fullpath, { encoding: 'utf-8' });
 			return content;
 		} catch (error) {
 			return null;
 		}
 	}
 
-	async write(
-		filepath: string | Stringer,
-		contents: string | Stringer,
-		stats?: StorageNodeStats | undefined,
-	): Promise<void> {
-		const data =
-			typeof contents === 'string' ? contents : contents.stringify();
+	async write(filepath: Stringer, contents: Stringer): Promise<boolean> {
+		const fullpath = this.getFullPath(filepath);
+		const content = stringify(contents);
 		try {
-			const path = Path.join(this.root, stringify(filepath));
-			await writeFile(path, data, 'utf-8');
-			if (stats?.atime && stats.mtime) {
-				await this.utime(path, stats);
-			}
+			const dirpath = this.getDirname(fullpath);
+			await this.mkdir(Path.relative(this.root, dirpath));
+			await FS.writeFile(fullpath, content, 'utf-8');
+			return true;
 		} catch (error) {
-			return;
+			return false;
 		}
 	}
 
-	async utime(path: string, stats: StorageNodeStats): Promise<void> {
-		const atime = stats.atime ?? now('Y-m-D H:M');
-		const currentStats = await stat(path);
-		if (!currentStats) {
-			return;
-		}
-		const atime = stringify(currentStats.atime) ?? stats.atime;
-		await utimes(path, atime, stats.mtime);
-	}
-
-	async readdir(dirpath: string): Promise<string[]> {
-		return readdir(Path.join(this.root, dirpath));
-	}
-	async mkdir(
-		dirpath: Stringer,
-		stats?: StorageNodeStats | undefined,
-	): Promise<void> {
-		return;
-	}
-
-	async stats(filepath: string): Promise<StorageNodeStats | null> {
-		const path = Path.join(this.root, filepath);
+	async rm(filepath: Stringer): Promise<boolean> {
 		try {
-			const { mtime, atime } = await stat(path);
+			await FS.rm(stringify(filepath), { recursive: true });
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	async readdir(dirpath: Stringer): Promise<string[] | null> {
+		const fullPath = this.getFullPath(dirpath);
+		const children = await FS.readdir(fullPath);
+		return children
+			.map((child) => {
+				return Path.relative(this.root, Path.join(fullPath, child));
+			})
+			.sort((a, b) => {
+				const idA = NodeId.parsePath(a);
+				const idB = NodeId.parsePath(b);
+				if (idA && idB) {
+					return idA.lt(idB) ? -1 : 1;
+				}
+				return a < b ? -1 : 1;
+			});
+	}
+
+	async rmdir(
+		filepath: Stringer,
+		options?: { recursive?: boolean | undefined } | undefined,
+	): Promise<boolean> {
+		const fullPath = this.getFullPath(filepath);
+		try {
+			await FS.rmdir(fullPath, { recursive: options?.recursive });
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	async utime(path: string, stats: StorageNodeStats): Promise<boolean> {
+		const fullpath = this.getFullPath(path);
+		try {
+			const s = await FS.stat(fullpath);
+			const atime =
+				stats.atime !== undefined ? stringify(stats.atime) : s.atime;
+			const mtime =
+				stats.mtime !== undefined ? stringify(stats.mtime) : s.mtime;
+			await FS.utimes(fullpath, atime, mtime);
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	async mkdir(dirpath: Stringer): Promise<boolean> {
+		const fullpath = this.getFullPath(dirpath);
+		try {
+			await FS.mkdir(fullpath, {
+				recursive: true,
+			});
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	async stats(filepath: Stringer): Promise<StorageNodeStats | null> {
+		const fullpath = this.getFullPath(filepath);
+		try {
+			const stats = await FS.stat(fullpath);
 			return {
-				mtime: mtime.toString(),
-				atime: atime.toString(),
+				atime: stats.atime,
+				mtime: stats.mtime,
+				btime: stats.birthtime,
+				isDirectory() {
+					return stats.isDirectory();
+				},
+				isFile() {
+					return stats.isFile();
+				},
 			};
-		} catch (error) {
+		} catch (e) {
 			return null;
 		}
 	}
 
-	child(subpath: string | Stringer): GenericStorage {
-		return new FsStorage(Path.join(this.root, stringify(subpath)));
+	child(subpath: Stringer): FsStorage {
+		const storage = new FsStorage(Path.join(this.root, stringify(subpath)));
+		return storage;
 	}
 }
