@@ -1,19 +1,45 @@
-# Knut cli usage
+# Knut CLI usage
 
 ## `knut index`
 
-Managing indexes
+Managing knut indexes
 
-## `knut search`
+## `knut keg index [...kegalias]`
 
-Knowledge searching.
+Update all indexes for all kegs
+
+## `knut keg create <kegalias> <title>`
+
+Create a node
 
 Flags:
 
-- interactive
-- model
+- tags: string[]
+
+  Tags to add
+
+## `knut keg index [...kegalias]`
+
+Update index for kegs
+
+## `knut search <query>`
+
+Search selected keg nodes that matches the query
+
+Flags:
+
+- i, interactive: boolean
+- m, model: openai | classic
 
   This could be either classic or openai. Defaults to classic.
+
+- r, json
+
+  Print to console as raw json
+
+- t, tags: string[]
+
+  tags to filter against. Current just use AND.
 
 ## `knut node`
 
@@ -37,10 +63,14 @@ Create a new node. The --edit (-e for short) flag should open it in an editor of
 
 Configuration management
 
-## `knut publish`
+## `knut publish <kegalias>`
 
 This will run some sort of publish hook. For now this will just add everything to git and will push everything up to git.
 
-## `knut link <node_id>`
+## `knut link <kegalias> <node_id>`
 
 `knut link <node_id>` will push a copy of the node up to the web and return a unique URL for the node.
+
+## `knut help`
+
+Print help

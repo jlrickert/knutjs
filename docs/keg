@@ -1,4 +1,4 @@
-updated: 2023-12-21 21:55:49Z
+updated: 2024-01-31 19:26:12Z
 kegv:    2023-01
 
 title:   Knut documentation
@@ -11,7 +11,9 @@ summary:
   your own KEG with (Kn)owledge (Ut)ils.
 
 indexes:
-  - file: dex/changes.md
-    summary: latest changes
   - file: dex/nodes.tsv
     summary: all nodes by id
+	plugin: nodes
+  - file: dex/changes.md
+    summary: latest changes
+	plugin: changes

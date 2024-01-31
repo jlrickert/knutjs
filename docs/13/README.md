@@ -18,35 +18,36 @@ This file is specified in the keg file in the indexes section. Here is an exampl
 
 ```yaml
 indexes:
-  - file: dex/changes.md
-    summary: latest changes
   - file: dex/nodes.tsv
     summary: all nodes by id
+    name: nodes
+  - file: dex/changes.md
+    summary: latest changes
+    name: changes
   - file: dex/daily.md
     summary: All daily log entries
-    hooks:
-      index:
-        tags:
-          - daily
+    name: chrono
   - file: dex/sourdough-baking.md
     summary: All daily log entries
-    hooks:
-      index:
-        tags:
-          - baking
-          - sourdough
+    name: chrono
+    tags:
+      - daily
   - file: dex/baking.md
     summary: All daily log entries
-    hooks:
-      index:
-        tags:
-          - baking
+    name: chrono
+    tags:
+      - baking
 ```
 
+When a keg is updated the _chrono_ plugin will look at the sections where the index name is _chrono_. For each entry it will pull in the file, summary, and tags sections as arguments.
+
+| Option  | Type              | Comment                         |
+| ------- | ----------------- | ------------------------------- |
+| file    | string (Required) | File to write index too         |
+| summary | string (Optional) | Summary to place in the index   |
+| tags    | string[]          | Filter based on tags. Use _and_ |
+
+When a keg is updated with the chronological
 This will tell knut to update the indexes on node changes.
 
 - [ ] TODO: implement automatic indexing based on metadata criteria
-
-## Meta
-
-    tags: #todo
