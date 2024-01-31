@@ -8,6 +8,7 @@
 		{
 			"files": "*.yaml",
 			"options": {
+				"useTabs": false,
 				"proseWrap": "never"
 			}
 		}

@@ -2,7 +2,7 @@ import * as Path from 'path';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { Knut } from '../knut.js';
-import { KnutStorage } from '../knutStorage.js';
+import { EnvStorage } from '../envStorage.js';
 import { GenericStorage, loadStorage, overwrite } from '../storage/storage.js';
 
 export const testDataPath = Path.resolve(__dirname, '..', '..', 'testdata');
@@ -81,13 +81,13 @@ export const createSampleKnutApp = async (): Promise<TestDataKnutApp> => {
 	const testDataStorage = loadStorage(testDataPath);
 	const storage = loadStorage(await getRoot());
 	await overwrite(testDataStorage, storage);
-	const knutStorage = KnutStorage.fromStorage({
-		data: storage.child('share/data/knut'),
+	const knutStorage = EnvStorage.fromStorage({
+		variable: storage.child('share/data/knut'),
 		config: storage.child('config/knut'),
 		cache: storage.child('cache/knut'),
 	});
 
-	const knut = await Knut.fromStorage(knutStorage);
+	const knut = await Knut.fromEnvironment(knutStorage);
 	return {
 		knut,
 		storage,

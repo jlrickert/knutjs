@@ -1,20 +1,27 @@
 import Fuse, { FuseOptionKey, FuseSearchOptions } from 'fuse.js';
-import { KnutConfigFile } from './configFile.js';
-import { Dex } from './dex.js';
-import { Filter } from './filterTypes.js';
-import { KegFile, KegFileData } from './kegFile.js';
-import { Meta, MetaData } from './metaFile.js';
+import { ConfigDefinition, KnutConfigFile } from './configFile.js';
+import { buildFilterFn } from './filterTypes.js';
+import { MetaFile, MetaData } from './metaFile.js';
 import { KegNode, NodeId } from './node.js';
-import { JSON, now } from './utils.js';
-import { KegStorage, loadKegStorage } from './kegStorage/index.js';
-import { KnutStorage, loadKnutStorage } from './knutStorage/knutStorage.js';
+import { JSON, stringify } from './utils.js';
+import { Keg } from './keg.js';
+import { KegStorage, loadKegStorage } from './kegStorage.js';
+import { EnvStorage } from './envStorage.js';
+import { KnutPlugin, PluginCreator } from './plugins/plugin.js';
+import nodesPlugin from './plugins/nodes.plugin.js';
+import changesPlugin from './plugins/changes.plugin.js';
+import classicPlugin from './plugins/classic.plugin.js';
+import tagsPlugin from './plugins/tags.plugin.js';
+import dailyPlugin from './plugins/daily.plugin.js';
+import { SearchOptions, SearchPluginCreator, SearchResult } from './plugins/searchPlugin.js';
+import { IndexPluginCreator, } from './plugins/indexPlugin.js';
 
-export type KegOptions = {
-	autoIndex?: boolean;
+export type KnutOptions = {
 	/**
 	 * Storage or a filesystem path to the keg if a file system is present
 	 */
-	storage: KegStorage | string;
+	env: EnvStorage;
+	plugins: PluginCreator[];
 };
 
 export type NodeCreateOptions = {
@@ -33,41 +40,12 @@ export type NodeUpdateOptions = {
 	kegalias: string;
 	nodeId: string;
 	content?: string;
-	meta?: Meta | ((meta: Meta) => void);
+	meta?: MetaFile | ((meta: MetaFile) => void);
 };
 
 export type NodeDeleteOptions = {
 	kegalias: string;
 	nodeId: NodeId;
-};
-
-export type NodeFilterOptions = {
-	title: string;
-	kegalias: string;
-	content: string;
-	tags: string[];
-	date: string;
-	links: string[];
-	backlinks: string[];
-	author: string;
-	meta: Meta;
-};
-
-export type SearchOptions = {
-	filter?: Filter<NodeFilterOptions>;
-	limit?: number;
-	strategy?: SearchStrategy;
-};
-
-export type NodeSearchResult = {
-	kegalias: string;
-	nodeId: string;
-	title: string;
-	updated: string;
-	rank: number;
-	tags: string[];
-	author: string | null;
-	meta: JSON;
 };
 
 export type ShareOptions = {
@@ -81,144 +59,210 @@ type PublishOptions = {
 
 export type SearchStrategy = 'classic' | 'semantic';
 
-export type KnutOptions = {
-	storage: KnutStorage;
-};
-
-type Repo = {
-	keg: KegFile;
-	dex: Dex;
-	storage: KegStorage;
-};
-
 /**
  * Knut Provides a high level api for managing a keg
  **/
 export class Knut {
-	private repoMap = new Map<string, Repo>();
-	private storage: KnutStorage;
+	private kegMap = new Map<string, Keg>();
 
-	static async loadDefaults(): Promise<Knut | null> {
-		const storage = await loadKnutStorage();
-		if (!storage) {
-			return null;
+	static async fromEnvironment(env: EnvStorage): Promise<Knut> {
+		const dataConfig =
+			(await KnutConfigFile.fromStorage(env.variable)) ??
+			KnutConfigFile.create();
+		for (const keg of dataConfig.data.kegs) {
+			keg.url = await env.variable.resolve(keg.url);
 		}
-		return Knut.fromStorage(storage);
+
+		const userConfig =
+			(await KnutConfigFile.fromStorage(env.config)) ??
+			KnutConfigFile.create();
+
+		for (const keg of userConfig.data.kegs) {
+			keg.url = await env.config.resolve(keg.url);
+		}
+
+		const configFile = dataConfig.concat(userConfig);
+		const knut = await Knut.fromConfig(configFile.data, {
+			env: env,
+			plugins: [],
+		});
+		return knut;
 	}
 
-	static async fromStorage(storage?: KnutStorage): Promise<Knut> {
-		const store = storage ?? (await loadKnutStorage());
-		const userConfig = await KnutConfigFile.fromUserConfig(store);
-		const dataConfig = await KnutConfigFile.fromUserData(store);
-		const config = dataConfig.concat(userConfig);
-		const knut = new Knut({ storage: store });
+	static async fromConfig(
+		config: ConfigDefinition,
+		options?: KnutOptions,
+	): Promise<Knut> {
+		const knut = new Knut(options?.env ?? EnvStorage.createInMemory());
+		await knut.addPlugin(await nodesPlugin);
+		await knut.addPlugin(await changesPlugin);
+		await knut.addPlugin(await tagsPlugin);
+		await knut.addPlugin(await classicPlugin);
+		await knut.addPlugin(await dailyPlugin);
 		await knut.init(config);
 		return knut;
 	}
 
-	private constructor(options: KnutOptions) {
-		this.storage = options?.storage;
+	static async create() {
+		const storage = await EnvStorage.create();
+		const knut = Knut.fromEnvironment(storage);
+		return knut;
+	}
+
+	private plugins = new Map<string, KnutPlugin>();
+	private constructor(readonly env: EnvStorage) {}
+
+	private *getIndexPluginList(kegalias: string) {
+		for (const [name, plugin] of this.plugins) {
+			for (const creator of plugin.indexList) {
+				const fn: IndexPluginCreator = ({keg}) => {
+					return creator({keg, knut: this, storage: this.env.child(`plugins/${plugin.name}`)})
+				}
+				yield fn
+			}
+		}
+	}
+
+	private *getSearchPluginList(kegalias: string) {
+		for (const [name, plugin] of this.plugins) {
+			for (const creator of plugin.searchList) {
+				const fn: SearchPluginCreator = async ({ keg }) => {
+					return creator({
+						keg,
+						kegalias,
+						storage: this.env.child(`plugins/${plugin.name}`),
+					});
+				};
+				yield fn;
+			}
+		}
 	}
 
 	/**
 	 * Loads required data for a keg
 	 */
-	async loadKeg(kegAlias: string, options: KegOptions): Promise<void> {
-		const storage =
-			typeof options.storage === 'string'
-				? loadKegStorage(options.storage)
-				: options.storage;
-		const dex = await Dex.fromStorage(storage);
-		const keg = await KegFile.fromStorage(storage);
-		if (keg === null || dex === null) {
+	async loadKeg(kegalias: string, storage: KegStorage): Promise<void> {
+		const keg = await Keg.fromStorage(storage, {
+			indexList: [...this.getIndexPluginList(kegalias)],
+			searchList: [...this.getSearchPluginList(kegalias)],
+		});
+		if (!keg) {
 			return;
 		}
-
-		this.repoMap.set(kegAlias, { keg: keg, dex: dex, storage });
+		for (const creator of this.getIndexPluginList(kegalias)) {
+			await keg.addIndex(creator);
+		}
+		for (const creator of this.getSearchPluginList(kegalias)) {
+			await keg.addSearch(creator);
+		}
+		this.kegMap.set(kegalias, keg);
 	}
 
-	async updateUserConfig(
-		updater: (config: KnutConfigFile) => void,
-	): Promise<void> {
-		const userConfig = await KnutConfigFile.fromUserConfig(this.storage);
-		const dataConfig = await KnutConfigFile.fromUserData(this.storage);
-
-		updater(userConfig);
-		this.storage.writeConfig(userConfig.filepath, userConfig);
-
-		const config = dataConfig.concat(userConfig);
-		this.init(config);
+	private async addPlugin(creator: PluginCreator) {
+		const plugin = await creator(this);
+		this.plugins.set(plugin.name, plugin);
 	}
 
-	private async init(config: KnutConfigFile) {
-		this.repoMap.clear();
-		for (const keg of config.data.kegs) {
-			await this.loadKeg(keg.alias, { storage: keg.url });
+	private async init(config: ConfigDefinition) {
+		this.kegMap.clear();
+		for (const keg of config.kegs) {
+			const storage = loadKegStorage(keg.url);
+			await this.loadKeg(keg.alias, storage);
 		}
 	}
 
-	async indexUpdate(kegAlias: string): Promise<boolean> {
-		return false;
+	async update(): Promise<boolean> {
+		for (const [kegalias, keg] of this.kegMap) {
+			await keg.update()
+		}
+		const keg = this.getKeg(kegalias);
+		if (!keg) {
+			return false;
+		}
+		await keg.update();
+		for (const [name, plugin] of this.plugins) {
+			for (const indexUpdater of plugin.indexList) {
+				const { reload } = await  indexUpdater({keg})
+			}
+		}
+		return true;
 	}
 
-	async nodeCreate(options: NodeCreateOptions): Promise<KegNode | null> {
-		const repo = this.repoMap.get(options.kegalias);
-		if (!repo) {
+	getKeg(kegalias: string): Keg | null {
+		return this.kegMap.get(kegalias) ?? null;
+	}
+
+	async *getKegList() {
+		for (const [kegalias, keg] of this.kegMap) {
+			yield [kegalias, keg] as const;
+		}
+	}
+
+	async *getNodeList() {
+		for (const [kegalias, keg] of this.kegMap) {
+			for await (const [nodeId, node] of keg.getNodeList()) {
+				yield [kegalias, nodeId, node] as const;
+			}
+		}
+	}
+
+	// async nodeCreate(options: NodeCreateOptions): Promise<KegNode | null> {
+	// 	const keg = this.kegMap.get(options.kegalias);
+	// 	if (!keg) {
+	// 		return null;
+	// 	}
+	// 	const updated = now('Y-m-D H:M');
+	// 	keg.update((data) => {
+	// 		data.updated = updated;
+	// 	});
+	//
+	// 	const nodeId = keg.getNodeId();
+	// 	const node = await KegNode.fromContent({
+	// 		content: options.content,
+	// 		updated,
+	// 	});
+	// 	keg.dex.addNode(nodeId, node);
+	// 	return node;
+	// }
+
+	async getNode(options: NodeReadOptions): Promise<KegNode | null> {
+		const keg = this.kegMap.get(options.kegalias);
+		if (!keg) {
 			return null;
 		}
-		const { keg, dex } = repo;
-		const updated = now('Y-m-D H:M');
-		repo.keg.update((data) => {
-			data.updated = updated;
-		});
-
-		const nodeId = keg.getNodeId();
-		const node = await KegNode.fromContent({
-			content: options.content,
-			updated,
-		});
-		repo.dex.addNode(nodeId, node);
+		const node = await keg.getNode(options.nodeId);
 		return node;
 	}
 
-	async nodeRead(options: NodeReadOptions): Promise<KegNode | null> {
-		const repo = this.repoMap.get(options.kegalias);
-		if (!repo) {
-			return null;
-		}
-		const { storage } = repo;
-		const node = await KegNode.load(options.nodeId, storage);
-		return node;
-	}
+	// async createNode({
+	// 	kegalias,
+	// 	content,
+	// 	meta,
+	// }: NodeUpdateOptions): Promise<KegNodeRef | null> {
+	// 	const keg = this.kegMap.get(kegalias);
+	// 	if (!keg) {
+	// 		return null;
+	// 	}
+	// 	const node = await keg.createNode({ content: content ?? '' });
+	// 	return node;
+	// }
 
-	async nodeWrite({
-		nodeId,
-		kegalias,
-		content,
-		meta,
-	}: NodeUpdateOptions): Promise<void> {
-		const repo = this.repoMap.get(kegalias);
-		if (!repo) {
-			return;
+	async search(
+		model: string,
+		{ limit, filter }: SearchOptions,
+	): Promise<SearchResult[]> {
+		const search =
+		const results: SearchResult[] = [];
+		for await (const [kegalias, keg] of this.getKegList()) {
+			const kegaliasFilter = filter?.kegalias
+			const filterFn = kegaliasFilter ? buildFilterFn(kegaliasFilter) : null
+			if (filter?.kegalias && buildFilterFn(filter.kegalias)(kegalias)) {
+				const x = keg.search()
+				results.push
+			}
+			buildFilterFn(filter?.kegalias)(kegalias)
+			if (filter?.kegalias)
 		}
-		const { storage } = repo;
-		const node = await KegNode.load(new NodeId(nodeId), storage);
-		if (!node) {
-			return;
-		}
-		if (content) {
-			node.updateContent(content);
-		}
-		if (meta) {
-			node.updateMeta(meta);
-		}
-	}
-
-	async search({
-		limit,
-		filter,
-	}: SearchOptions): Promise<NodeSearchResult[]> {
-		const results: NodeSearchResult[] = [];
 		type Data = {
 			nodeId: string;
 			kegalias: string;
@@ -230,43 +274,26 @@ export class Knut {
 			meta: JSON;
 		};
 		const data: Data[] = [];
-		for (const [kegalias, repo] of this.repoMap) {
-			const { keg, dex } = repo;
-			const author = keg.getAuthor();
-			const entryList = dex.getEntries();
-			for (const entry of entryList) {
-				const node = await this.nodeRead({
-					kegalias,
-					nodeId: entry.nodeId,
-				});
-				const content = node?.content.stringify() ?? '';
-				const tags = node?.getTags() ?? [];
-				// Only include if node has the expected tag
-				if (Array.isArray(filter?.tags)) {
-					if (
-						!filter.tags.reduce(
-							(acc, tag) => acc && tags.includes(tag),
-							true,
-						)
-					) {
-						continue;
-					}
-				}
+
+		for await (const [kegalias, keg] of this.getKegList()) {
+			const author = keg.kegFile.getAuthor();
+			for await (const [nodeId, node] of keg.getNodeList()) {
+				const content = stringify(node.content);
 				data.push({
 					content,
 					kegalias,
-					nodeId: entry.nodeId.stringify(),
-					title: node?.title ?? '',
+					nodeId: stringify(nodeId),
+					title: node.title,
 					author,
-					tags: [...tags],
-					updated: node?.updated ?? '',
-					meta: node?.meta.export() ?? null,
+					tags: [...node.getTags()],
+					updated: node.updated,
+					meta: node.meta.export() ?? null,
 				});
 			}
 		}
 		const search = filter?.$text?.$search ?? '';
 		if ((filter && Object.keys(filter).length === 0) || search === '') {
-			const results: NodeSearchResult[] = [];
+			const results: KnutSearchResult[] = [];
 			for (let i = 0; i < data.length; i++) {
 				const item = data[i];
 				results.push({
@@ -318,26 +345,6 @@ export class Knut {
 		return results;
 	}
 
-	async setConfig(
-		kegpath: string,
-		config: Partial<KegFileData>,
-	): Promise<void> {
-		const repo = this.repoMap.get(kegpath);
-		if (!repo) {
-			return;
-		}
-		const { keg, storage } = repo;
-		keg.update((data) => {
-			for (const key in config) {
-				if (config.hasOwnProperty(key)) {
-					const element = (config as any)[key];
-					(data as any)[key] = element;
-				}
-			}
-		});
-		storage.write('keg', keg.toYAML());
-	}
-
 	/**
 	 * Export keg to an external source. This could be with git.
 	 */
@@ -350,13 +357,12 @@ export class Knut {
 		kegalias: kegpath,
 		nodeId,
 	}: ShareOptions): Promise<string | null> {
-		const repo = this.repoMap.get(kegpath);
-		if (!repo) {
+		const keg = this.kegMap.get(kegpath);
+		if (!keg) {
 			return null;
 		}
-		const { keg, storage } = repo;
-		const link = keg.getLink(nodeId);
-		const node = await KegNode.load(nodeId, storage);
+		const link = keg.kegFile.getLink(nodeId);
+		const node = await KegNode.fromStorage(nodeId, keg.storage);
 		return link;
 	}
 
@@ -369,14 +375,4 @@ export class Knut {
 	 * import nodes from another keg. Used for combining multiple kegs into 1.
 	 */
 	async merge(from: string | string[], to: string): Promise<void> {}
-
-	getKegFile(kegalias: string): KegFile | null {
-		const repo = this.repoMap.get(kegalias);
-		return repo?.keg ?? null;
-	}
-
-	getDex(kegalias: string): Dex | null {
-		const repo = this.repoMap.get(kegalias);
-		return repo?.dex ?? null;
-	}
 }

@@ -58,9 +58,6 @@ export const now = (format: DateFormat): string => {
 export const parseDate = (value: string): Date | null => {
 	return new Date(value);
 };
-export const stringifyDate = (date: Date): string => {
-	return date.toISOString();
-};
 
 const isBrowser =
 	typeof global.window !== 'undefined' &&
@@ -86,4 +83,18 @@ export const stringify = (value: number | Date | Stringer): string => {
 		value.stringify();
 	}
 	return value.toString();
+};
+
+export type PartialOrder<T> = {
+	lt: (other: T) => boolean;
+	gt: (other: T) => boolean;
+};
+
+export type Equality<T> = {
+	equals: (other: T) => boolean;
+};
+
+export type Order<T> = (PartialOrder<T> & Equality<T>) & {
+	lte: (other: T) => boolean;
+	gte: (other: T) => boolean;
 };

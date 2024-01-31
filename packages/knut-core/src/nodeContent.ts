@@ -1,14 +1,16 @@
-import { Root, RootContent } from 'mdast';
+import { PhrasingContent, Root, RootContent } from 'mdast';
 import { MarkdownAST } from './markdown.js';
 import { NodeId } from './node.js';
+import { stringify } from './utils.js';
+import { DexEntry } from './dex.js';
 
 export class NodeContent {
 	static filePath(nodeId: NodeId) {
-		return `${nodeId.stringify()}/README.md`;
+		return `${stringify(nodeId)}/README.md`;
 	}
 
 	filePath(nodeId: NodeId) {
-		return `${nodeId.stringify()}/README.md`;
+		return `${stringify(nodeId)}/README.md`;
 	}
 
 	static async fromMarkdown(markdown: string): Promise<NodeContent> {
@@ -46,6 +48,27 @@ export class NodeContent {
 			children: [{ type: 'text', value: title }],
 		} satisfies RootContent;
 		this.root.children = [titleNode, ...this.root.children];
+	}
+
+	mapLinks(map: Map<string, DexEntry>) {
+		const r = (contentList: RootContent[] | PhrasingContent[]) => {
+			for (let i = 0; i < contentList.length; i++) {
+				const token = contentList[i];
+				if (token.type === 'link') {
+					const nodeId = NodeId.parsePath(token.url);
+					if (nodeId) {
+						const entry = map.get(stringify(nodeId)) ?? null;
+						if (entry) {
+							contentList[i] = MarkdownAST.nodeLink(entry);
+						}
+					}
+				}
+				if ('children' in token) {
+					r(token.children);
+				}
+			}
+		};
+		r(this.root.children);
 	}
 
 	stringify() {

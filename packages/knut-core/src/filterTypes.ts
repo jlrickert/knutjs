@@ -59,3 +59,65 @@ export type RootFilterOperators<TSchema> = {
 	$where?: string | ((this: TSchema) => boolean);
 	$comment?: string | Document;
 };
+
+export const buildFilterFn = <T>(filter: Filter<T> | Condition<T>) => {
+	return (data: T): boolean => {
+		if (
+			typeof filter === 'string' ||
+			typeof filter === 'number' ||
+			Array.isArray(filter)
+		) {
+			return true;
+		}
+		for (const key in filter) {
+			if (filter.hasOwnProperty(key)) {
+				const k = key as keyof Filter<T>;
+				const element = filter[k];
+				switch (k) {
+					case '$or': {
+						return (element as Filter<T>[]).reduce((acc, f) => {
+							if (acc) {
+								return true;
+							}
+							return buildFilterFn(f)(data);
+						}, false);
+					}
+					case '$and': {
+						return (element as Filter<T>[]).reduce((acc, f) => {
+							if (!acc) {
+								return false;
+							}
+							return buildFilterFn(f)(data);
+						}, true);
+					}
+					case '$nor': {
+						const result = (element as Filter<T>[]).reduce(
+							(acc, f) => {
+								if (acc) {
+									return true;
+								}
+								return buildFilterFn(f)(data);
+							},
+							false,
+						);
+						return !result;
+					}
+					case '$text': {
+						return true;
+					}
+					case '$where': {
+						return true;
+					}
+					case '$comment': {
+						return true;
+					}
+
+					default: {
+						element;
+					}
+				}
+			}
+		}
+		return true;
+	};
+};

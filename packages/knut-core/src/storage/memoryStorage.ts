@@ -5,6 +5,7 @@ import {
 	GenericStorage,
 	StorageNodeStats,
 	StorageNodeTime,
+	overwrite,
 } from './storage.js';
 
 type FsNodeTimestamps = {
@@ -69,6 +70,12 @@ export class MemoryStorage implements GenericStorage {
 				return null;
 			}
 		}
+	}
+
+	static async fromStorage(storage: GenericStorage): Promise<MemoryStorage> {
+		const store = MemoryStorage.create();
+		await overwrite(storage, store);
+		return store;
 	}
 
 	/**

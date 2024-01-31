@@ -11,7 +11,7 @@ export type IndexEntryData = {
 	 */
 	file: string;
 	summary: string;
-	hooks: string[];
+	options?: JSON;
 };
 
 export class IndexEntry {

@@ -1,10 +1,15 @@
 import * as YAML from 'yaml';
-import { IndexEntry, type IndexEntryData } from './indexes.js';
-import { KegStorage } from './kegStorage/index.js';
-import { createId, currentDate } from './utils.js';
+import { KegStorage } from './kegStorage.js';
+import { currentDate } from './utils.js';
 import { NodeId } from './node.js';
 
 export type KegVersion = '2023-01';
+
+export type KegFileIndex = {
+	file?: string;
+	summary?: string;
+	name?: string;
+};
 
 /**
  * Plain old data representing a keg
@@ -22,7 +27,7 @@ export type KegFileData = {
 	creator?: string;
 	state?: string;
 	summary?: string;
-	indexes?: IndexEntryData[];
+	indexes?: KegFileIndex[];
 };
 
 export class KegFile {
@@ -60,48 +65,50 @@ export class KegFile {
 		return 'keg';
 	}
 
-	private constructor(private data: KegFileData) {}
+	private constructor(private _data: KegFileData) {}
 
-	update(f: (data: KegFileData) => void): void {
-		f(this.data);
+	get data(): KegFileData {
+		return this._data;
 	}
 
-	getNodeId(): NodeId {
-		const id = createId({ count: 5, postfix: 'A' });
-		return new NodeId(id);
+	set data(value: Partial<KegFileData>) {
+		for (const key in value) {
+			if (value.hasOwnProperty(key)) {
+				const k = key as keyof KegFileData;
+				const element = value[k];
+				(this._data as any)[k] = element;
+			}
+		}
+	}
+
+	getIndex(name: string): KegFileIndex | null {
+		return this.data.indexes?.find((a) => a.name === name) ?? null;
 	}
 
 	getAuthor(): string | null {
-		return this.data.creator ?? null;
+		return this._data.creator ?? null;
 	}
 
 	getLink(nodeId: NodeId): string | null {
-		const linkfmt = this.data.linkfmt;
+		const linkfmt = this._data.linkfmt;
 		return linkfmt ? linkfmt.replace('{{id}}', nodeId.stringify()) : null;
 	}
 
-	getIndexList(): IndexEntry[] | null {
-		const indexDataList = this.data.indexes ?? [];
-		const indexList: IndexEntry[] = [];
-		for (const data of indexDataList) {
-			const index = IndexEntry.load(data);
-			if (!index) {
-				return null;
-			}
-			indexList.push(index);
+	*getIndexList(): Generator<KegFileIndex, void, unknown> {
+		for (const index of this.data.indexes ?? []) {
+			yield index;
 		}
-		return indexList;
 	}
 
 	toYAML(): string {
 		const schemaLine =
 			'# yaml-language-server: $schema=https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json';
-		const content = YAML.stringify(this.data);
+		const content = YAML.stringify(this._data);
 		return [schemaLine, content].join('\n');
 	}
 
 	toJSON(pretty?: boolean): string {
-		return JSON.stringify(this.data, undefined, pretty ? 2 : undefined);
+		return JSON.stringify(this._data, undefined, pretty ? 2 : undefined);
 	}
 
 	stringify(): string {

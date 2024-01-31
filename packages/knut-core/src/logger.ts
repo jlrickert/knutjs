@@ -3,10 +3,10 @@ import { type JSONObject } from './utils.js';
 
 export type Logger = {
 	setLevel: (level: LogLevel) => void;
-	debug: (message: string, obj: JSONObject) => void;
-	info: (message: string, obj: JSONObject) => void;
-	warn: (message: string, obj: JSONObject) => void;
-	error: (message: string, obj: JSONObject) => void;
+	debug: (message: string, obj?: JSONObject) => void;
+	info: (message: string, obj?: JSONObject) => void;
+	warn: (message: string, obj?: JSONObject) => void;
+	error: (message: string, obj?: JSONObject) => void;
 };
 
 const levels = [
@@ -22,7 +22,7 @@ export const createLogger = (level: LogLevel = 'off'): Logger => {
 	let currentLogLevel = levels.indexOf(level);
 	const log = (level: LogLevel) => {
 		const logLevel = levels.indexOf(level);
-		return (message: string, obj: JSONObject) => {
+		return (message: string, obj?: JSONObject) => {
 			if (currentLogLevel < logLevel) {
 				return;
 			}
@@ -45,3 +45,5 @@ export const createLogger = (level: LogLevel = 'off'): Logger => {
 		error: log('error'),
 	};
 };
+
+export const knutLogger = createLogger('debug');

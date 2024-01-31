@@ -55,7 +55,8 @@ export const getUserCacheDir = async (): Promise<string> => {
 	throw new Error(`Platform ${platform} not supported`);
 };
 
-export const getUserConfigDir = async (): Promise<string> => {
+export const getUserConfigDir = async (root?: string): Promise<string> => {
+	const rootDir = root ?? homedir();
 	const platform = process.platform;
 
 	const configDir = process.env.XDG_CONFIG_HOME ?? null;
@@ -66,17 +67,17 @@ export const getUserConfigDir = async (): Promise<string> => {
 	if (platform === 'win32') {
 		const dir = process.env.APPDATA || '';
 		if (dir === '') {
-			return Path.join(homedir(), 'AppData', 'Roaming');
+			return Path.join(rootDir, 'AppData', 'Roaming');
 		}
 		return dir;
 	}
 
 	if (platform === 'darwin') {
-		return Path.join(homedir(), 'Library', 'Preferences');
+		return Path.join(rootDir, 'Library', 'Preferences');
 	}
 
 	if (platform === 'linux') {
-		return Path.join(homedir(), '.config');
+		return Path.join(rootDir, '.config');
 	}
 	throw new Error(`Platform ${platform} not supported`);
 };
