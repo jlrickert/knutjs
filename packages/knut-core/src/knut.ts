@@ -91,27 +91,9 @@ export class Knut {
 	}
 
 	static async fromEnvironment(env: EnvStorage): Promise<Knut> {
-		let varConfig: KnutConfigFile;
-		{
-			varConfig =
-				(await KnutConfigFile.fromStorage(env.variable)) ??
-				KnutConfigFile.create();
-			if (env.variable instanceof FsStorage) {
-				varConfig = await varConfig.resolve(env.variable.getRoot());
-			}
-		}
-
-		let userConfig;
-		{
-			userConfig =
-				(await KnutConfigFile.fromStorage(env.config)) ??
-				KnutConfigFile.create();
-			if (env.config instanceof FsStorage) {
-				userConfig = await userConfig.resolve(env.config.getRoot());
-			}
-		}
-
-		const configFile = varConfig.concat(userConfig);
+		const configFile = await KnutConfigFile.fromEnvStorage(env, {
+			resolve: true,
+		});
 		const knut = await Knut.fromConfig(configFile.data, { env: env });
 		return knut;
 	}

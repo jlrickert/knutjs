@@ -1,9 +1,11 @@
 import * as Path from 'path';
 import * as YAML from 'yaml';
+import { homedir } from 'os';
 import { absurd, deepCopy, stringify } from './utils.js';
 import { KegVersion } from './kegFile.js';
 import { GenericStorage } from './storage/storage.js';
-import { homedir } from 'os';
+import { EnvStorage } from './envStorage.js';
+import { FsStorage } from './storage/fsStorage.js';
 
 export type KegConfigDefinition = {
 	alias: string;
@@ -28,6 +30,34 @@ export type ConfigDefinition = {
  * Represents a config file
  */
 export class KnutConfigFile {
+	static async fromEnvStorage(
+		env: EnvStorage,
+		options?: { resolve: boolean },
+	) {
+		let varConfig: KnutConfigFile;
+		{
+			varConfig =
+				(await KnutConfigFile.fromStorage(env.variable)) ??
+				KnutConfigFile.create();
+			if (options?.resolve && env.variable instanceof FsStorage) {
+				varConfig = await varConfig.resolve(env.variable.getRoot());
+			}
+		}
+
+		let userConfig;
+		{
+			userConfig =
+				(await KnutConfigFile.fromStorage(env.config)) ??
+				KnutConfigFile.create();
+			if (options?.resolve && env.config instanceof FsStorage) {
+				userConfig = await userConfig.resolve(env.config.getRoot());
+			}
+		}
+
+		const configFile = varConfig.concat(userConfig);
+		return configFile;
+	}
+
 	static async fromStorage(
 		storage: GenericStorage,
 	): Promise<KnutConfigFile | null> {
