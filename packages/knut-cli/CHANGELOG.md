@@ -1,5 +1,16 @@
 # @jlrickert/knutjs-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- 879d806: Add update cli interface
+
+### Patch Changes
+
+- Updated dependencies [610ccc4]
+  - @jlrickert/knutjs-core@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes
