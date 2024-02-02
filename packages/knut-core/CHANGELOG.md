@@ -1,5 +1,13 @@
 # @jlrickert/knutjs-core
 
+## 0.3.0
+
+### Minor Changes
+
+- 610ccc4: Made improvements to search functionality
+
+  Add update function on knut to allow for rebuilding the index if it is out of date.
+
 ## 0.2.1
 
 ### Patch Changes
