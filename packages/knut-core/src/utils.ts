@@ -83,7 +83,75 @@ export const stringify = (value: number | Date | Stringer): string => {
 	} else if (value instanceof Date) {
 		return value.toISOString();
 	} else if ('stringify' in value) {
-		value.stringify();
+		return value.stringify();
 	}
-	return value.toString();
+	return absurd(value);
+};
+
+export const deepCopy = <T extends undefined | Date | JSON>(obj: T): T => {
+	// Handle the 3 simple types, and null or undefined
+	if (
+		obj === null ||
+		obj === undefined ||
+		typeof obj === 'string' ||
+		typeof obj === 'number' ||
+		typeof obj === 'boolean'
+	) {
+		return obj;
+	}
+
+	// Handle Array
+	if (obj instanceof Array) {
+		const copy = [];
+		for (let i = 0, len = obj.length; i < len; i++) {
+			copy[i] = deepCopy(obj[i]);
+		}
+		return copy as T;
+	}
+
+	// Handle Date
+	if (obj instanceof Date) {
+		const copy = new Date();
+		copy.setTime(obj.getTime());
+		return copy as T;
+	}
+
+	// Handle Object
+	if (obj instanceof Object) {
+		const copy: JSONObject = {};
+		for (const attr in obj) {
+			if (obj.hasOwnProperty(attr)) {
+				copy[attr as any] = deepCopy(obj[attr]);
+			}
+		}
+		return copy as T;
+	}
+
+	throw new Error("Unable to copy obj! Its type isn't supported.");
+};
+
+export const collectAsync = async <T, TReturn = any, TNext = undefined>(
+	iterator: AsyncIterator<T, TReturn, TNext>,
+) => {
+	const results: T[] = [];
+	while (true) {
+		const item = await iterator.next();
+		if (item.done) {
+			return results;
+		}
+		results.push(item.value);
+	}
+};
+
+export const collect = async <T, TReturn = any, TNext = undefined>(
+	iterator: Iterator<T, TReturn, TNext>,
+) => {
+	const results: T[] = [];
+	while (true) {
+		const item = iterator.next();
+		if (item.done) {
+			return results;
+		}
+		results.push(item.value);
+	}
 };

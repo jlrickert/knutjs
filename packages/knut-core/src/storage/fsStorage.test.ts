@@ -1,21 +1,33 @@
-import { afterEach, describe, expect, test } from 'vitest';
-import {
-	createFilesystemContext,
-	knutConfigPath,
-	sampleKegpath,
-} from '../internal/testUtils';
-import { FsStorage } from './fsStorage';
+import * as Path from 'path';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { TestContext, createSampleKnutApp } from '../internal/testUtils';
 import { MemoryStorage } from './memoryStorage';
 import { GenericStorage } from './storage';
 
-describe('file system storage', () => {
-	test('should be able to resolve config paths', async () => {
-		const storage = new FsStorage(knutConfigPath);
-		const url = await storage.resolve('../../samplekeg');
-		expect(url).toEqual(sampleKegpath);
-	});
+test('path library exploration', () => {
+	expect(Path.isAbsolute('/home/user/.config/knut')).toBeTruthy();
+	expect(Path.isAbsolute('~/.config/knut')).toBeFalsy();
+	expect(Path.isAbsolute('.config/knut')).toBeFalsy();
+	expect(Path.normalize(`/home/user/.config/knut/../../repo/notes`)).toEqual(
+		'/home/user/repo/notes',
+	);
+	expect(Path.resolve(`/home/user/.config/knut/../../repo/notes`)).toEqual(
+		'/home/user/repo/notes',
+	);
+	expect(Path.resolve('/home/user/.config/knut', '../../repo/notes')).toEqual(
+		'/home/user/repo/notes',
+	);
+	expect(
+		Path.resolve('/home/user/.config/knut', '/home/user/repo/notes'),
+	).toEqual('/home/user/repo/notes');
+});
 
-	let ctx = createFilesystemContext();
+describe('file system storage', () => {
+	let ctx!: TestContext;
+
+	beforeEach(async () => {
+		ctx = await createSampleKnutApp();
+	});
 
 	afterEach(async () => {
 		await ctx.reset();
@@ -23,13 +35,13 @@ describe('file system storage', () => {
 
 	test('should mirror the behavior of memory storage', async () => {
 		const memory = MemoryStorage.create();
-		const storage = new FsStorage(await ctx.getRoot());
+		const storage = ctx.storage.child('');
 		const check = async <K extends keyof GenericStorage>(
 			key: K,
 			...args: Parameters<GenericStorage[K]>
 		) => {
-			const a = await (memory[key] as any)(...args);
-			const b = await (storage[key] as any)(...args);
+			const a = await (storage[key] as any)(...args);
+			const b = await (memory[key] as any)(...args);
 			const diffDate = (a: string, b: string) => {
 				return Math.abs(new Date(a).getTime() - new Date(b).getTime());
 			};

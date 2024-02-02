@@ -16,10 +16,10 @@ const makeTag = (value: string): Tag => {
 	return `#${makeTag}`;
 };
 
-export class Meta {
-	static fromYAML(yaml: string): Meta {
+export class MetaFile {
+	static fromYAML(yaml: string): MetaFile {
 		const data = YAML.parse(yaml);
-		const meta = new Meta(data);
+		const meta = new MetaFile(data);
 		return meta;
 	}
 

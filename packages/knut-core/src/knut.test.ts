@@ -1,56 +1,50 @@
-import Path from 'path';
-import { readFile, mkdtemp, rmdir } from 'fs/promises';
-import { test, describe, expect, beforeAll, afterAll } from 'vitest';
-import { Knut } from './knut.js';
-import { NodeId } from './node.js';
+import { test, describe, expect, beforeEach, afterEach } from 'vitest';
+import { KegNode, NodeId } from './node.js';
 import { NodeContent } from './nodeContent.js';
-import { knutConfigPath, sampleKegpath } from './internal/testUtils.js';
-import { KnutSystemStorage } from './knutStorage/systemStorage.js';
-import { tmpdir } from 'os';
-
-const cacheRoot = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
-const sampleKnutStorage = new KnutSystemStorage({
-	configRoot: knutConfigPath,
-	dataRoot: knutConfigPath,
-	cacheRoot: cacheRoot,
-});
+import { TestContext, createSampleKnutApp } from './internal/testUtils.js';
 
 describe('common programming patterns', async () => {
-	beforeAll(async () => {});
+	let ctx!: TestContext;
 
-	afterAll(async () => {
-		await rmdir(cacheRoot);
+	beforeEach(async () => {
+		ctx = await createSampleKnutApp();
+	});
+
+	afterEach(async () => {
+		await ctx.reset();
 	});
 
 	test('should be able to load keg file details from sample keg', async () => {
-		const knut = await Knut.fromStorage(sampleKnutStorage);
-		const kegFile = knut.getKegFile('sample');
-		expect(kegFile?.getAuthor()).toEqual('git@github.com:YOU/YOU.git');
+		const keg = ctx.knut.getKeg('sample');
+		expect(keg!.kegFile?.getAuthor()).toEqual('git@github.com:YOU/YOU.git');
 	});
 
 	test('should be able to list all nodes', async () => {
-		const knut = await Knut.fromStorage(sampleKnutStorage);
-		const nodes = await knut.search({ limit: 0 });
+		const nodes: KegNode[] = [];
+		for await (const [, , node] of ctx.knut.getNodeList()) {
+			nodes.push(node);
+		}
 		expect(nodes).toHaveLength(13);
-		const nodeIds = nodes
-			.map((n) => n.nodeId)
-			.map(Number)
-			.sort();
-		expect(new Set(nodeIds)).toHaveLength(13);
 	});
 
 	test('should be able to read a node', async () => {
-		const knut = await Knut.fromStorage(sampleKnutStorage);
-		const node = await knut.nodeRead({
-			kegalias: 'sample',
-			nodeId: new NodeId('0'),
-		});
+		const keg = ctx.knut.getKeg('sample');
+		const nodeId = new NodeId(0);
+		const node = await keg!.getNode(nodeId);
 		expect(node?.title).toEqual('Sorry, planned but not yet available');
-		const nodeContent = await readFile(
-			Path.join(sampleKegpath, NodeContent.filePath(new NodeId('0'))),
-		);
-		expect(node?.content.stringify()).toEqual(nodeContent.toString());
+		const nodeContent = await ctx.storage
+			.child('samplekeg')
+			.read(NodeContent.filePath(nodeId));
+		expect(node!.content).toEqual(nodeContent);
 	});
 
-	test('should be able to create a new node', () => {});
+	test('should be able to search through nodes', async () => {
+		const results = await ctx.knut.search({
+			limit: 5,
+			filter: { $text: { $search: 'lorem ipsum' } },
+		});
+		const topResult = results[0];
+		expect(results.length).toBeLessThanOrEqual(5);
+		expect(topResult.nodeId).toEqual('7');
+	});
 });

@@ -1,13 +1,9 @@
 import * as Path from 'path';
 import * as YAML from 'yaml';
-import { homedir } from 'os';
-import { absurd, createId } from './utils.js';
+import { absurd, deepCopy, stringify } from './utils.js';
 import { KegVersion } from './kegFile.js';
-import {
-	loadKnutStorage,
-	type KnutStorage,
-} from './knutStorage/knutStorage.js';
-import { KnutSystemStorage } from './knutStorage/systemStorage.js';
+import { GenericStorage } from './storage/storage.js';
+import { homedir } from 'os';
 
 export type KegConfigDefinition = {
 	alias: string;
@@ -32,87 +28,25 @@ export type ConfigDefinition = {
  * Represents a config file
  */
 export class KnutConfigFile {
-	static async fromUserConfig(
-		storage?: KnutStorage,
-	): Promise<KnutConfigFile> {
-		const store = storage ?? (await loadKnutStorage());
-
-		new KnutConfigFile({ version: 'draft-0.1', kegs: [] });
-		if (store === null) {
-			return new KnutConfigFile({ version: 'draft-0.1', kegs: [] });
-		}
-
+	static async fromStorage(
+		storage: GenericStorage,
+	): Promise<KnutConfigFile | null> {
 		let config: KnutConfigFile | null = null;
-		const yamlData = await store.readConfig('config.yaml');
+
+		const yamlData = await storage.read('config.yaml');
 		if (yamlData) {
 			config = await KnutConfigFile.fromYAML(yamlData);
 		}
 
-		const jsonData = config ? await store.readConfig('config.json') : null;
-		if (jsonData) {
-			config = await KnutConfigFile.fromJSON(jsonData);
-		}
-
 		if (!config) {
-			config = new KnutConfigFile({ version: 'draft-0.1', kegs: [] });
-		}
-
-		if (store instanceof KnutSystemStorage) {
-			for (const keg of config.data.kegs) {
-				if (/^https?/.test(keg.url)) {
-					continue;
-				}
-				if (/^~/.test(keg.url)) {
-					keg.url = keg.url.replace('~', homedir());
-					continue;
-				}
-				if (!Path.isAbsolute(keg.url)) {
-					keg.url = Path.resolve(
-						Path.join(store.configRoot, keg.url),
-					);
-				}
+			const jsonData = await storage.read('config.json');
+			if (jsonData) {
+				config = await KnutConfigFile.fromJSON(jsonData);
 			}
 		}
 
-		return config;
-	}
-
-	static async fromUserData(storage?: KnutStorage): Promise<KnutConfigFile> {
-		const store = storage ?? (await loadKnutStorage());
-		if (store === null) {
-			return new KnutConfigFile({ version: 'draft-0.1', kegs: [] });
-		}
-
-		let config: KnutConfigFile | null = null;
-		const yamlData = await store.readVar('config.yaml');
-		if (yamlData) {
-			config = await KnutConfigFile.fromYAML(yamlData);
-		}
-
-		const jsonData = await store.readVar('config.json');
-		if (jsonData) {
-			config = await KnutConfigFile.fromJSON(jsonData);
-		}
-
 		if (!config) {
-			config = new KnutConfigFile({ version: 'draft-0.1', kegs: [] });
-		}
-
-		if (store instanceof KnutSystemStorage) {
-			for (const keg of config.data.kegs) {
-				if (/^https?/.test(keg.url)) {
-					continue;
-				}
-				if (/^~/.test(keg.url)) {
-					keg.url = keg.url.replace('~', homedir());
-					continue;
-				}
-				if (!Path.isAbsolute(keg.url)) {
-					keg.url = Path.resolve(
-						Path.join(store.configRoot, keg.url),
-					);
-				}
-			}
+			config = KnutConfigFile.create();
 		}
 
 		return config;
@@ -129,10 +63,49 @@ export class KnutConfigFile {
 		return new KnutConfigFile(data);
 	}
 
+	static create(): KnutConfigFile {
+		return new KnutConfigFile({
+			version: 'draft-0.1',
+			kegs: [],
+		});
+	}
+
 	constructor(private _data: ConfigDefinition) {}
 
-	createId(): string {
-		return createId({ count: 5 });
+	async writeTo(storage: GenericStorage): Promise<boolean> {
+		const filename =
+			this.data.format === 'yaml' ? 'config.yaml' : 'config.json';
+		const ok = await storage.write(filename, stringify(this));
+		return ok;
+	}
+
+	/**
+	 * Resolve urls to some path
+	 **/
+	async resolve(path: string): Promise<KnutConfigFile> {
+		const next = this.clone();
+		for (const keg of next.data.kegs) {
+			const home = homedir();
+			const url = keg.url.replace(/^~/, home);
+			keg.url = Path.resolve(path, url);
+		}
+		return next;
+	}
+
+	/**
+	 * Make urls relative
+	 **/
+	async relative(path: string): Promise<KnutConfigFile> {
+		const next = this.clone();
+		if (path.match(/^https?/)) {
+			return next;
+		}
+		for (const keg of next.data.kegs) {
+			const home = homedir();
+			const url = keg.url.replace(/^~/, home);
+			keg.url = Path.relative(path, url);
+		}
+		return next;
 	}
 
 	updateKegConfig(definition: KegConfigDefinition) {
@@ -199,14 +172,7 @@ export class KnutConfigFile {
 	}
 
 	clone(): KnutConfigFile {
-		const definition: ConfigDefinition = {
-			version: this._data.version ?? 'draft-0.1',
-			kegs: [],
-		};
-		for (const def of this._data.kegs) {
-			definition.kegs.push({ ...def });
-		}
-		const config = new KnutConfigFile(definition);
+		const config = new KnutConfigFile(deepCopy(this.data));
 		return config;
 	}
 

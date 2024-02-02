@@ -5,6 +5,7 @@ import {
 	GenericStorage,
 	StorageNodeStats,
 	StorageNodeTime,
+	overwrite,
 } from './storage.js';
 
 type FsNodeTimestamps = {
@@ -71,6 +72,12 @@ export class MemoryStorage implements GenericStorage {
 		}
 	}
 
+	static async fromStorage(storage: GenericStorage): Promise<MemoryStorage> {
+		const store = MemoryStorage.create();
+		await overwrite(storage, store);
+		return store;
+	}
+
 	/**
 	 * Create a new storage in memory.
 	 */
@@ -134,11 +141,6 @@ export class MemoryStorage implements GenericStorage {
 			const { path } = this.fs.nodes[i];
 			this.fs.index[path] = i;
 		}
-	}
-
-	async resolve(path: string): Promise<string> {
-		const fullpath = this.getFullPath(path);
-		return fullpath;
 	}
 
 	async read(path: Stringer): Promise<string | null> {
