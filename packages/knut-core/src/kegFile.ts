@@ -1,5 +1,5 @@
 import * as YAML from 'yaml';
-import { JSON, currentDate, stringify } from './utils.js';
+import { MY_JSON, currentDate, stringify } from './utils.js';
 import { NodeId } from './node.js';
 import { KegStorage } from './kegStorage.js';
 
@@ -23,7 +23,7 @@ export type IndexEntryData = {
 	 * name of the indexer to use
 	 **/
 	name: string;
-	[keg: string]: JSON;
+	[keg: string]: MY_JSON;
 };
 
 /**

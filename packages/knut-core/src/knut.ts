@@ -3,7 +3,7 @@ import { ConfigDefinition, KnutConfigFile } from './configFile.js';
 import { Filter } from './filterTypes.js';
 import { MetaFile, MetaData } from './metaFile.js';
 import { NodeId } from './node.js';
-import { JSON, stringify } from './utils.js';
+import { MY_JSON, stringify } from './utils.js';
 import { EnvStorage } from './envStorage.js';
 import { Keg } from './keg.js';
 import { KegStorage, loadKegStorage } from './kegStorage.js';
@@ -60,7 +60,7 @@ export type SearchResult = {
 	rank: number;
 	tags: string[];
 	author: string | null;
-	meta: JSON;
+	meta: MY_JSON;
 };
 
 export type ShareOptions = {
@@ -188,7 +188,7 @@ export class Knut {
 			author: string | null;
 			tags: string[];
 			updated: string;
-			meta: JSON;
+			meta: MY_JSON;
 		};
 		const rawData = await this.env.cache.read('fuse-data.json');
 		let data = rawData ? (JSON.parse(rawData) as Data[]) : null;
