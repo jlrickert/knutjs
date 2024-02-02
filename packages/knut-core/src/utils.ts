@@ -1,13 +1,18 @@
 import { randomInt } from 'crypto';
 
-export type JSONObject = { [key: string]: JSON };
-export type JSONArray = JSON[];
+export type JSONObject = { [key: string]: MY_JSON };
+export type JSONArray = MY_JSON[];
 export type JSONBoolean = boolean;
 export type JSONNumber = number;
 export type JSONNull = null;
 export type JSONString = string;
 
-export type JSON = JSONNull | JSONNumber | JSONString | JSONArray | JSONObject;
+export type MY_JSON =
+	| JSONNull
+	| JSONNumber
+	| JSONString
+	| JSONArray
+	| JSONObject;
 
 export let _nowHack = () => new Date().toISOString();
 
@@ -88,7 +93,7 @@ export const stringify = (value: number | Date | Stringer): string => {
 	return absurd(value);
 };
 
-export const deepCopy = <T extends undefined | Date | JSON>(obj: T): T => {
+export const deepCopy = <T extends undefined | Date | MY_JSON>(obj: T): T => {
 	// Handle the 3 simple types, and null or undefined
 	if (
 		obj === null ||
