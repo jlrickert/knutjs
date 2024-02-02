@@ -12,7 +12,7 @@ type SearchOptions = {
 };
 
 export const search = async (query: string, options: SearchOptions) => {
-	const knut = await Knut.fromStorage();
+	const knut = await Knut.create();
 	const results = await knut.search({
 		limit: options.limit,
 		filter: {

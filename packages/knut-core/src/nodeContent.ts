@@ -48,7 +48,7 @@ export class NodeContent {
 		this.root.children = [titleNode, ...this.root.children];
 	}
 
-	stringify() {
+	stringify(): string {
 		return MarkdownAST.to(this.root);
 	}
 }

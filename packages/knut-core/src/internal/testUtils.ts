@@ -2,7 +2,7 @@ import * as Path from 'path';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { Knut } from '../knut.js';
-import { KnutStorage } from '../knutStorage.js';
+import { EnvStorage } from '../envStorage.js';
 import { GenericStorage, loadStorage, overwrite } from '../storage/storage.js';
 
 export const testDataPath = Path.resolve(__dirname, '..', '..', 'testdata');
@@ -29,7 +29,7 @@ export type FileSystemTestContext = {
 	getRoot: () => Promise<string>;
 	getCacheDir: () => Promise<string>;
 	getConfigDir: () => Promise<string>;
-	getDataDir: () => Promise<string>;
+	getVarDir: () => Promise<string>;
 	reset: () => Promise<void>;
 };
 export const createFilesystemContext = (): FileSystemTestContext => {
@@ -57,37 +57,37 @@ export const createFilesystemContext = (): FileSystemTestContext => {
 		return Path.join(await getRoot(), 'config');
 	};
 
-	const getDataDir = async () => {
-		return Path.join(await getRoot(), 'config');
+	const getVarDir = async () => {
+		return Path.join(await getRoot(), 'var');
 	};
 
 	return {
 		getRoot,
 		getCacheDir,
 		getConfigDir,
-		getDataDir,
+		getVarDir,
 		reset,
 	};
 };
 
-export type TestDataKnutApp = {
+export type TestContext = {
 	knut: Knut;
 	storage: GenericStorage;
 	reset(): Promise<void>;
 };
 
-export const createSampleKnutApp = async (): Promise<TestDataKnutApp> => {
+export const createSampleKnutApp = async (): Promise<TestContext> => {
 	const { reset, getRoot } = createFilesystemContext();
 	const testDataStorage = loadStorage(testDataPath);
 	const storage = loadStorage(await getRoot());
 	await overwrite(testDataStorage, storage);
-	const knutStorage = KnutStorage.fromStorage({
-		data: storage.child('share/data/knut'),
+	const knutStorage = EnvStorage.fromStorage({
+		variable: storage.child('share/knut'),
 		config: storage.child('config/knut'),
 		cache: storage.child('cache/knut'),
 	});
 
-	const knut = await Knut.fromStorage(knutStorage);
+	const knut = await Knut.fromEnvironment(knutStorage);
 	return {
 		knut,
 		storage,

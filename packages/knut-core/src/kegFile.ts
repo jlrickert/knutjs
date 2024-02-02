@@ -1,10 +1,30 @@
 import * as YAML from 'yaml';
-import { IndexEntry, type IndexEntryData } from './indexes.js';
-import { KegStorage } from './kegStorage/index.js';
-import { createId, currentDate } from './utils.js';
+import { JSON, currentDate, stringify } from './utils.js';
 import { NodeId } from './node.js';
+import { KegStorage } from './kegStorage.js';
 
 export type KegVersion = '2023-01';
+
+/**
+ * Plain old data representing an Index. This data is found in the **keg**
+ * file.
+ **/
+export type IndexEntryData = {
+	/**
+	 * file relative to the keg file. By convention this will point to a file
+	 * in the dex directory.
+	 */
+	file: string;
+	/**
+	 * Summary for the index
+	 **/
+	summary: string;
+	/**
+	 * name of the indexer to use
+	 **/
+	name: string;
+	[keg: string]: JSON;
+};
 
 /**
  * Plain old data representing a keg
@@ -52,23 +72,23 @@ export class KegFile {
 		});
 	}
 
-	static getFilepath(): string {
-		return 'keg';
+	private constructor(public readonly data: KegFileData) {}
+
+	*getIndexes() {
+		const entries: IndexEntryData[] = [];
+		for (const entry of this.data.indexes ?? []) {
+			entries.push(entry);
+			yield entry satisfies IndexEntryData;
+		}
+		return entries;
 	}
 
-	getFilepath(): string {
-		return 'keg';
+	async writeTo(storage: KegStorage): Promise<boolean> {
+		return await storage.write('keg', stringify(this));
 	}
-
-	private constructor(private data: KegFileData) {}
 
 	update(f: (data: KegFileData) => void): void {
 		f(this.data);
-	}
-
-	getNodeId(): NodeId {
-		const id = createId({ count: 5, postfix: 'A' });
-		return new NodeId(id);
 	}
 
 	getAuthor(): string | null {
@@ -78,19 +98,6 @@ export class KegFile {
 	getLink(nodeId: NodeId): string | null {
 		const linkfmt = this.data.linkfmt;
 		return linkfmt ? linkfmt.replace('{{id}}', nodeId.stringify()) : null;
-	}
-
-	getIndexList(): IndexEntry[] | null {
-		const indexDataList = this.data.indexes ?? [];
-		const indexList: IndexEntry[] = [];
-		for (const data of indexDataList) {
-			const index = IndexEntry.load(data);
-			if (!index) {
-				return null;
-			}
-			indexList.push(index);
-		}
-		return indexList;
 	}
 
 	toYAML(): string {
@@ -105,6 +112,6 @@ export class KegFile {
 	}
 
 	stringify(): string {
-		return this.toJSON();
+		return this.toYAML();
 	}
 }

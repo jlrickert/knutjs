@@ -1,25 +1,26 @@
 import { EventEmitter } from 'events';
-import { Meta as MetaFile, Tag } from './metaFile.js';
-import { KegStorage } from './kegStorage/index.js';
-import { Stringer, now } from './utils.js';
+import { MetaFile as MetaFile, Tag } from './metaFile.js';
+import { stringify } from './utils.js';
 import { NodeContent } from './nodeContent.js';
+import { KegStorage } from './kegStorage.js';
 
-type PartialOrder<T> = {
-	lt: (other: T) => boolean;
-	gt: (other: T) => boolean;
-};
+export class NodeId {
+	static parsePath(path: string): NodeId | null {
+		const parts = path.split('/');
+		for (const part of parts) {
+			const id = Number(part);
+			if (!Number.isNaN(id)) {
+				return new NodeId(id);
+			}
+		}
+		return null;
+	}
 
-type Equality<T> = {
-	equals: (other: T) => boolean;
-};
+	constructor(public readonly id: number) {}
 
-type Order<T> = (PartialOrder<T> & Equality<T>) & {
-	lte: (other: T) => boolean;
-	gte: (other: T) => boolean;
-};
-
-export class NodeId implements Stringer, Order<NodeId> {
-	constructor(public readonly id: string) {}
+	next(): NodeId {
+		return new NodeId(Number(this.id) + 1);
+	}
 
 	lt(other: NodeId): boolean {
 		return Number(this.id) < Number(other.id);
@@ -37,7 +38,7 @@ export class NodeId implements Stringer, Order<NodeId> {
 		return Number(this.id) >= Number(other.id);
 	}
 
-	equals(other: NodeId): boolean {
+	eq(other: NodeId): boolean {
 		return this.id === other.id;
 	}
 
@@ -50,7 +51,7 @@ export class NodeId implements Stringer, Order<NodeId> {
 	}
 
 	stringify(): string {
-		return this.id;
+		return String(this.id);
 	}
 }
 
@@ -75,14 +76,14 @@ export class KegNode extends EventEmitter {
 		return obj instanceof KegNode;
 	}
 
-	static async load(
+	static async fromStorage(
 		nodeId: NodeId,
 		storage: KegStorage,
 	): Promise<KegNode | null> {
 		const nodePath = NodeContent.filePath(nodeId);
 		const metaPath = MetaFile.filePath(nodeId);
-		const contentData = await storage.read(nodePath);
-		if (!contentData) {
+		const rawContent = await storage.read(nodePath);
+		if (!rawContent) {
 			return null;
 		}
 		const yamlData = await storage.read(metaPath);
@@ -90,13 +91,13 @@ export class KegNode extends EventEmitter {
 			? MetaFile.fromYAML(yamlData)
 			: new MetaFile();
 		const stats = await storage.stats(nodePath);
-		if (!contentData || !stats) {
+		if (!rawContent && !stats) {
 			return null;
 		}
-		const content = await NodeContent.fromMarkdown(contentData);
+		const content = await NodeContent.fromMarkdown(rawContent);
 		const node = new KegNode({
 			content,
-			updated: stats.mtime,
+			updated: stringify(stats?.mtime ?? new Date(0)),
 			meta: metaData,
 		});
 		return node;
@@ -126,16 +127,16 @@ export class KegNode extends EventEmitter {
 		super();
 	}
 
-	get title(): string | null {
-		return this.content.title;
+	get title(): string {
+		return this.data.content.title ?? '';
 	}
 
 	set title(value: string) {
-		this.content.title = value;
+		this.data.content.title = value;
 	}
 
-	get content(): NodeContent {
-		return this.data.content;
+	get content(): string {
+		return stringify(this.data.content);
 	}
 
 	get meta(): MetaFile {
@@ -148,7 +149,7 @@ export class KegNode extends EventEmitter {
 
 	async updateContent(content: string): Promise<void> {
 		this.data.content = await NodeContent.fromMarkdown(content);
-		this.data.updated = now('Y-m-D H:M');
+		this.data.updated = stringify(new Date());
 
 		this.emit('update', {
 			node: this,
