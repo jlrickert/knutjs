@@ -1,4 +1,4 @@
-import Fuse, { FuseOptionKey, FuseSearchOptions } from 'fuse.js';
+import Fuse, { FuseIndex, FuseOptionKey, FuseSearchOptions } from 'fuse.js';
 import { ConfigDefinition, KnutConfigFile } from './configFile.js';
 import { Filter } from './filterTypes.js';
 import { MetaFile, MetaData } from './metaFile.js';
@@ -173,6 +173,11 @@ export class Knut {
 		}
 	}
 
+	async update(): Promise<void> {
+		this.env.cache.rm('fuse-data.json');
+		this.env.cache.rm('fuse-cache.json');
+	}
+
 	async search({ limit, filter }: SearchOptions): Promise<SearchResult[]> {
 		const results: SearchResult[] = [];
 		type Data = {
@@ -185,35 +190,45 @@ export class Knut {
 			updated: string;
 			meta: JSON;
 		};
-		const data: Data[] = [];
+		const rawData = await this.env.cache.read('fuse-data.json');
+		let data = rawData ? (JSON.parse(rawData) as Data[]) : null;
 
-		for await (const [kegalias, nodeId, node] of this.getNodeList()) {
-			const keg = this.getKeg(kegalias);
-			invariant(keg, 'Expect to get the keg that the node belongs to');
-			const author = keg.kegFile.getAuthor();
-			const content = node?.content;
-			const tags = node?.getTags() ?? [];
-			// Only include if node has the expected tag
-			if (Array.isArray(filter?.tags)) {
-				if (
-					!filter.tags.reduce(
-						(acc, tag) => acc && tags.includes(tag),
-						true,
-					)
-				) {
-					continue;
+		if (data === null) {
+			data = [];
+			for await (const [kegalias, nodeId, node] of this.getNodeList()) {
+				const keg = this.getKeg(kegalias);
+				invariant(
+					keg,
+					'Expect to get the keg that the node belongs to',
+				);
+				const author = keg.kegFile.getAuthor();
+				const content = node?.content;
+				const tags = node?.getTags() ?? [];
+				// Only include if node has the expected tag
+				if (Array.isArray(filter?.tags)) {
+					if (
+						!filter.tags.reduce(
+							(acc, tag) => acc && tags.includes(tag),
+							true,
+						)
+					) {
+						continue;
+					}
 				}
+				data.push({
+					content,
+					kegalias,
+					nodeId: stringify(nodeId),
+					title: node?.title ?? '',
+					author,
+					tags: [...tags],
+					updated: node?.updated ?? '',
+					meta: node?.meta.export() ?? null,
+				});
 			}
-			data.push({
-				content,
-				kegalias,
-				nodeId: stringify(nodeId),
-				title: node?.title ?? '',
-				author,
-				tags: [...tags],
-				updated: node?.updated ?? '',
-				meta: node?.meta.export() ?? null,
-			});
+		}
+		if (rawData === null) {
+			this.env.cache.write('fuse-data.json', JSON.stringify(data));
 		}
 
 		const search = filter?.$text?.$search ?? '';
@@ -238,8 +253,17 @@ export class Knut {
 			{ name: 'title', weight: 2 },
 			'content',
 		];
-		const indexData = Fuse.createIndex(keys, data);
-		const index = Fuse.parseIndex<Data>(indexData);
+		const indexData = await this.env.cache.read('fuse-index.json');
+		let index: FuseIndex<Data>;
+		if (!indexData) {
+			index = Fuse.createIndex(keys, data);
+			await this.env.cache.write(
+				'fuse-index.json',
+				JSON.stringify(index.toJSON()),
+			);
+		} else {
+			index = Fuse.parseIndex<Data>(JSON.parse(indexData));
+		}
 		const fuse = new Fuse(
 			data,
 			{
