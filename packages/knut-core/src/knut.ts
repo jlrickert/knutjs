@@ -157,7 +157,7 @@ export class Knut {
 
 	async update(): Promise<void> {
 		this.env.cache.rm('fuse-data.json');
-		this.env.cache.rm('fuse-cache.json');
+		this.env.cache.rm('fuse-index.json');
 	}
 
 	async search({ limit, filter }: SearchOptions): Promise<SearchResult[]> {
