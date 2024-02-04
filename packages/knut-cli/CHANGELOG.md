@@ -1,5 +1,13 @@
 # @jlrickert/knutjs-cli
 
+## 0.3.1
+
+### Patch Changes
+
+- 753b996: Fix issue where fuse index cache wasn't properly being updated
+- Updated dependencies [753b996]
+  - @jlrickert/knutjs-core@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes
