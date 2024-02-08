@@ -1,9 +1,13 @@
+import { pipe } from 'fp-ts/lib/function.js';
 import { Dex } from './dex.js';
 import { EnvStorage } from './envStorage.js';
 import { KegFile } from './kegFile.js';
 import { KegStorage, loadKegStorage } from './kegStorage.js';
 import { KegNode, NodeId } from './node.js';
 import { collectAsync } from './utils.js';
+import { collectAsync, stringify } from './utils.js';
+import { NodeContent } from './nodeContent.js';
+import { MetaFile } from './metaFile.js';
 
 export type CreateNodeOptions = {
 	content: string;
@@ -42,6 +46,23 @@ export class Keg {
 	async getNode(nodeId: NodeId): Promise<KegNode | null> {
 		const node = await KegNode.fromStorage(nodeId, this.storage);
 		return node;
+	}
+
+	async createNode(): Promise<NodeId> {
+		const nodeId = pipe(
+			await this.last(),
+			(a) => a?.next() ?? new NodeId(0),
+		);
+		const node = await KegNode.create();
+		await this.setNode(nodeId, node);
+		return nodeId;
+	}
+
+	async setNode(nodeId: NodeId, node: KegNode): Promise<void> {
+		const filepath = NodeContent.filePath(nodeId);
+		const metapath = MetaFile.filePath(nodeId);
+		await this.storage.write(filepath, node.content);
+		await this.storage.write(metapath, stringify(node.meta));
 	}
 
 	async *getNodeList(): AsyncGenerator<

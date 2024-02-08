@@ -148,7 +148,7 @@ export const collectAsync = async <T, TReturn = any, TNext = undefined>(
 	}
 };
 
-export const collect = async <T, TReturn = any, TNext = undefined>(
+export const collect = <T, TReturn = any, TNext = undefined>(
 	iterator: Iterator<T, TReturn, TNext>,
 ) => {
 	const results: T[] = [];

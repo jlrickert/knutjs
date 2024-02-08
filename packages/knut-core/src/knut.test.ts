@@ -1,7 +1,10 @@
 import { test, describe, expect, beforeEach, afterEach } from 'vitest';
+import invariant from 'tiny-invariant';
+import { pipe } from 'fp-ts/lib/function.js';
 import { KegNode, NodeId } from './node.js';
 import { NodeContent } from './nodeContent.js';
 import { TestContext, createSampleKnutApp } from './internal/testUtils.js';
+import { collectAsync } from './utils.js';
 
 describe('common programming patterns', async () => {
 	let ctx!: TestContext;
@@ -25,6 +28,35 @@ describe('common programming patterns', async () => {
 			nodes.push(node);
 		}
 		expect(nodes).toHaveLength(13);
+	});
+
+	test('should be able to create a node', async () => {
+		const keg = ctx.knut.getKeg('sample')!;
+		const prevCount = pipe(
+			await collectAsync(keg.storage.listNodes()),
+			(a) => a.length,
+		);
+		const nodeId = await keg.createNode();
+		const count = pipe(
+			await collectAsync(keg.storage.listNodes()),
+			(a) => a.length,
+		);
+		expect(count - prevCount).toEqual(1);
+		const node = await keg.getNode(nodeId);
+		const now = new Date();
+		expect(node).toBeTruthy();
+		invariant(
+			node,
+			'Expect test case above to fail if node cannot be found',
+		);
+
+		const updatedDelta =
+			new Date(node.updated).getUTCDate() - now.getUTCDate();
+		const createdDelta =
+			new Date(node.created).getUTCDate() - now.getUTCDate();
+		expect(updatedDelta).toBeLessThanOrEqual(5);
+		expect(createdDelta).toBeLessThanOrEqual(5);
+		expect(node.title).toEqual('');
 	});
 
 	test('should be able to read a node', async () => {
