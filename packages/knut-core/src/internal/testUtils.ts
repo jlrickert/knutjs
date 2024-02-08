@@ -4,6 +4,7 @@ import { tmpdir } from 'os';
 import { Knut } from '../knut.js';
 import { EnvStorage } from '../envStorage.js';
 import { GenericStorage, loadStorage, overwrite } from '../storage/storage.js';
+import { Keg } from '../keg.js';
 
 export const testDataPath = Path.resolve(__dirname, '..', '..', 'testdata');
 
@@ -91,6 +92,29 @@ export const createSampleKnutApp = async (): Promise<TestContext> => {
 	return {
 		knut,
 		storage,
+		reset,
+	};
+};
+
+export type TestKegContext = {
+	keg: Keg;
+	reset: () => Promise<void>;
+};
+
+export const createTestKeg = async (): Promise<TestKegContext> => {
+	const { reset, getRoot } = createFilesystemContext();
+	const testDataStorage = loadStorage(testDataPath);
+	const storage = loadStorage(await getRoot());
+	await overwrite(testDataStorage, storage);
+	const knutStorage = EnvStorage.fromStorage({
+		variable: storage.child('share/knut'),
+		config: storage.child('config/knut'),
+		cache: storage.child('cache/knut'),
+	});
+	const keg = await Keg.fromStorage(storage.child('samplekeg'), knutStorage);
+
+	return {
+		keg: keg!,
 		reset,
 	};
 };

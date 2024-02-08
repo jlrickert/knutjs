@@ -3,6 +3,7 @@ import { MetaFile as MetaFile, Tag } from './metaFile.js';
 import { stringify } from './utils.js';
 import { NodeContent } from './nodeContent.js';
 import { KegStorage } from './kegStorage.js';
+import { TimeLike } from 'fs';
 
 export class NodeId {
 	static parsePath(path: string): NodeId | null {
@@ -58,12 +59,14 @@ export class NodeId {
 export type NodeData = {
 	content: NodeContent;
 	updated: string;
+	created: string;
 	meta: MetaFile;
 };
 
 export type NodeOptions = {
 	content: string;
 	updated: string;
+	created: string;
 	meta?: MetaFile;
 };
 
@@ -83,7 +86,7 @@ export class KegNode extends EventEmitter {
 		const nodePath = NodeContent.filePath(nodeId);
 		const metaPath = MetaFile.filePath(nodeId);
 		const rawContent = await storage.read(nodePath);
-		if (!rawContent) {
+		if (rawContent === null) {
 			return null;
 		}
 		const yamlData = await storage.read(metaPath);
@@ -91,16 +94,28 @@ export class KegNode extends EventEmitter {
 			? MetaFile.fromYAML(yamlData)
 			: new MetaFile();
 		const stats = await storage.stats(nodePath);
-		if (!rawContent && !stats) {
+		if (stats === null) {
 			return null;
 		}
 		const content = await NodeContent.fromMarkdown(rawContent);
+		const now = new Date();
 		const node = new KegNode({
 			content,
-			updated: stringify(stats?.mtime ?? new Date(0)),
+			updated: stringify(stats?.mtime ?? now),
+			created: stringify(stats?.btime ?? now),
 			meta: metaData,
 		});
 		return node;
+	}
+
+	static async create(): Promise<KegNode> {
+		const now = new Date();
+		return new KegNode({
+			content: await NodeContent.fromMarkdown(''),
+			created: stringify(now),
+			updated: stringify(now),
+			meta: new MetaFile(),
+		});
 	}
 
 	static parseNodeId(filepath: string): string | null {
@@ -120,6 +135,7 @@ export class KegNode extends EventEmitter {
 			content,
 			meta: options.meta ?? new MetaFile(),
 			updated: options.updated,
+			created: options.created,
 		});
 	}
 
@@ -145,6 +161,18 @@ export class KegNode extends EventEmitter {
 
 	get updated(): string {
 		return this.data.updated;
+	}
+
+	set updated(value: TimeLike) {
+		this.data.updated = stringify(value);
+	}
+
+	get created(): string {
+		return this.data.created;
+	}
+
+	set created(value: TimeLike) {
+		this.data.created = stringify(value);
 	}
 
 	async updateContent(content: string): Promise<void> {
