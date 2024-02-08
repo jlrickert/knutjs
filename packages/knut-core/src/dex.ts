@@ -14,6 +14,10 @@ export type DexEntry = {
 export class Dex {
 	private entryList: DexEntry[] = [];
 
+	static create() {
+		return new Dex();
+	}
+
 	static async fromStorage(storage: KegStorage) {
 		const content = await storage.read('dex/nodes.tsv');
 		if (content === null) {

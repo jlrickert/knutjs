@@ -84,6 +84,17 @@ export type KnutOptions = {
 export class Knut {
 	private kegMap = new Map<string, Keg>();
 
+	static empty(): Knut {
+		const storage = MemoryStorage.create();
+		return new Knut(
+			EnvStorage.fromStorage({
+				config: storage.child('config'),
+				cache: storage.child('cache'),
+				variable: storage.child('variable'),
+			}),
+		);
+	}
+
 	static async create(): Promise<Knut> {
 		const env = await EnvStorage.create();
 		const knut = await Knut.fromEnvironment(env.child('knut'));

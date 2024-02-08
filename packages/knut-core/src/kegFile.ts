@@ -62,7 +62,7 @@ export class KegFile {
 		return new KegFile(data);
 	}
 
-	static default(): KegFile {
+	static create(): KegFile {
 		return new KegFile({
 			$schema:
 				'https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json',

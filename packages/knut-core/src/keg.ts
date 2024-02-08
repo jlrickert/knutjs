@@ -1,11 +1,15 @@
+import * as FPMap from 'fp-ts/lib/Map.js';
+import * as FPString from 'fp-ts/lib/string.js';
 import { pipe } from 'fp-ts/lib/function.js';
 import { Dex } from './dex.js';
 import { EnvStorage } from './envStorage.js';
 import { KegFile } from './kegFile.js';
 import { KegStorage, loadKegStorage } from './kegStorage.js';
 import { KegNode, NodeId } from './node.js';
-import { collectAsync } from './utils.js';
 import { collectAsync, stringify } from './utils.js';
+import { MemoryStorage } from './storage/memoryStorage.js';
+import { KegPlugin, KegPluginContext } from './internal/plugins/kegPlugin.js';
+import { GenericStorage } from './storage/storage.js';
 import { NodeContent } from './nodeContent.js';
 import { MetaFile } from './metaFile.js';
 
@@ -15,18 +19,35 @@ export type CreateNodeOptions = {
 };
 
 export class Keg {
+	static async voidKeg(): Promise<Keg> {
+		const keg = new Keg(
+			KegFile.create(),
+			Dex.create(),
+			KegStorage.fromStorage(MemoryStorage.create()),
+			EnvStorage.createInMemory(),
+		);
+		return keg;
+	}
+
 	static async fromStorage(
-		storage: string | KegStorage,
+		storage: string | GenericStorage | KegStorage,
 		env: EnvStorage,
 	): Promise<Keg | null> {
-		const store =
-			typeof storage === 'string' ? loadKegStorage(storage) : storage;
+		let store: KegStorage;
+		if (typeof storage === 'string') {
+			store = loadKegStorage(storage);
+		} else if (storage instanceof KegStorage) {
+			store = storage;
+		} else {
+			store = KegStorage.fromStorage(storage);
+		}
+
 		const kegFile = await KegFile.fromStorage(store);
-		const dex = await Dex.fromStorage(store);
-		if (!kegFile || !dex) {
+		const dex = Dex.create();
+		if (!kegFile) {
 			return null;
 		}
-		const keg = new Keg(kegFile, dex, store);
+		const keg = new Keg(kegFile, dex, store, env);
 		return keg;
 	}
 
@@ -34,6 +55,7 @@ export class Keg {
 		public readonly kegFile: KegFile,
 		public readonly dex: Dex,
 		public readonly storage: KegStorage,
+		private readonly env: EnvStorage,
 	) {}
 
 	async last(): Promise<NodeId | null> {
