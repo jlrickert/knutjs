@@ -118,6 +118,22 @@ export class KegNode extends EventEmitter {
 		});
 	}
 
+	/**
+	 * The Zero node is typically node 0 that content may point to when content
+	 * is planned but not yet available.
+	 **/
+	static async zeroNode(): Promise<KegNode> {
+		const node = await KegNode.create();
+		await node.setContent(
+			`
+# Sorry, planned but not yet available
+
+This is a filler until I can provide someone better for the link that brought you here. If you are really anxious, consider opening an issue describing why you would like this missing content created before the rest.
+		`.trim(),
+		);
+		return node;
+	}
+
 	static parseNodeId(filepath: string): string | null {
 		const parts = filepath.split('/');
 		parts.pop();
@@ -153,6 +169,10 @@ export class KegNode extends EventEmitter {
 
 	get content(): string {
 		return stringify(this.data.content);
+	}
+
+	async setContent(markdown: string): Promise<void> {
+		this.data.content = await NodeContent.fromMarkdown(markdown);
 	}
 
 	get meta(): MetaFile {

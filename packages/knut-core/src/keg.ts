@@ -51,6 +51,30 @@ export class Keg {
 		return keg;
 	}
 
+	static async create(
+		storage: string | GenericStorage | KegStorage,
+		env: EnvStorage,
+	) {
+		let store: KegStorage;
+		if (typeof storage === 'string') {
+			store = loadKegStorage(storage);
+		} else if (storage instanceof KegStorage) {
+			store = storage;
+		} else {
+			store = KegStorage.fromStorage(storage);
+		}
+
+		const kegFile = KegFile.create();
+		const dex = Dex.create();
+		if (!kegFile) {
+			return null;
+		}
+		const keg = new Keg(kegFile, dex, store, env);
+		const zeroNode = await KegNode.zeroNode();
+		await keg.setNode(new NodeId(0), zeroNode);
+		return keg;
+	}
+
 	private constructor(
 		public readonly kegFile: KegFile,
 		public readonly dex: Dex,
@@ -85,6 +109,7 @@ export class Keg {
 		const metapath = MetaFile.filePath(nodeId);
 		await this.storage.write(filepath, node.content);
 		await this.storage.write(metapath, stringify(node.meta));
+		this.dex.addNode(nodeId, node);
 	}
 
 	async *getNodeList(): AsyncGenerator<

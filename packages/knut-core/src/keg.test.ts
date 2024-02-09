@@ -1,8 +1,21 @@
 import invariant from 'tiny-invariant';
-import { afterAll, beforeEach, describe, expect, test } from 'vitest';
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+	vi,
+} from 'vitest';
 import { pipe } from 'fp-ts/lib/function.js';
 import { TestKegContext, createTestKeg } from './internal/testUtils.js';
-import { collectAsync } from './utils.js';
+import { collectAsync, stringify } from './utils.js';
+import { MemoryStorage } from './storage/memoryStorage.js';
+import { EnvStorage } from './envStorage.js';
+import { Keg } from './keg.js';
+import { KegFile } from './kegFile.js';
+import { KegNode } from './node.js';
 
 describe('keg', () => {
 	let ctx: TestKegContext;
@@ -11,8 +24,26 @@ describe('keg', () => {
 		ctx = await createTestKeg();
 	});
 
+	afterEach(async () => {
+		vi.useRealTimers();
+	});
 	afterAll(async () => {
 		await ctx.reset();
+	});
+
+	test('should be able to create a new empty keg', async () => {
+		vi.useFakeTimers();
+		const now = new Date();
+		vi.setSystemTime(now);
+		const rootStorage = MemoryStorage.create();
+		const env = EnvStorage.createInMemory();
+		const storage = rootStorage.child('testkeg');
+		const keg = await Keg.create(storage, env);
+		expect(stringify(keg!.kegFile)).toEqual(stringify(KegFile.create()));
+		expect(await collectAsync(keg!.getNodeList())).toHaveLength(1);
+		expect(await rootStorage.read('testkeg/0/README.md')).toEqual(
+			(await KegNode.zeroNode()).content,
+		);
 	});
 
 	test('should be able to create a node', async () => {
