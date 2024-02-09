@@ -34,6 +34,7 @@ export type StorageNodeStats = StorageNodeTime & {
 };
 
 export type GenericStorage = {
+	readonly root: string;
 	/**
 	 * Read a files content if it exists. This updates access time.
 	 **/

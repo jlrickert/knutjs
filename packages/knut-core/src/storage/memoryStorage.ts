@@ -105,7 +105,7 @@ export class MemoryStorage implements GenericStorage {
 	}
 
 	private constructor(
-		private cwd: string,
+		readonly root: string,
 		private fs: Fs,
 	) {}
 
@@ -116,7 +116,7 @@ export class MemoryStorage implements GenericStorage {
 	private getFullPath(path: Stringer) {
 		const p = Path.resolve('/', stringify(path));
 		// Need resolve to get rid of the ending / if it exists
-		const fullpath = Path.resolve(Path.join(this.cwd, p));
+		const fullpath = Path.resolve(Path.join(this.root, p));
 		return fullpath;
 	}
 
@@ -320,7 +320,7 @@ export class MemoryStorage implements GenericStorage {
 		}
 
 		return node.children.map((child) => {
-			return Path.relative(this.cwd, child);
+			return Path.relative(this.root, child);
 		});
 	}
 
@@ -428,7 +428,7 @@ export class MemoryStorage implements GenericStorage {
 
 	child(subpath: Stringer): MemoryStorage {
 		const storage = new MemoryStorage(
-			Path.join(this.cwd, stringify(subpath)),
+			Path.join(this.root, stringify(subpath)),
 			// child needs to reference the data of the parent
 			this.fs,
 		);

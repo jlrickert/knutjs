@@ -6,13 +6,16 @@ import { NodeId } from '../node.js';
 import { GenericStorage, StorageNodeStats } from './storage.js';
 
 export class FsStorage implements GenericStorage {
-	private root: string;
-	constructor(root: string) {
-		this.root = Path.normalize(this.parsePath(root));
+	readonly root: string;
+	private jail: string;
+
+	constructor(root: string, jail?: string) {
+		this.root = Path.normalize(root.replace(/^~/, homedir()));
+		this.jail = jail ?? '/';
 	}
 
 	private getFullPath(path: Stringer): string {
-		const p = Path.resolve('/', stringify(path));
+		const p = Path.resolve(this.jail, stringify(path));
 		const fullpath = Path.resolve(Path.join(this.root, p));
 		return fullpath;
 	}
@@ -141,7 +144,8 @@ export class FsStorage implements GenericStorage {
 	child(subpath: Stringer): FsStorage {
 		const path = this.parsePath(subpath);
 		const storage = new FsStorage(
-			Path.isAbsolute(path) ? path : this.getFullPath(path),
+			Path.isAbsolute(path) ? path : Path.resolve(this.root, path),
+			this.jail,
 		);
 		return storage;
 	}

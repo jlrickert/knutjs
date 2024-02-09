@@ -6,7 +6,7 @@ import {
 } from './storage.js';
 
 export class ApiStorage implements GenericStorage {
-	constructor(private url: string) {}
+	constructor(readonly root: string) {}
 
 	async relative(path: string): Promise<string> {
 		throw new Error('Method not implemented.');

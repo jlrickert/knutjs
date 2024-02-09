@@ -1,4 +1,5 @@
 import * as Path from 'path';
+import invariant from 'tiny-invariant';
 import { test, describe, expect, beforeEach, afterEach } from 'vitest';
 import { KnutConfigFile } from './configFile.js';
 import {
@@ -10,7 +11,6 @@ import { loadStorage } from './storage/storage.js';
 import { loadKegStorage } from './kegStorage.js';
 import { KegFile } from './kegFile.js';
 import { FsStorage } from './storage/fsStorage.js';
-import invariant from 'tiny-invariant';
 
 describe('knutConfigFile', async () => {
 	let ctx!: TestContext;
@@ -27,7 +27,7 @@ describe('knutConfigFile', async () => {
 		const storage = loadStorage(knutConfigPath);
 		invariant(storage instanceof FsStorage);
 		const original = await KnutConfigFile.fromStorage(storage);
-		const config = await original!.resolve(storage.getRoot());
+		const config = await original!.resolve(storage.root);
 		const kegConfig = config.getKeg('sample') ?? null;
 		const kegpath = kegConfig!.url;
 
@@ -40,23 +40,18 @@ describe('knutConfigFile', async () => {
 
 	test('should be able to resolve to the right path when there is relative paths', async () => {
 		const storage = ctx.storage.child('config/knut');
-		invariant(storage instanceof FsStorage);
 		const original = await KnutConfigFile.fromStorage(storage);
 
 		{
-			const resolved = await original!.resolve(
-				storage instanceof FsStorage ? storage.getRoot() : '',
-			);
+			const resolved = await original!.resolve(storage.root);
 			expect(resolved.data.kegs[0].url).toEqual(
-				Path.join(storage.child('../..').getRoot(), 'samplekeg'),
+				Path.join(ctx.storage.root, 'samplekeg'),
 			);
 		}
 
 		{
-			const resolved = await original!.resolve(
-				storage instanceof FsStorage ? storage.getRoot() : '',
-			);
-			const kegfile = await resolved.relative(storage.getRoot());
+			const resolved = await original!.resolve(storage.root);
+			const kegfile = await resolved.relative(storage.root);
 			expect(kegfile.data.kegs[0].url).toEqual(
 				original!.data.kegs[0].url,
 			);

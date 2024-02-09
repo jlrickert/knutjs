@@ -6,6 +6,7 @@ import { KegVersion } from './kegFile.js';
 import { GenericStorage } from './storage/storage.js';
 import { EnvStorage } from './envStorage.js';
 import { FsStorage } from './storage/fsStorage.js';
+import { MemoryStorage } from './storage/memoryStorage.js';
 
 export type KegConfigDefinition = {
 	alias: string;
@@ -39,8 +40,8 @@ export class KnutConfigFile {
 			varConfig =
 				(await KnutConfigFile.fromStorage(env.variable)) ??
 				KnutConfigFile.create();
-			if (options?.resolve && env.variable instanceof FsStorage) {
-				varConfig = await varConfig.resolve(env.variable.getRoot());
+			if (options?.resolve) {
+				varConfig = await varConfig.resolve(env.variable.root);
 			}
 		}
 
@@ -49,8 +50,8 @@ export class KnutConfigFile {
 			userConfig =
 				(await KnutConfigFile.fromStorage(env.config)) ??
 				KnutConfigFile.create();
-			if (options?.resolve && env.config instanceof FsStorage) {
-				userConfig = await userConfig.resolve(env.config.getRoot());
+			if (options?.resolve === true) {
+				userConfig = await userConfig.resolve(env.config.root);
 			}
 		}
 
