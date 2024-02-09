@@ -20,6 +20,11 @@ test('path library exploration', () => {
 	expect(
 		Path.resolve('/home/user/.config/knut', '/home/user/repo/notes'),
 	).toEqual('/home/user/repo/notes');
+	expect(
+		Path.resolve(
+			Path.join('/home/user', Path.resolve('/', '../jack/file')),
+		),
+	).toEqual('/home/user/jack/file');
 });
 
 describe('file system storage', () => {

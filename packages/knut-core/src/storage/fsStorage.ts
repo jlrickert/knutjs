@@ -12,11 +12,8 @@ export class FsStorage implements GenericStorage {
 	}
 
 	private getFullPath(path: Stringer): string {
-		const filepath = this.parsePath(path);
-		if (Path.isAbsolute(filepath)) {
-			return Path.join(this.root, filepath);
-		}
-		const fullpath = Path.resolve(this.root, filepath);
+		const p = Path.resolve('/', stringify(path));
+		const fullpath = Path.resolve(Path.join(this.root, p));
 		return fullpath;
 	}
 
