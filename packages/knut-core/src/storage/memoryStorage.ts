@@ -114,18 +114,14 @@ export class MemoryStorage implements GenericStorage {
 	 * the current working directory
 	 **/
 	private getFullPath(path: Stringer) {
-		const fullpath = Path.join(this.cwd, stringify(path));
+		const p = Path.resolve('/', stringify(path));
+		// Need resolve to get rid of the ending / if it exists
+		const fullpath = Path.resolve(Path.join(this.cwd, p));
 		return fullpath;
 	}
 
-	private getDirpath(fullpath: string): string | null {
-		if (fullpath === '/') {
-			return null;
-		}
+	private getDirpath(fullpath: string): string {
 		const dir = Path.dirname(fullpath);
-		if (dir === '.') {
-			return null;
-		}
 		return dir;
 	}
 
@@ -133,6 +129,120 @@ export class MemoryStorage implements GenericStorage {
 		const index = this.fs.index[fullpath];
 		const node = index !== undefined ? this.fs.nodes[index] : null;
 		return node;
+	}
+
+	private check(fullpath: string) {
+		const pathParts = fullpath.split('/').slice(1);
+		const dirsToMake = pathParts.reduce<string[]>(
+			(acc, part) => {
+				const last = acc[acc.length - 1];
+				acc.push(Path.join(last, part));
+				return acc;
+			},
+			['/'],
+		);
+
+		// Exit early if there is a conflict
+		for (const dirpath of dirsToMake) {
+			const node = this.getNode(dirpath);
+			if (node?.type === 'file') {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Assume that a valid path exists
+	 **/
+	private writeDir(fullpath: string, skipCheck = false): FsDirNode | null {
+		let node = this.getNode(fullpath);
+		if (node?.type === 'directory') {
+			return node;
+		} else if (node?.type === 'file') {
+			return null;
+		}
+
+		const now = stringify(new Date());
+		const stats = {
+			mtime: now,
+			atime: now,
+			btime: now,
+			ctime: now,
+		};
+		const parentPath = this.getDirpath(fullpath);
+		const parent = this.writeDir(parentPath);
+		if (parent === null) {
+			return null;
+		}
+		parent.stats.mtime = now;
+		parent.children.push(fullpath);
+
+		node = makeDirnode({
+			path: fullpath,
+			stats: {
+				mtime: now,
+				atime: now,
+				btime: now,
+				ctime: now,
+			},
+			children: [],
+		});
+		const index = this.fs.nodes.length;
+		this.fs.nodes[index] = node;
+		this.fs.index[fullpath] = index;
+		return node;
+	}
+
+	/**
+	 * Create a new file node.  Assumes that it doesn't exist and a parent
+	 * exists.
+	 **/
+	private writeNode(fullpath: string, content: string): FsFileNode | null {
+		const now = stringify(new Date());
+		const node = this.getNode(fullpath);
+		if (node?.type === 'file') {
+			node.content = content;
+			node.stats.mtime = now;
+			const parentPath = this.getDirpath(fullpath);
+			const parent = this.writeDir(parentPath);
+			invariant(
+				parent?.type === 'directory',
+				'Expect parent directory to exist for a file',
+			);
+			parent.stats.mtime = now;
+			return node;
+		}
+
+		if (node?.type === 'directory') {
+			return null;
+		}
+
+		const parentPath = this.getDirpath(fullpath);
+		const parent = this.writeDir(parentPath);
+		if (parent === null) {
+			return null;
+		}
+
+		// Create the new directory node
+		const newNode = makeFilenode({
+			content,
+			path: fullpath,
+			stats: {
+				mtime: now,
+				atime: now,
+				btime: now,
+				ctime: now,
+			},
+		});
+		const index = this.fs.nodes.length;
+		this.fs.nodes[index] = newNode;
+		this.fs.index[fullpath] = index;
+		parent.children.push(fullpath);
+		parent.children.sort();
+		parent.stats.mtime = now;
+		return newNode;
 	}
 
 	private rebuildIndex(): void {
@@ -160,50 +270,10 @@ export class MemoryStorage implements GenericStorage {
 
 	async write(path: Stringer, content: Stringer): Promise<boolean> {
 		const fullpath = this.getFullPath(path);
-		const nodeStats = await this.stats(fullpath);
-
-		// Write cannot write a file over a directory
-		if (nodeStats && nodeStats.isDirectory()) {
+		const node = this.writeNode(fullpath, stringify(content));
+		if (node === null) {
 			return false;
 		}
-
-		const now = new Date();
-		const newStats = {
-			mtime: stringify(now),
-			atime: stringify(nodeStats?.atime ?? now),
-			ctime: stringify(nodeStats?.ctime ?? now),
-			btime: stringify(nodeStats?.btime ?? now),
-		};
-
-		// Actually write the node to the filesystem
-		const index = this.fs.nodes.length;
-		this.fs.nodes[index] = makeFilenode({
-			content: stringify(content),
-			path: fullpath,
-			stats: newStats,
-		});
-		this.fs.index[fullpath] = index;
-
-		// Handle the parent node
-		const parentPath = this.getDirpath(fullpath);
-		invariant(
-			parentPath,
-			'Expect parent to exist as a node writing to must be a file that is guaranteed be in a directory',
-		);
-		if (!(await this.mkdir(parentPath))) {
-			await this.utime(parentPath, { mtime: newStats.mtime });
-		}
-
-		const parent = this.getNode(parentPath);
-		invariant(
-			parent?.type === 'directory',
-			'Expect to retrieve a parent directory after just making it',
-		);
-		if (!parent.children.includes(fullpath)) {
-			parent.children.push(fullpath);
-			parent.children.sort();
-		}
-
 		return true;
 	}
 
@@ -237,7 +307,7 @@ export class MemoryStorage implements GenericStorage {
 	async readdir(path: Stringer): Promise<string[] | null> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
-		if (node?.type !== 'directory') {
+		if (node === null || node.type === 'file') {
 			return null;
 		}
 
@@ -276,56 +346,27 @@ export class MemoryStorage implements GenericStorage {
 	async mkdir(path: Stringer): Promise<boolean> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
-		if (node) {
+		if (
+			node?.type === 'directory' ||
+			node?.type === 'file' ||
+			!this.check(fullpath)
+		) {
 			return false;
 		}
 
 		const pathParts = fullpath.split('/').slice(1);
-		const dirsToMake = pathParts
-			.reduce(
-				(acc, part) => {
-					const last = acc[acc.length - 1];
-					acc.push(Path.join(last, part));
-					return acc;
-				},
-				['/'],
-			)
-			.reverse();
+		const dirsToMake = pathParts.reduce<string[]>(
+			(acc, part) => {
+				const last = acc[acc.length - 1];
+				acc.push(Path.join(last, part));
+				return acc;
+			},
+			['/'],
+		);
 
-		// Exit early if there is a conflict
 		for (const dirpath of dirsToMake) {
-			const node = this.getNode(dirpath);
-			if (node?.type === 'file') {
-				return false;
-			}
+			this.writeDir(dirpath);
 		}
-
-		const currentTime = stringify(new Date());
-		const newStats = {
-			mtime: stringify(currentTime),
-			atime: stringify(currentTime),
-			ctime: stringify(currentTime),
-			btime: stringify(currentTime),
-		};
-
-		// Create the new directory node
-		const index = this.fs.nodes.length;
-		this.fs.nodes[index] = makeDirnode({
-			path: fullpath,
-			stats: newStats,
-			children: [],
-		});
-		this.fs.index[fullpath] = index;
-
-		const parentPath = this.getDirpath(fullpath);
-		invariant(parentPath, 'Expect parent to be non root');
-
-		await this.mkdir(parentPath);
-		await this.utime(parentPath, newStats);
-		const parent = this.getNode(parentPath);
-		invariant(parent?.type === 'directory');
-		parent.children.push(fullpath);
-		parent.children.sort();
 
 		return true;
 	}
@@ -396,5 +437,9 @@ export class MemoryStorage implements GenericStorage {
 
 	toJSON(): string {
 		return JSON.stringify(this.fs);
+	}
+
+	stringify(): string {
+		return stringify(this.toJSON());
 	}
 }

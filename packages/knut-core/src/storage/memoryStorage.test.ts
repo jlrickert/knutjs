@@ -63,6 +63,14 @@ describe('describe memory storage', () => {
 		await check('/path/to/some/dir', later);
 	});
 
+	test('should handle writing content from a child node to the correct location', async () => {
+		const storage = MemoryStorage.create();
+		const child = storage.child('sample');
+		await child.write('0/README.md', '# Test title');
+		const data = await storage.read('sample/0/README.md');
+		expect(data).toEqual('# Test title');
+	});
+
 	test('should update access times for a file and ancestor directories when a node is read', async () => {
 		vi.useFakeTimers();
 		const now = new Date('2023-03-23');
@@ -118,6 +126,14 @@ describe('describe memory storage', () => {
 			'c',
 			'd',
 		]);
+	});
+
+	test('should not be able to write outside of its current working directory', async () => {
+		const storage = MemoryStorage.create();
+		const child = storage.child('sample');
+		await child.write('../0/README.md', '# Test title');
+		const data = await storage.read('sample/0/README.md');
+		expect(data).toEqual('# Test title');
 	});
 
 	test('should create parent directories when needed', async () => {
