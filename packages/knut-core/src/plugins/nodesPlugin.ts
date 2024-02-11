@@ -42,9 +42,11 @@ export class NodesPlugin implements KegPlugin {
 				node,
 				'Expect to get node and stat from a nodeId reported by storage',
 			);
-			const line = [stringify(nodeId), node.updated, node.title].join(
-				'\t',
-			);
+			const line = [
+				stringify(nodeId),
+				stringify(node.updated),
+				node.title,
+			].join('\t');
 			lines.push(line);
 		}
 
@@ -99,7 +101,11 @@ export class NodesPlugin implements KegPlugin {
 				const [id, updated, title] = line.split('\t');
 				const nodeId = NodeId.parsePath(id);
 				if (nodeId) {
-					const entry: DexEntry = { title, updated, nodeId };
+					const entry: DexEntry = {
+						title,
+						updated: new Date(updated),
+						nodeId,
+					};
 					dex.addEntry(entry);
 				}
 			}

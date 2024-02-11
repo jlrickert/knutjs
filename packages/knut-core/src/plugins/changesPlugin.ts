@@ -1,10 +1,8 @@
 import * as Mdast from 'mdast';
-import { pipe } from 'fp-ts/lib/function.js';
 import { MarkdownAST as AST } from '../markdown.js';
 import { KegPluginContext } from '../internal/plugins/kegPlugin.js';
 import { collect, stringify } from '../utils.js';
 import { Keg } from '../keg.js';
-import { IndexEntryData } from '../kegFile.js';
 
 export class ChangesPlugin {
 	readonly name = 'changes';
@@ -27,22 +25,25 @@ export class ChangesPlugin {
 
 	async buildIndex(keg: Keg) {
 		const entryList = [...keg.dex.entries];
-		entryList.sort((a, b) => {
-			if (a.updated === b.updated) {
-				return stringify(a.nodeId) < stringify(b.nodeId) ? 1 : -1;
-			}
-			return a.updated < b.updated ? 1 : -1;
-		});
 		const md = AST.list(
 			entryList.map((entry): Mdast.ListItem => {
-				const date = AST.text(entry.updated);
+				const date = AST.text(stringify(entry.updated));
 				const space = AST.text(' ');
 				const link = AST.nodeLink(entry);
 				return AST.listItem([AST.paragraph([date, space, link])]);
 			}),
 			{ spread: false },
 		);
-		const content = AST.to(md);
+		const content = AST.to(md)
+			.split('\n')
+			// This sort seems to define order closest to how rwxrob's keg
+			// program defines it
+			.sort((a, b) => {
+				const subA = a.replace(/\[.*\]/, '');
+				const subB = b.replace(/\[.*\]/, '');
+				return subA < subB ? 1 : -1;
+			})
+			.join('\n');
 		return content;
 	}
 

@@ -3,7 +3,7 @@ import { KegStorage } from './kegStorage.js';
 
 export type DexEntry = {
 	nodeId: NodeId;
-	updated: string;
+	updated: Date;
 	title: string;
 	tags?: string[];
 };
@@ -33,7 +33,11 @@ export class Dex {
 			const [id, updated, title] = line.split('\t');
 			const nodeId = NodeId.parsePath(id);
 			if (nodeId) {
-				const entry: DexEntry = { title, updated, nodeId };
+				const entry: DexEntry = {
+					title,
+					updated: new Date(updated),
+					nodeId,
+				};
 				dex.addEntry(entry);
 			}
 		}

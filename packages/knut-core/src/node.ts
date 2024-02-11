@@ -58,15 +58,15 @@ export class NodeId {
 
 export type NodeData = {
 	content: NodeContent;
-	updated: string;
-	created: string;
+	updated: Date;
+	created: Date;
 	meta: MetaFile;
 };
 
 export type NodeOptions = {
 	content: string;
-	updated: string;
-	created: string;
+	updated: Date;
+	created: Date;
 	meta?: MetaFile;
 };
 
@@ -101,8 +101,8 @@ export class KegNode extends EventEmitter {
 		const now = new Date();
 		const node = new KegNode({
 			content,
-			updated: stringify(stats?.mtime ?? now),
-			created: stringify(stats?.btime ?? now),
+			updated: stats?.mtime ? new Date(stats.mtime) : now,
+			created: stats?.btime ? new Date(stats.btime) : now,
 			meta: metaData,
 		});
 		return node;
@@ -112,8 +112,8 @@ export class KegNode extends EventEmitter {
 		const now = new Date();
 		return new KegNode({
 			content: await NodeContent.fromMarkdown(''),
-			created: stringify(now),
-			updated: stringify(now),
+			created: now,
+			updated: now,
 			meta: new MetaFile(),
 		});
 	}
@@ -179,25 +179,25 @@ This is a filler until I can provide someone better for the link that brought yo
 		return this.data.meta;
 	}
 
-	get updated(): string {
+	get updated(): Date {
 		return this.data.updated;
 	}
 
 	set updated(value: TimeLike) {
-		this.data.updated = stringify(value);
+		this.data.updated = new Date(value);
 	}
 
-	get created(): string {
+	get created(): Date {
 		return this.data.created;
 	}
 
 	set created(value: TimeLike) {
-		this.data.created = stringify(value);
+		this.data.created = new Date(value);
 	}
 
 	async updateContent(content: string): Promise<void> {
 		this.data.content = await NodeContent.fromMarkdown(content);
-		this.data.updated = stringify(new Date());
+		this.data.updated = new Date();
 
 		this.emit('update', {
 			node: this,
