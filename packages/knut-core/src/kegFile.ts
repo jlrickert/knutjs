@@ -75,12 +75,9 @@ export class KegFile {
 	private constructor(public readonly data: KegFileData) {}
 
 	*getIndexes() {
-		const entries: IndexEntryData[] = [];
 		for (const entry of this.data.indexes ?? []) {
-			entries.push(entry);
 			yield entry satisfies IndexEntryData;
 		}
-		return entries;
 	}
 
 	async writeTo(storage: KegStorage): Promise<boolean> {

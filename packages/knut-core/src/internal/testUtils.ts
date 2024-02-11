@@ -71,6 +71,20 @@ export const createFilesystemContext = (): FileSystemTestContext => {
 	};
 };
 
+export type TestStorageContext = {
+	storage: GenericStorage;
+	reset: () => Promise<void>;
+};
+export const createTestStorage = async (): Promise<TestStorageContext> => {
+	const { reset, getRoot } = createFilesystemContext();
+	const root = await getRoot();
+	const storage = loadStorage(root);
+	return {
+		storage,
+		reset,
+	};
+};
+
 export type TestContext = {
 	knut: Knut;
 	storage: GenericStorage;
@@ -78,9 +92,8 @@ export type TestContext = {
 };
 
 export const createSampleKnutApp = async (): Promise<TestContext> => {
-	const { reset, getRoot } = createFilesystemContext();
+	const { storage, reset } = await createTestStorage();
 	const testDataStorage = loadStorage(testDataPath);
-	const storage = loadStorage(await getRoot());
 	await overwrite(testDataStorage, storage);
 	const knutStorage = EnvStorage.fromStorage({
 		variable: storage.child('share/knut'),

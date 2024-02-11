@@ -1,0 +1,97 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`keg > should load dex > dex entries 1`] = `
+[
+  {
+    "nodeId": NodeId {
+      "id": 0,
+    },
+    "title": "Sorry, planned but not yet available",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 1,
+    },
+    "title": "Sample content node",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 2,
+    },
+    "title": "Some title for 2",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 3,
+    },
+    "title": "Some title for 3",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 4,
+    },
+    "title": "Some title for 4",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 5,
+    },
+    "title": "Some title for 5",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 6,
+    },
+    "title": "Some title for 6",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 7,
+    },
+    "title": "Some title for 7",
+    "updated": "2024-02-02 17:08:42Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 8,
+    },
+    "title": "Some title for 8",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 9,
+    },
+    "title": "Some title for 9",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 10,
+    },
+    "title": "Some title for 10",
+    "updated": "2024-02-09 19:48:28Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 11,
+    },
+    "title": "Some title for 11",
+    "updated": "2024-01-25 17:57:09Z",
+  },
+  {
+    "nodeId": NodeId {
+      "id": 12,
+    },
+    "title": "Some title for 12",
+    "updated": "2024-02-09 19:48:34Z",
+  },
+]
+`;

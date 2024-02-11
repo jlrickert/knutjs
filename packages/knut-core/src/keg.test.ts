@@ -16,6 +16,7 @@ import { EnvStorage } from './envStorage.js';
 import { Keg } from './keg.js';
 import { KegFile } from './kegFile.js';
 import { KegNode } from './node.js';
+import { NodesPlugin } from './plugins/nodesPlugin.js';
 
 describe('keg', () => {
 	let ctx: TestKegContext;
@@ -72,5 +73,9 @@ describe('keg', () => {
 		expect(updatedDelta).toBeLessThanOrEqual(5);
 		expect(createdDelta).toBeLessThanOrEqual(5);
 		expect(node.title).toEqual('');
+	});
+
+	test('should load dex', async () => {
+		expect(ctx.keg.dex.entries).matchSnapshot('dex entries');
 	});
 });
