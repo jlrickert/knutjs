@@ -190,12 +190,10 @@ export class Keg {
 		// Search functions related to the plugin
 		const searches = new Map<string, SearchPlugin>();
 		const keg = this;
-		const env = this.env;
 		let active = false;
 
 		const ctx: KegPluginContext = {
 			keg,
-			env,
 			// Plugin creator needs to be able to get a list of all available indexes
 			async getIndexList() {
 				return pipe(keg.indexPlugins, FPMap.keys(FPString.Ord));
