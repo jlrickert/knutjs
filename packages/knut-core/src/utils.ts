@@ -86,7 +86,19 @@ export const stringify = (value: number | Date | Stringer): string => {
 	} else if (typeof value === 'number') {
 		return String(value);
 	} else if (value instanceof Date) {
-		return value.toISOString();
+		const f = (x: number) => {
+			if (x < 10) {
+				return `0${x}`;
+			}
+			return `${x}`;
+		};
+		const years = f(value.getUTCFullYear());
+		const months = f(value.getUTCMonth() + 1);
+		const days = f(value.getUTCDate());
+		const hours = f(value.getUTCHours());
+		const minutes = f(value.getUTCMinutes());
+		const seconds = f(value.getUTCSeconds());
+		return `${years}-${months}-${days} ${hours}:${minutes}:${seconds}Z`;
 	} else if ('stringify' in value) {
 		return value.stringify();
 	}
