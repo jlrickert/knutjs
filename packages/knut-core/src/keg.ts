@@ -10,8 +10,23 @@ import { collectAsync, stringify } from './utils.js';
 import { MemoryStorage } from './storage/memoryStorage.js';
 import { KegPlugin, KegPluginContext } from './internal/plugins/kegPlugin.js';
 import { GenericStorage } from './storage/storage.js';
+import { IndexPlugin } from './internal/plugins/indexPlugin.js';
+import { SearchPlugin } from './internal/plugins/searchPlugin.js';
+import { NodesPlugin } from './plugins/nodesPlugin.js';
 import { NodeContent } from './nodeContent.js';
 import { MetaFile } from './metaFile.js';
+import { array, option, ord, task } from 'fp-ts';
+import { ChangesPlugin } from './plugins/changesPlugin.js';
+
+type PluginState = {
+	ctx: KegPluginContext;
+	plugin: KegPlugin;
+	active: boolean;
+	indexes: Map<string, IndexPlugin>;
+	searches: Map<string, SearchPlugin>;
+	activate(): Promise<void>;
+	deactivate(): Promise<void>;
+};
 
 export type CreateNodeOptions = {
 	content: string;
@@ -26,6 +41,8 @@ export class Keg {
 			KegStorage.fromStorage(MemoryStorage.create()),
 			EnvStorage.createInMemory(),
 		);
+		await keg.addPlugin(new NodesPlugin());
+		await keg.addPlugin(new ChangesPlugin());
 		return keg;
 	}
 
@@ -48,6 +65,8 @@ export class Keg {
 			return null;
 		}
 		const keg = new Keg(kegFile, dex, store, env);
+		await keg.addPlugin(new NodesPlugin());
+		await keg.addPlugin(new ChangesPlugin());
 		return keg;
 	}
 
@@ -70,6 +89,8 @@ export class Keg {
 			return null;
 		}
 		const keg = new Keg(kegFile, dex, store, env);
+		await keg.addPlugin(new NodesPlugin());
+		await keg.addPlugin(new ChangesPlugin());
 		const zeroNode = await KegNode.zeroNode();
 		await keg.setNode(new NodeId(0), zeroNode);
 		return keg;
@@ -112,6 +133,9 @@ export class Keg {
 		this.dex.addNode(nodeId, node);
 	}
 
+	/**
+	 * Iterate over the nodes using the dex
+	 **/
 	async *getNodeList(): AsyncGenerator<
 		readonly [NodeId, KegNode],
 		void,
@@ -125,5 +149,131 @@ export class Keg {
 		}
 	}
 
-	async update(): Promise<void> {}
+	async update(name?: string | string[]): Promise<void> {
+		const run = pipe(
+			option.fromNullable(name ?? null),
+			option.map((a) => (typeof a === 'string' ? [a] : a)),
+			option.getOrElse(() => {
+				return pipe(
+					this.indexPlugins,
+					FPMap.collect(FPString.Ord)((name) => name),
+				);
+			}),
+			array.filterMap((name) =>
+				pipe(FPMap.lookup(FPString.Eq)(name, this.indexPlugins)),
+			),
+			array.sort(
+				ord.fromCompare<IndexPlugin>((a, b) => {
+					if (a.depends?.includes(b.name) ?? false) {
+						return -1;
+					}
+					if (b.depends?.includes(a.name) ?? false) {
+						return 1;
+					}
+					return 0;
+				}),
+			),
+			task.traverseArray((a) => a.update),
+		);
+		await run();
+	}
+
+	private plugins = new Map<string, PluginState>();
+	private indexPlugins = new Map<string, IndexPlugin>();
+	private searchPlugin = new Map<string, SearchPlugin>();
+	async addPlugin(plugin: KegPlugin): Promise<void> {
+		// Indexes related to the plugin
+		const indexes = new Map<string, IndexPlugin>();
+
+		// Search functions related to the plugin
+		const searches = new Map<string, SearchPlugin>();
+		const keg = this;
+		const env = this.env;
+		let active = false;
+
+		const ctx: KegPluginContext = {
+			keg,
+			env,
+			// Plugin creator needs to be able to get a list of all available indexes
+			async getIndexList() {
+				return pipe(keg.indexPlugins, FPMap.keys(FPString.Ord));
+			},
+
+			// Allow the plugin creator to register an index
+			async registerIndex(plug) {
+				keg.indexPlugins.set(plugin.name, plug);
+				indexes.set(plug.name, plug);
+			},
+
+			async degregisterIndex(name) {
+				keg.indexPlugins.delete(name);
+				indexes.delete(name);
+			},
+
+			// Plugin creator needs to be able to get a list of all available searches
+			async getSearchList() {
+				return pipe(keg.searchPlugin, FPMap.keys(FPString.Ord));
+			},
+			async registerSearch(plug) {
+				keg.searchPlugin.set(plugin.name, plug);
+				searches.set(plug.name, plug);
+			},
+
+			async degregisterSearch(name) {
+				keg.searchPlugin.delete(name);
+				searches.delete(name);
+			},
+		};
+
+		const state = {
+			ctx,
+			searches,
+			indexes,
+			plugin,
+			active,
+			activate: async () => {
+				await plugin.activate(ctx);
+				if (active) {
+					return;
+				}
+				for (const [name, plug] of indexes) {
+					keg.indexPlugins.set(name, plug);
+				}
+				for (const [name, plug] of searches) {
+					keg.searchPlugin.set(name, plug);
+				}
+			},
+			deactivate: async () => {
+				if (!active) {
+					return;
+				}
+				for (const [name] of indexes) {
+					keg.indexPlugins.delete(name);
+				}
+				for (const [name] of searches) {
+					keg.searchPlugin.delete(name);
+				}
+				if (plugin.deactivate) {
+					await plugin.deactivate(ctx);
+				}
+			},
+		};
+
+		this.plugins.set(plugin.name, state);
+		await state.activate();
+	}
+
+	async removePlugin(name: string): Promise<void> {
+		const state = this.plugins.get(name);
+		if (!state) {
+			return;
+		}
+		await state.deactivate();
+		this.plugins.delete(name);
+	}
+
+	// private indexList = new Map<string, KegIndexFn>();
+	// async addIndex(name: string, fn: KegIndexFn): Promise<void> {
+	// 	this.indexList.set(name, fn);
+	// }
 }

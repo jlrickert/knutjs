@@ -42,7 +42,7 @@ exports[`keg > should load dex > dex entries 1`] = `
       "id": 5,
     },
     "title": "Some title for 5",
-    "updated": "2024-01-25 17:57:09Z",
+    "updated": "2024-02-11 17:10:57Z",
   },
   {
     "nodeId": NodeId {
@@ -70,7 +70,7 @@ exports[`keg > should load dex > dex entries 1`] = `
       "id": 9,
     },
     "title": "Some title for 9",
-    "updated": "2024-01-25 17:57:09Z",
+    "updated": "2024-02-11 17:02:53Z",
   },
   {
     "nodeId": NodeId {
