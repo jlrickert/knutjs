@@ -46,6 +46,10 @@ export type KegFileData = {
 };
 
 export class KegFile {
+	static filePath() {
+		return 'keg';
+	}
+
 	/**
 	 * Load a keg file for the given path
 	 */
@@ -73,6 +77,15 @@ export class KegFile {
 	}
 
 	private constructor(public readonly data: KegFileData) {}
+
+	get updated(): Date | null {
+		const u = this.data.updated ?? null;
+		return u !== null ? new Date(u) : u;
+	}
+
+	set updated(value: Date) {
+		this.data.updated = stringify(value);
+	}
 
 	*getIndexes() {
 		for (const entry of this.data.indexes ?? []) {

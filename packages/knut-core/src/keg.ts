@@ -176,6 +176,8 @@ export class Keg {
 			task.traverseArray((a) => a.update),
 		);
 		await run();
+		this.kegFile.updated = new Date();
+		this.storage.write(KegFile.filePath(), stringify(this.kegFile));
 	}
 
 	private plugins = new Map<string, PluginState>();
