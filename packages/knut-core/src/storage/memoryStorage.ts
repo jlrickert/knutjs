@@ -156,7 +156,10 @@ export class MemoryStorage implements GenericStorage {
 	/**
 	 * Assume that a valid path exists
 	 **/
-	private writeDir(fullpath: string, skipCheck = false): FsDirNode | null {
+	private writeDir(
+		fullpath: string,
+		stats?: FsNodeTimestamps,
+	): FsDirNode | null {
 		let node = this.getNode(fullpath);
 		if (node?.type === 'directory') {
 			return node;
@@ -165,27 +168,21 @@ export class MemoryStorage implements GenericStorage {
 		}
 
 		const now = stringify(new Date());
-		const stats = {
-			mtime: now,
-			atime: now,
-			btime: now,
-			ctime: now,
-		};
 		const parentPath = this.getDirpath(fullpath);
 		const parent = this.writeDir(parentPath);
 		if (parent === null) {
 			return null;
 		}
-		parent.stats.mtime = now;
+		parent.stats.mtime = stats?.mtime ?? now;
 		parent.children.push(fullpath);
 
 		node = makeDirnode({
 			path: fullpath,
 			stats: {
-				mtime: now,
-				atime: now,
-				btime: now,
-				ctime: now,
+				mtime: stats?.mtime ?? now,
+				atime: stats?.atime ?? now,
+				btime: stats?.btime ?? now,
+				ctime: stats?.ctime ?? now,
 			},
 			children: [],
 		});
@@ -333,10 +330,22 @@ export class MemoryStorage implements GenericStorage {
 
 		const prevStats = node.stats;
 		const nextStats = {
-			mtime: stats.mtime ? stringify(stats.mtime) : prevStats.mtime,
-			ctime: stats.ctime ? stringify(stats.ctime) : prevStats.ctime,
-			atime: stats.atime ? stringify(stats.atime) : prevStats.atime,
-			btime: stats.btime ? stringify(stats.btime) : prevStats.btime,
+			mtime:
+				stats.mtime !== undefined
+					? stringify(stats.mtime)
+					: prevStats.mtime,
+			ctime:
+				stats.ctime !== undefined
+					? stringify(stats.ctime)
+					: prevStats.ctime,
+			atime:
+				stats.atime !== undefined
+					? stringify(stats.atime)
+					: prevStats.atime,
+			btime:
+				stats.btime !== undefined
+					? stringify(stats.btime)
+					: prevStats.btime,
 		};
 		node.stats = nextStats;
 

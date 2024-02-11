@@ -1,3 +1,4 @@
+import * as Path from 'path';
 import { TimeLike } from 'fs';
 import { Stringer, currentEnvironment } from '../utils.js';
 import { ApiStorage } from './apiStorage.js';
@@ -109,11 +110,28 @@ export const loadStorage = (path: string): GenericStorage => {
 	}
 };
 
-export const walk = async (
+const walk = async (
 	storage: GenericStorage,
-	f: (dirs: string[], files: string[]) => void,
+	f: (dirs: string[], files: string[]) => Promise<void>,
 ): Promise<void> => {
-	const item = storage.readdir('/');
+	const items = await storage.readdir('/');
+	if (items === null) {
+		return;
+	}
+	const dirs = [] as string[];
+	const files = [] as string[];
+	for (const item of items) {
+		const stats = await storage.stats(item);
+		const path = Path.join(storage.root, item);
+		invariant(stats !== null, 'Expect readdir to only provide valid paths');
+		if (stats.isFile()) {
+			files.push(path);
+		} else if (stats.isDirectory()) {
+			dirs.push(path);
+			await walk(storage.child(item), f);
+		}
+	}
+	await f(dirs, files);
 };
 
 /**
@@ -135,8 +153,15 @@ export const overwrite = async (src: GenericStorage, dest: GenericStorage) => {
 			invariant(content, 'Expect readdir to list a valid file');
 			await dest.write(path, content);
 		} else {
-			throw new Error('Unhandled node type');
+			throw new Error('Unknown node type');
 		}
+		const s = await src.stats(path);
+		await dest.utime(path, s!);
+	}
+
+	const stats = await src.stats('');
+	if (stats !== null) {
+		await dest.utime('', stats);
 	}
 };
 

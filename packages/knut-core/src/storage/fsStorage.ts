@@ -129,6 +129,7 @@ export class FsStorage implements GenericStorage {
 				atime: stats.atime,
 				mtime: stats.mtime,
 				btime: stats.birthtime,
+				ctime: stats.ctime,
 				isDirectory() {
 					return stats.isDirectory();
 				},
