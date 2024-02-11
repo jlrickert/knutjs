@@ -102,9 +102,8 @@ export type TestKegContext = {
 };
 
 export const createTestKeg = async (): Promise<TestKegContext> => {
-	const { reset, getRoot } = createFilesystemContext();
+	const { storage, reset } = await createTestStorage();
 	const testDataStorage = loadStorage(testDataPath);
-	const storage = loadStorage(await getRoot());
 	await overwrite(testDataStorage, storage);
 	const knutStorage = EnvStorage.fromStorage({
 		variable: storage.child('share/knut'),
