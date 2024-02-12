@@ -21,7 +21,7 @@ import { NodeContent } from './nodeContent.js';
 import { MetaFile } from './metaFile.js';
 import { array, option, ord, task } from 'fp-ts';
 import { ChangesPlugin } from './plugins/changesPlugin.js';
-import { FusePlugin } from './plugins/fusePlugin.js';
+import { FuseKegPlugin } from './plugins/fusePlugin.js';
 
 type PluginState = {
 	ctx: KegPluginContext;
@@ -48,7 +48,7 @@ export class Keg {
 		);
 		await keg.addPlugin(new NodesPlugin());
 		await keg.addPlugin(new ChangesPlugin());
-		await keg.addPlugin(new FusePlugin());
+		await keg.addPlugin(new FuseKegPlugin());
 		return keg;
 	}
 
@@ -73,7 +73,7 @@ export class Keg {
 		const keg = new Keg(kegFile, dex, store, env);
 		await keg.addPlugin(new NodesPlugin());
 		await keg.addPlugin(new ChangesPlugin());
-		await keg.addPlugin(new FusePlugin());
+		await keg.addPlugin(new FuseKegPlugin());
 		return keg;
 	}
 
@@ -98,7 +98,7 @@ export class Keg {
 		const keg = new Keg(kegFile, dex, store, env);
 		await keg.addPlugin(new NodesPlugin());
 		await keg.addPlugin(new ChangesPlugin());
-		await keg.addPlugin(new FusePlugin());
+		await keg.addPlugin(new FuseKegPlugin());
 		const zeroNode = await KegNode.zeroNode();
 		await keg.setNode(new NodeId(0), zeroNode);
 		return keg;
@@ -259,6 +259,7 @@ export class Keg {
 			async getSearchList() {
 				return pipe(keg.searchPlugin, FPMap.keys(FPString.Ord));
 			},
+
 			async registerSearch(plug) {
 				keg.searchPlugin.set(plugin.name, plug);
 				searches.set(plug.name, plug);
@@ -276,7 +277,7 @@ export class Keg {
 			indexes,
 			plugin,
 			active,
-			activate: async () => {
+			async activate() {
 				await plugin.activate(ctx);
 				if (active) {
 					return;
@@ -287,8 +288,9 @@ export class Keg {
 				for (const [name, plug] of searches) {
 					keg.searchPlugin.set(name, plug);
 				}
+				this.active = true;
 			},
-			deactivate: async () => {
+			async deactivate() {
 				if (!active) {
 					return;
 				}
@@ -301,6 +303,7 @@ export class Keg {
 				if (plugin.deactivate) {
 					await plugin.deactivate(ctx);
 				}
+				this.active = false;
 			},
 		};
 

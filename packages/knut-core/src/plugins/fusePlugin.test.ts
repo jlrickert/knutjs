@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { TestKegContext, createTestKeg } from '../internal/testUtils';
 import { SearchResult } from '../internal/plugins/searchPlugin';
-import { FUSE_DATA_FILE, FUSE_INDEX_FILE, FusePlugin } from './fusePlugin';
+import { FUSE_DATA_FILE, FUSE_INDEX_FILE, FuseKegPlugin } from './fusePlugin';
 
 describe('nodes plugin', () => {
 	let ctx: TestKegContext;
@@ -12,7 +12,7 @@ describe('nodes plugin', () => {
 		await ctx.reset();
 	});
 	test('should be able to search', async () => {
-		const plugin = new FusePlugin();
+		const plugin = new FuseKegPlugin();
 		const results = await plugin.search(ctx.keg, {
 			filter: { $text: { $search: 'lorem ipsum' } },
 		});
@@ -24,7 +24,7 @@ describe('nodes plugin', () => {
 	});
 
 	test('should create index and data file on update', async () => {
-		const plugin = new FusePlugin();
+		const plugin = new FuseKegPlugin();
 		await plugin.update(ctx.keg);
 		const root = (await ctx.keg.cache.readdir(''))![0];
 		const storage = ctx.keg.cache.child(root);

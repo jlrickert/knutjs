@@ -1,6 +1,6 @@
 import { test, describe, expect, beforeEach, afterEach } from 'vitest';
-import invariant from 'tiny-invariant';
 import { pipe } from 'fp-ts/lib/function.js';
+import invariant from 'tiny-invariant';
 import { KegNode, NodeId } from './node.js';
 import { NodeContent } from './nodeContent.js';
 import { TestContext, createSampleKnutApp } from './internal/testUtils.js';

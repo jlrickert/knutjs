@@ -1,14 +1,25 @@
-import Fuse, { FuseIndex, FuseOptionKey, FuseSearchOptions } from 'fuse.js';
+import * as FPMap from 'fp-ts/lib/Map.js';
+import * as FPString from 'fp-ts/lib/string.js';
+import { pipe } from 'fp-ts/lib/function.js';
 import { ConfigDefinition, KnutConfigFile } from './configFile.js';
 import { Filter } from './filterTypes.js';
 import { MetaFile, MetaData } from './metaFile.js';
 import { NodeId } from './node.js';
-import { MY_JSON, stringify } from './utils.js';
 import { EnvStorage } from './envStorage.js';
 import { Keg } from './keg.js';
 import { KegStorage, loadKegStorage } from './kegStorage.js';
-import invariant from 'tiny-invariant';
-import { FsStorage } from './storage/fsStorage.js';
+import { MemoryStorage } from './storage/memoryStorage.js';
+import { IndexPlugin } from './internal/plugins/indexPlugin.js';
+import {
+	SearchFilterOptions,
+	SearchPlugin,
+	SearchResult,
+} from './internal/plugins/searchPlugin.js';
+import {
+	KnutPlugin,
+	KnutPluginContext,
+} from './internal/plugins/knutPlugin.js';
+import { FuseKnutPlugin } from './plugins/fusePlugin.js';
 
 export type NodeCreateOptions = {
 	kegalias: string;
@@ -47,20 +58,9 @@ export type NodeFilterOptions = {
 };
 
 export type SearchOptions = {
-	filter?: Filter<NodeFilterOptions>;
+	filter?: Filter<SearchFilterOptions>;
 	limit?: number;
-	strategy?: SearchStrategy;
-};
-
-export type SearchResult = {
-	kegalias: string;
-	nodeId: string;
-	title: string;
-	updated: string;
-	rank: number;
-	tags: string[];
-	author: string | null;
-	meta: MY_JSON;
+	name?: string;
 };
 
 export type ShareOptions = {
@@ -76,6 +76,16 @@ export type SearchStrategy = 'classic' | 'semantic';
 
 export type KnutOptions = {
 	env: EnvStorage;
+};
+
+type PluginState = {
+	ctx: KnutPluginContext;
+	plugin: KnutPlugin;
+	active: boolean;
+	indexes: Map<string, IndexPlugin>;
+	searches: Map<string, SearchPlugin>;
+	activate(): Promise<void>;
+	deactivate(): Promise<void>;
 };
 
 /**
@@ -116,6 +126,7 @@ export class Knut {
 		const env = options?.env ?? EnvStorage.createInMemory();
 		const knut = new Knut(env);
 		await knut.init(config);
+		knut.addPlugin(new FuseKnutPlugin());
 		return knut;
 	}
 
@@ -167,125 +178,101 @@ export class Knut {
 	}
 
 	async update(): Promise<void> {
-		this.env.cache.rm('fuse-data.json');
-		this.env.cache.rm('fuse-index.json');
+		for (const [, { update }] of this.indexPlugins) {
+			await update();
+		}
+		for (const [, keg] of this.getKegList()) {
+			await keg.update();
+		}
 	}
 
-	async search({ limit, filter }: SearchOptions): Promise<SearchResult[]> {
-		const results: SearchResult[] = [];
-		type Data = {
-			nodeId: string;
-			kegalias: string;
-			content: string;
-			title: string;
-			author: string | null;
-			tags: string[];
-			updated: string;
-			meta: MY_JSON;
-		};
-		const rawData = await this.env.cache.read('fuse-data.json');
-		let data = rawData ? (JSON.parse(rawData) as Data[]) : null;
-
-		if (data === null) {
-			data = [];
-			for await (const [kegalias, nodeId, node] of this.getNodeList()) {
-				const keg = this.getKeg(kegalias);
-				invariant(
-					keg,
-					'Expect to get the keg that the node belongs to',
-				);
-				const author = keg.kegFile.getAuthor();
-				const content = node?.content;
-				const tags = node?.getTags() ?? [];
-				// Only include if node has the expected tag
-				if (Array.isArray(filter?.tags)) {
-					if (
-						!filter.tags.reduce(
-							(acc, tag) => acc && tags.includes(tag),
-							true,
-						)
-					) {
-						continue;
-					}
-				}
-				data.push({
-					content,
-					kegalias,
-					nodeId: stringify(nodeId),
-					title: node?.title ?? '',
-					author,
-					tags: [...tags],
-					updated: node?.updated ?? '',
-					meta: node?.meta.export() ?? null,
-				});
-			}
+	async search(options: SearchOptions): Promise<SearchResult[]> {
+		const name = options.name ?? 'fuse';
+		if (name === null) {
+			return [];
 		}
-		if (rawData === null) {
-			this.env.cache.write('fuse-data.json', JSON.stringify(data));
+		const plugin = this.searchPlugin.get(name) ?? null;
+		if (plugin === null) {
+			return [];
 		}
-
-		const search = filter?.$text?.$search ?? '';
-		if ((filter && Object.keys(filter).length === 0) || search === '') {
-			const results: SearchResult[] = [];
-			for (let i = 0; i < data.length; i++) {
-				const item = data[i];
-				results.push({
-					author: item.author,
-					meta: item.meta,
-					title: item.title,
-					tags: item.tags,
-					nodeId: item.nodeId,
-					updated: item.updated,
-					rank: 1,
-					kegalias: item.kegalias,
-				});
-			}
-			return results;
-		}
-		const keys: FuseOptionKey<Data>[] = [
-			{ name: 'title', weight: 2 },
-			'content',
-		];
-		const indexData = await this.env.cache.read('fuse-index.json');
-		let index: FuseIndex<Data>;
-		if (!indexData) {
-			index = Fuse.createIndex(keys, data);
-			await this.env.cache.write(
-				'fuse-index.json',
-				JSON.stringify(index.toJSON()),
-			);
-		} else {
-			index = Fuse.parseIndex<Data>(JSON.parse(indexData));
-		}
-		const fuse = new Fuse(
-			data,
-			{
-				keys,
-				ignoreLocation: true,
-				includeScore: true,
-				isCaseSensitive: false,
-				findAllMatches: true,
-			},
-			index,
-		);
-
-		const fuseOptions: FuseSearchOptions | undefined =
-			!limit || limit <= 0 ? undefined : { limit };
-		const fuseResult = fuse.search(search, fuseOptions);
-
-		for (const result of fuseResult) {
-			results.push({
-				kegalias: result.item.kegalias,
-				nodeId: result.item.nodeId,
-				title: result.item.title,
-				rank: result.score ?? 0,
-				updated: result.item.updated,
-				author: result.item.author,
-				tags: result.item.tags,
-				meta: result.item.meta,
-			});
-		}
+		const { limit, filter } = options;
+		const results = await plugin.search({ limit, filter });
 		return results;
+	}
+
+	private plugins = new Map<string, PluginState>();
+	private indexPlugins = new Map<string, IndexPlugin>();
+	private searchPlugin = new Map<string, SearchPlugin>();
+	async addPlugin(plugin: KnutPlugin): Promise<void> {
+		const indexes = new Map<string, IndexPlugin>();
+		const searches = new Map<string, SearchPlugin>();
+		const knut = this;
+		let active = false;
+
+		const ctx: KnutPluginContext = {
+			knut,
+			async getIndexList() {
+				return pipe(knut.indexPlugins, FPMap.keys(FPString.Ord));
+			},
+			async registerIndex(plug) {
+				knut.indexPlugins.set(plugin.name, plug);
+				indexes.set(plug.name, plug);
+			},
+			async degregisterIndex(name) {
+				knut.indexPlugins.delete(name);
+				indexes.delete(name);
+			},
+			async registerSearch(plug) {
+				knut.searchPlugin.set(plugin.name, plug);
+				searches.set(plug.name, plug);
+			},
+			async getSearchList() {
+				return pipe(knut.searchPlugin, FPMap.keys(FPString.Ord));
+			},
+			async degregisterSearch(name) {
+				knut.searchPlugin.delete(name);
+				searches.delete(name);
+			},
+		};
+
+		const state: PluginState = {
+			ctx,
+			searches,
+			indexes,
+			plugin,
+			active,
+			async activate() {
+				await plugin.activate(ctx);
+				if (active) {
+					return;
+				}
+				for (const [name, plug] of indexes) {
+					knut.indexPlugins.set(name, plug);
+				}
+				for (const [name, plug] of searches) {
+					knut.searchPlugin.set(name, plug);
+				}
+				this.active = true;
+			},
+			async deactivate() {
+				if (!active) {
+					return;
+				}
+				for (const [name] of indexes) {
+					knut.indexPlugins.delete(name);
+				}
+				for (const [name] of searches) {
+					knut.searchPlugin.delete(name);
+				}
+				if (plugin.deactivate) {
+					await plugin.deactivate(ctx);
+				}
+				this.active = false;
+			},
+		};
+
+		this.plugins.set(plugin.name, state);
+		await state.activate();
 	}
 
 	/**

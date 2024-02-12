@@ -1,18 +1,20 @@
 import * as Path from 'path';
 import * as YAML from 'yaml';
 import { homedir } from 'os';
-import { absurd, deepCopy, stringify } from './utils.js';
+import { MY_JSON, absurd, deepCopy, stringify } from './utils.js';
 import { KegVersion } from './kegFile.js';
 import { GenericStorage } from './storage/storage.js';
 import { EnvStorage } from './envStorage.js';
-import { FsStorage } from './storage/fsStorage.js';
-import { MemoryStorage } from './storage/memoryStorage.js';
 
 export type KegConfigDefinition = {
 	alias: string;
 	url: string;
 	kegv?: KegVersion;
 };
+
+export type KnutPluginDefinition = {
+	name?: string;
+} & { [key: string]: MY_JSON };
 
 export type KnutConfigVersion = 'draft-0.1';
 
@@ -24,6 +26,8 @@ export type ConfigDefinition = {
 	 * Prefered format to use
 	 */
 	format?: PreferedFormat;
+	defaultSearch?: string;
+	plugins: KnutPluginDefinition[];
 	kegs: KegConfigDefinition[];
 };
 
@@ -97,6 +101,7 @@ export class KnutConfigFile {
 	static create(): KnutConfigFile {
 		return new KnutConfigFile({
 			version: 'draft-0.1',
+			plugins: [],
 			kegs: [],
 		});
 	}
