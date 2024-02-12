@@ -11,12 +11,17 @@ import { MemoryStorage } from './storage/memoryStorage.js';
 import { KegPlugin, KegPluginContext } from './internal/plugins/kegPlugin.js';
 import { GenericStorage } from './storage/storage.js';
 import { IndexPlugin } from './internal/plugins/indexPlugin.js';
-import { SearchPlugin } from './internal/plugins/searchPlugin.js';
+import {
+	SearchParams,
+	SearchPlugin,
+	SearchResult,
+} from './internal/plugins/searchPlugin.js';
 import { NodesPlugin } from './plugins/nodesPlugin.js';
 import { NodeContent } from './nodeContent.js';
 import { MetaFile } from './metaFile.js';
 import { array, option, ord, task } from 'fp-ts';
 import { ChangesPlugin } from './plugins/changesPlugin.js';
+import { FusePlugin } from './plugins/fusePlugin.js';
 
 type PluginState = {
 	ctx: KegPluginContext;
@@ -43,6 +48,7 @@ export class Keg {
 		);
 		await keg.addPlugin(new NodesPlugin());
 		await keg.addPlugin(new ChangesPlugin());
+		await keg.addPlugin(new FusePlugin());
 		return keg;
 	}
 
@@ -67,6 +73,7 @@ export class Keg {
 		const keg = new Keg(kegFile, dex, store, env);
 		await keg.addPlugin(new NodesPlugin());
 		await keg.addPlugin(new ChangesPlugin());
+		await keg.addPlugin(new FusePlugin());
 		return keg;
 	}
 
@@ -91,6 +98,7 @@ export class Keg {
 		const keg = new Keg(kegFile, dex, store, env);
 		await keg.addPlugin(new NodesPlugin());
 		await keg.addPlugin(new ChangesPlugin());
+		await keg.addPlugin(new FusePlugin());
 		const zeroNode = await KegNode.zeroNode();
 		await keg.setNode(new NodeId(0), zeroNode);
 		return keg;
@@ -199,6 +207,22 @@ export class Keg {
 		await run();
 		this.kegFile.updated = new Date();
 		this.storage.write(KegFile.filePath(), stringify(this.kegFile));
+	}
+
+	async search(
+		args: { name?: string } & SearchParams,
+	): Promise<SearchResult[]> {
+		const name = args.name ?? this.kegFile.data.defaultSearch ?? null;
+		if (name === null) {
+			return [];
+		}
+		const plugin = this.searchPlugin.get(name) ?? null;
+		if (plugin === null) {
+			return [];
+		}
+		const { limit, filter } = args;
+		const results = await plugin.search({ limit, filter });
+		return results;
 	}
 
 	private plugins = new Map<string, PluginState>();

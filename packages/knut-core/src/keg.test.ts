@@ -46,6 +46,17 @@ describe('keg', () => {
 		);
 	});
 
+	test('should be able to search for lorem ipsum node', async () => {
+		const results = await ctx.keg.search({
+			name: 'fuse',
+			filter: { $text: { $search: 'lorem ipsum' } },
+		});
+		const result = results[0].nodeId;
+
+		// 7 is the node id that contains content with lorem ipsum
+		expect(result).toEqual('7');
+	});
+
 	test('should be able to create a node', async () => {
 		const prevCount = pipe(
 			await collectAsync(ctx.keg.storage.listNodes()),

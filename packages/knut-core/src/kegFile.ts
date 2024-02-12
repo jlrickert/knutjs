@@ -26,6 +26,11 @@ export type IndexEntryData = {
 	[keg: string]: MY_JSON;
 };
 
+export type SearchEntryData = {
+	name: string;
+	defaultParams: MY_JSON;
+};
+
 /**
  * Plain old data representing a keg
  **/
@@ -42,6 +47,8 @@ export type KegFileData = {
 	creator?: string;
 	state?: string;
 	summary?: string;
+	defaultSearch?: string;
+	searches?: SearchEntryData[];
 	indexes?: IndexEntryData[];
 };
 
