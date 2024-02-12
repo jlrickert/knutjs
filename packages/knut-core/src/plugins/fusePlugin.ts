@@ -32,7 +32,9 @@ export class FusePlugin implements KegPlugin {
 		ctx.registerIndex({
 			name: 'fuse',
 			depends: ['nodes'],
-			update: async () => {},
+			update: async () => {
+				await this.update(ctx.keg);
+			},
 		});
 		ctx.registerSearch({
 			name: 'fuse',
