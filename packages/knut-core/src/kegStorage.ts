@@ -24,6 +24,10 @@ export class KegStorage {
 
 	private constructor(public fs: GenericStorage) {}
 
+	get root() {
+		return this.fs.root;
+	}
+
 	async read(filepath: string): Promise<string | null> {
 		return this.fs.read(filepath);
 	}

@@ -216,8 +216,8 @@ This is a filler until I can provide someone better for the link that brought yo
 		this.data.meta.addTag(tag);
 	}
 
-	getTags(): readonly string[] {
-		return this.data.meta.getTags();
+	getTags(): string[] {
+		return [...this.data.meta.getTags()];
 	}
 
 	addDate(datetime: string): void {

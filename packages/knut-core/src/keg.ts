@@ -103,6 +103,27 @@ export class Keg {
 		private readonly env: EnvStorage,
 	) {}
 
+	/**
+	 * config is the config storage
+	 **/
+	get config() {
+		return this.env.config;
+	}
+
+	/**
+	 * var is the variable storage
+	 **/
+	get var() {
+		return this.env.variable;
+	}
+
+	/**
+	 * cache is the cache storage
+	 **/
+	get cache() {
+		return this.env.config;
+	}
+
 	async last(): Promise<NodeId | null> {
 		const nodeList = await collectAsync(this.storage.listNodes());
 		nodeList.sort((a, b) => (a.lt(b) ? 1 : -1));
@@ -271,9 +292,4 @@ export class Keg {
 		await state.deactivate();
 		this.plugins.delete(name);
 	}
-
-	// private indexList = new Map<string, KegIndexFn>();
-	// async addIndex(name: string, fn: KegIndexFn): Promise<void> {
-	// 	this.indexList.set(name, fn);
-	// }
 }

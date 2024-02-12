@@ -7,6 +7,7 @@ import {
 } from './storage.js';
 
 export class WebStorage implements GenericStorage {
+	readonly root: string;
 	private prefix: string;
 	private storage: MemoryStorage;
 
@@ -22,7 +23,6 @@ export class WebStorage implements GenericStorage {
 		return new WebStorage(storage, prefix);
 	}
 
-	readonly root: string;
 	private constructor(storage: MemoryStorage, prefix: string) {
 		this.root = storage.root;
 		this.prefix = prefix;

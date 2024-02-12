@@ -172,3 +172,17 @@ export const collect = <T, TReturn = any, TNext = undefined>(
 		results.push(item.value);
 	}
 };
+
+export const hashString = (value: string): number => {
+	if (value.length === 0) {
+		return 0;
+	}
+
+	let hash = 0;
+	for (let i = 0; i < value.length; i++) {
+		const chr = value.charCodeAt(i);
+		hash = (hash << 5) - hash + chr;
+		hash |= 0; // Convert to 32bit integer
+	}
+	return hash;
+};
