@@ -16,7 +16,7 @@
 			"types": "./dist/index.d.ts",
 			"require": "./dist/index.cjs"
 		},
-		"./*": {
+		"./*.js": {
 			"module": "./dist/*.js",
 			"types": "./dist/*.d.ts",
 			"require": "./dist/*.cjs"
@@ -27,7 +27,7 @@
 		"package.json"
 	],
 	"scripts": {
-		"build": "pnpm run clean && cross-env NODE_ENV=production tsc --build && pnpm run typecheck",
+		"build": "pnpm run clean && cross-env NODE_ENV=production tsc --project tsconfig.build.json --build && pnpm run typecheck",
 		"clean": "tsc --build --clean",
 		"dev": "pnpm run clean && tsc --build && tsc --build --watch",
 		"typecheck": "tsc --noEmit",

@@ -5,12 +5,20 @@
 		"rootDir": "src",
 		"outDir": "dist",
 		"target": "ES2022",
-		"lib": ["ES2022", "DOM"],
+		"lib": [
+			"ES2022",
+			"DOM"
+		],
 		"declaration": true,
 		"esModuleInterop": true,
 		"module": "Node16",
 		"moduleResolution": "Node16"
 	},
-	"include": ["src/**/*.ts"],
-	"exclude": ["**/dist/", "src/**/*.test.ts", "**/node_modules/"]
+	"include": [
+		"./src/**/*.ts"
+	],
+	"exclude": [
+		"**/dist/",
+		"**/node_modules/"
+	]
 }

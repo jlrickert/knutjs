@@ -7,10 +7,17 @@
 		"esModuleInterop": true,
 		"declaration": true,
 		"target": "ES2022",
-		"lib": ["ES2022"],
+		"lib": [
+			"ES2022"
+		],
 		"module": "NodeNext",
 		"moduleResolution": "Node16"
 	},
-	"include": ["src/**/*.ts"],
-	"exclude": ["**/dist/", "src/**/*.test.ts", "**/node_modules/"]
+	"include": [
+		"./src/**/*.ts"
+	],
+	"exclude": [
+		"**/dist/",
+		"**/node_modules/"
+	]
 }

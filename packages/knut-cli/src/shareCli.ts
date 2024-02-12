@@ -1,4 +1,4 @@
-import { Knut } from '@jlrickert/knutjs-core/knut';
+import { Knut } from '@jlrickert/knutjs-core/knut.js';
 import { KnutCommand } from './knutCli.js';
 
 export const shareCli = KnutCommand('share')

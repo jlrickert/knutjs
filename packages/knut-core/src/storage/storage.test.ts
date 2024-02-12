@@ -1,8 +1,11 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { MemoryStorage } from './memoryStorage';
-import { overwrite } from './storage';
-import { TestStorageContext, createTestStorage } from '../internal/testUtils';
 import { TimeLike } from 'fs';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { MemoryStorage } from './memoryStorage.js';
+import { overwrite } from './storage.js';
+import {
+	TestStorageContext,
+	createTestStorage,
+} from '../internal/testUtils.js';
 
 describe('storage overwrite', async () => {
 	beforeEach(() => {

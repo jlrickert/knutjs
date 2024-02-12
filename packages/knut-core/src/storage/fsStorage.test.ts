@@ -1,8 +1,8 @@
 import * as Path from 'path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { TestContext, createSampleKnutApp } from '../internal/testUtils';
-import { MemoryStorage } from './memoryStorage';
-import { GenericStorage } from './storage';
+import { TestContext, createSampleKnutApp } from '../internal/testUtils.js';
+import { MemoryStorage } from './memoryStorage.js';
+import { GenericStorage } from './storage.js';
 
 test('path library exploration', () => {
 	expect(Path.isAbsolute('/home/user/.config/knut')).toBeTruthy();

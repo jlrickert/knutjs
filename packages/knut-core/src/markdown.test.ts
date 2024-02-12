@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { KegNode, NodeId } from './node';
-import { MarkdownAST as AST } from './markdown';
-import { stringify } from './utils';
+import { KegNode, NodeId } from './node.js';
+import { MarkdownAST as AST } from './markdown.js';
+import { stringify } from './utils.js';
 
 describe('common markdown operations', () => {
 	test('should be able to generate a node link', async () => {

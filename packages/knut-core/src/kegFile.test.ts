@@ -3,9 +3,9 @@ import {
 	TestContext,
 	createSampleKnutApp,
 	sampleKegpath,
-} from './internal/testUtils';
-import { KegFile } from './kegFile';
-import { KegStorage } from './kegStorage';
+} from './internal/testUtils.js';
+import { KegFile } from './kegFile.js';
+import { KegStorage } from './kegStorage.js';
 
 describe('keg file', () => {
 	let ctx: TestContext;

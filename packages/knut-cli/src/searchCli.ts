@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { Knut, SearchStrategy } from '@jlrickert/knutjs-core/knut';
+import { Knut, SearchStrategy } from '@jlrickert/knutjs-core/knut.js';
 import {
 	JSONOption,
 	KegPathOption,

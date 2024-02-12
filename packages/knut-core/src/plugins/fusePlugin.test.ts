@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { TestKegContext, createTestKeg } from '../internal/testUtils';
-import { SearchResult } from '../internal/plugins/searchPlugin';
-import { FUSE_DATA_FILE, FUSE_INDEX_FILE, FuseKegPlugin } from './fusePlugin';
+import { TestKegContext, createTestKeg } from '../internal/testUtils.js';
+import { SearchResult } from '../internal/plugins/searchPlugin.js';
+import {
+	FUSE_DATA_FILE,
+	FUSE_INDEX_FILE,
+	FuseKegPlugin,
+} from './fusePlugin.js';
 
 describe('nodes plugin', () => {
 	let ctx: TestKegContext;

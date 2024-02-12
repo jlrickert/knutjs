@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { TestKegContext, createTestKeg } from '../internal/testUtils';
-import { ChangesPlugin } from './changesPlugin';
+import { TestKegContext, createTestKeg } from '../internal/testUtils.js';
+import { ChangesPlugin } from './changesPlugin.js';
 
 describe('nodes plugin', () => {
 	let ctx: TestKegContext;

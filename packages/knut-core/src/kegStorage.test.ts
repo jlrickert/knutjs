@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { TestContext, createSampleKnutApp } from './internal/testUtils';
-import { KegStorage } from './kegStorage';
-import { collectAsync } from './utils';
+import { TestContext, createSampleKnutApp } from './internal/testUtils.js';
+import { KegStorage } from './kegStorage.js';
+import { collectAsync } from './utils.js';
 
 describe('keg storage', () => {
 	let ctx!: TestContext;
