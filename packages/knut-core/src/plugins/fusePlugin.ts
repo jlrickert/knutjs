@@ -27,7 +27,7 @@ const KEYS: FuseOptionKey<Data>[] = [{ name: 'title', weight: 2 }, 'content'];
 export class FusePlugin implements KegPlugin {
 	name = 'fuse';
 	depends = ['nodes'];
-	summary? = 'Fuse search';
+	summary? = 'Search powered by Fuse.js';
 	async activate(ctx: KegPluginContext): Promise<void> {
 		ctx.registerIndex({
 			name: 'fuse',
@@ -39,6 +39,7 @@ export class FusePlugin implements KegPlugin {
 			search: (options) => this.search(ctx.keg, options),
 		});
 	}
+
 	async deactivate(ctx: KegPluginContext): Promise<void> {}
 
 	async search(
