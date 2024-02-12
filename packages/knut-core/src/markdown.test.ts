@@ -6,9 +6,9 @@ import { stringify } from './utils';
 describe('common markdown operations', () => {
 	test('should be able to generate a node link', async () => {
 		const node = await KegNode.fromContent({
-			updated: '2023-23-03',
+			updated: new Date('2023-23-03'),
 			content: '# Example title',
-			created: stringify(new Date()),
+			created: new Date(),
 		});
 		const ast = AST.nodeLink({
 			nodeId: new NodeId(43),
@@ -22,24 +22,24 @@ describe('common markdown operations', () => {
 	test('should be able to generate a list', async () => {
 		const nodeList = await Promise.all([
 			KegNode.fromContent({
-				updated: '2023-23-03',
+				updated: new Date('2023-23-03'),
 				content: '# Example title 1',
-				created: stringify(new Date()),
+				created: new Date(),
 			}),
 			KegNode.fromContent({
-				updated: '2023-20-03',
+				updated: new Date('2023-20-03'),
 				content: '# Example title 2',
-				created: stringify(new Date()),
+				created: new Date(),
 			}),
 			KegNode.fromContent({
-				updated: '2023-21-03',
+				updated: new Date('2023-21-03'),
 				content: '# Example title 3',
-				created: stringify(new Date()),
+				created: new Date(),
 			}),
 		]);
 		const ast = AST.list(
 			nodeList.map((node, i) => {
-				const date = AST.text(node.updated);
+				const date = AST.text(stringify(node.updated));
 				const space = AST.text(' ');
 				const link = AST.nodeLink({
 					nodeId: new NodeId(i),
