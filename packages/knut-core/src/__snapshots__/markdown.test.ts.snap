@@ -1,8 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`common markdown operations > should be able to generate a list > list of items 1`] = `
-"* 2023-23-03 [Example title 1](../0)
-* 2023-20-03 [Example title 2](../1)
-* 2023-21-03 [Example title 3](../2)
+"* 2023-03-22 00:00:00Z [Example title 1](../0)
+* 2023-03-23 00:00:00Z [Example title 2](../1)
+* 2023-03-21 00:00:00Z [Example title 3](../2)
 "
 `;

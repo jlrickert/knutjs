@@ -22,17 +22,17 @@ describe('common markdown operations', () => {
 	test('should be able to generate a list', async () => {
 		const nodeList = await Promise.all([
 			KegNode.fromContent({
-				updated: new Date('2023-23-03'),
+				updated: new Date('2023-03-22'),
 				content: '# Example title 1',
 				created: new Date(),
 			}),
 			KegNode.fromContent({
-				updated: new Date('2023-20-03'),
+				updated: new Date('2023-03-23'),
 				content: '# Example title 2',
 				created: new Date(),
 			}),
 			KegNode.fromContent({
-				updated: new Date('2023-21-03'),
+				updated: new Date('2023-03-21'),
 				content: '# Example title 3',
 				created: new Date(),
 			}),
