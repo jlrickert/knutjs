@@ -23,7 +23,7 @@
 		"clean": "tsc --build --clean",
 		"dev": "pnpm run clean && tsc --build && tsc --build --watch",
 		"dev:tsup": "tsup --watch",
-		"build": "pnpm run clean && cross-env NODE_ENV=production tsc --project tsconfig.build.json --build && pnpm run typecheck",
+		"build": "pnpm run clean && cross-env NODE_ENV=production tsc --project tsconfig.build.json && pnpm run typecheck",
 		"build:tsup": "cross-env NODE_ENV=production tsup",
 		"clean:tsup": "rimraf dist",
 		"typecheck": "tsc --noEmit",
