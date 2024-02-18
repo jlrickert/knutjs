@@ -6,6 +6,8 @@ import { KegVersion } from './kegFile.js';
 import { GenericStorage } from './storage/storage.js';
 import { EnvStorage } from './envStorage.js';
 import { FsStorage } from './storage/fsStorage.js';
+import { MyPromise } from './internal/promise.js';
+import { Optional } from './internal/optional.js';
 
 export type KegConfigDefinition = {
 	alias: string;
@@ -60,7 +62,7 @@ export class KnutConfigFile {
 
 	static async fromStorage(
 		storage: GenericStorage,
-	): Promise<KnutConfigFile | null> {
+	): MyPromise<Optional<KnutConfigFile>> {
 		let config: KnutConfigFile | null = null;
 
 		const yamlData = await storage.read('config.yaml');
@@ -82,13 +84,13 @@ export class KnutConfigFile {
 		return config;
 	}
 
-	static async fromJSON(json: string): Promise<KnutConfigFile | null> {
+	static async fromJSON(json: string): MyPromise<Optional<KnutConfigFile>> {
 		const value = JSON.parse(json) as ConfigDefinition;
 		const config = new KnutConfigFile(value);
 		return config;
 	}
 
-	static async fromYAML(yaml: string): Promise<KnutConfigFile | null> {
+	static async fromYAML(yaml: string): MyPromise<Optional<KnutConfigFile>> {
 		const data = YAML.parse(yaml) as ConfigDefinition;
 		return new KnutConfigFile(data);
 	}
@@ -102,7 +104,7 @@ export class KnutConfigFile {
 
 	constructor(private _data: ConfigDefinition) {}
 
-	async writeTo(storage: GenericStorage): Promise<boolean> {
+	async writeTo(storage: GenericStorage): MyPromise<boolean> {
 		const filename =
 			this.data.format === 'yaml' ? 'config.yaml' : 'config.json';
 		const ok = await storage.write(filename, stringify(this));
@@ -112,7 +114,7 @@ export class KnutConfigFile {
 	/**
 	 * Resolve urls to some path
 	 **/
-	async resolve(path: string): Promise<KnutConfigFile> {
+	async resolve(path: string): MyPromise<KnutConfigFile> {
 		const next = this.clone();
 		for (const keg of next.data.kegs) {
 			const home = homedir();
@@ -125,7 +127,7 @@ export class KnutConfigFile {
 	/**
 	 * Make urls relative
 	 **/
-	async relative(path: string): Promise<KnutConfigFile> {
+	async relative(path: string): MyPromise<KnutConfigFile> {
 		const next = this.clone();
 		if (path.match(/^https?/)) {
 			return next;
@@ -172,7 +174,7 @@ export class KnutConfigFile {
 		return this._data;
 	}
 
-	getKeg(kegalias: string): KegConfigDefinition | null {
+	getKeg(kegalias: string): Optional<KegConfigDefinition> {
 		const data = this.data.kegs.find((a) => a.alias === kegalias);
 		if (!data) {
 			return null;

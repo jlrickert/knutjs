@@ -1,3 +1,5 @@
+import { Optional } from './internal/optional.js';
+import { MyPromise } from './internal/promise.js';
 import {
 	getUserCacheDir,
 	getUserConfigDir,
@@ -5,7 +7,8 @@ import {
 } from './internal/systemUtils.js';
 import { ApiStorage } from './storage/apiStorage.js';
 import { MemoryStorage } from './storage/memoryStorage.js';
-import { GenericStorage, loadStorage } from './storage/storage.js';
+import { GenericStorage } from './storage/storage.js';
+import { loadStorage } from './storage/storageUtils.js';
 import { WebStorage } from './storage/webStorage.js';
 import { absurd, currentPlatform } from './utils.js';
 
@@ -25,7 +28,7 @@ export const loadEnvApiStorage = async (
 };
 
 export class EnvStorage {
-	static async fromApi(url: string): Promise<EnvStorage | null> {
+	static async fromApi(url: string): MyPromise<Optional<EnvStorage>> {
 		if (!url.match(/^https?/)) {
 			return null;
 		}
@@ -38,7 +41,7 @@ export class EnvStorage {
 		return knutStorage;
 	}
 
-	static async create(): Promise<EnvStorage> {
+	static async create(): MyPromise<EnvStorage> {
 		switch (currentPlatform) {
 			case 'dom': {
 				const storage = WebStorage.create('knut');

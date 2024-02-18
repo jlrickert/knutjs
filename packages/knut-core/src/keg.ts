@@ -1,5 +1,7 @@
 import { Dex } from './dex.js';
 import { EnvStorage } from './envStorage.js';
+import { Optional } from './internal/optional.js';
+import { MyPromise } from './internal/promise.js';
 import { KegFile } from './kegFile.js';
 import { KegStorage, loadKegStorage } from './kegStorage.js';
 import { KegNode, NodeId } from './node.js';
@@ -14,7 +16,7 @@ export class Keg {
 	static async fromStorage(
 		storage: string | KegStorage,
 		env: EnvStorage,
-	): Promise<Keg | null> {
+	): MyPromise<Optional<Keg>> {
 		const store =
 			typeof storage === 'string' ? loadKegStorage(storage) : storage;
 		const kegFile = await KegFile.fromStorage(store);
@@ -32,14 +34,14 @@ export class Keg {
 		public readonly storage: KegStorage,
 	) {}
 
-	async last(): Promise<NodeId | null> {
+	async last(): MyPromise<Optional<NodeId>> {
 		const nodeList = await collectAsync(this.storage.listNodes());
 		nodeList.sort((a, b) => (a.lt(b) ? 1 : -1));
 		const nodeId = nodeList.length > 0 ? nodeList[0] : null;
 		return nodeId;
 	}
 
-	async getNode(nodeId: NodeId): Promise<KegNode | null> {
+	async getNode(nodeId: NodeId): MyPromise<Optional<KegNode>> {
 		const node = await KegNode.fromStorage(nodeId, this.storage);
 		return node;
 	}
@@ -57,5 +59,5 @@ export class Keg {
 		}
 	}
 
-	async update(): Promise<void> {}
+	async update(): MyPromise<void> {}
 }

@@ -2,6 +2,8 @@ import * as YAML from 'yaml';
 import { MY_JSON, currentDate, stringify } from './utils.js';
 import { NodeId } from './node.js';
 import { KegStorage } from './kegStorage.js';
+import { MyPromise } from './internal/promise.js';
+import { Optional } from './internal/optional.js';
 
 export type KegVersion = '2023-01';
 
@@ -49,7 +51,9 @@ export class KegFile {
 	/**
 	 * Load a keg file for the given path
 	 */
-	static async fromStorage(storage: KegStorage): Promise<KegFile | null> {
+	static async fromStorage(
+		storage: KegStorage,
+	): MyPromise<Optional<KegFile>> {
 		const kegdata = await storage.read('keg');
 		if (!kegdata) {
 			return null;
@@ -83,7 +87,7 @@ export class KegFile {
 		return entries;
 	}
 
-	async writeTo(storage: KegStorage): Promise<boolean> {
+	async writeTo(storage: KegStorage): MyPromise<boolean> {
 		return await storage.write('keg', stringify(this));
 	}
 
@@ -91,11 +95,11 @@ export class KegFile {
 		f(this.data);
 	}
 
-	getAuthor(): string | null {
+	getAuthor(): Optional<string> {
 		return this.data.creator ?? null;
 	}
 
-	getLink(nodeId: NodeId): string | null {
+	getLink(nodeId: NodeId): Optional<string> {
 		const linkfmt = this.data.linkfmt;
 		return linkfmt ? linkfmt.replace('{{id}}', nodeId.stringify()) : null;
 	}
