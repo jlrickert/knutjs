@@ -1,10 +1,11 @@
+import { array, optionT, option as O, ord, task } from 'fp-ts';
 import * as FPMap from 'fp-ts/lib/Map.js';
 import * as FPString from 'fp-ts/lib/string.js';
-import { pipe } from 'fp-ts/lib/function.js';
+import { absurd, pipe } from 'fp-ts/lib/function.js';
 import { Dex } from './dex.js';
-import { EnvStorage } from './envStorage.js';
+import { EnvStorage, envStorageM } from './envStorage.js';
 import { KegFile } from './kegFile.js';
-import { KegStorage, loadKegStorage } from './kegStorage.js';
+import { KegStorage } from './kegStorage.js';
 import { KegNode, NodeId } from './node.js';
 import { collectAsync, stringify } from './utils.js';
 import { MemoryStorage } from './storage/memoryStorage.js';
@@ -19,9 +20,10 @@ import {
 import { NodesPlugin } from './plugins/nodesPlugin.js';
 import { NodeContent } from './nodeContent.js';
 import { MetaFile } from './metaFile.js';
-import { array, option, ord, task } from 'fp-ts';
 import { ChangesPlugin } from './plugins/changesPlugin.js';
 import { FuseKegPlugin } from './plugins/fusePlugin.js';
+import { MyPromise, promise } from './internal/myPromise.js';
+import { Optional as MyOption, optional } from './internal/optional.js';
 
 type PluginState = {
 	ctx: KegPluginContext;
@@ -38,13 +40,32 @@ export type CreateNodeOptions = {
 	tags?: string;
 };
 
+const loadKegStorage = (
+	storage: string | GenericStorage | KegStorage,
+): MyOption<KegStorage> => {
+	switch (true) {
+		case typeof storage === 'string': {
+			return KegStorage.fromURI(storage);
+		}
+		case storage instanceof KegStorage: {
+			return optional.some(storage);
+		}
+		case storage instanceof GenericStorage: {
+			return optional.some(KegStorage.fromStorage(storage));
+		}
+		default: {
+			return absurd(storage);
+		}
+	}
+};
+
 export class Keg {
-	static async voidKeg(): Promise<Keg> {
+	static async voidKeg(): MyPromise<Keg> {
 		const keg = new Keg(
 			KegFile.create(),
 			Dex.create(),
 			KegStorage.fromStorage(MemoryStorage.create()),
-			EnvStorage.createInMemory(),
+			envStorageM.memoryEnv(),
 		);
 		await keg.addPlugin(new NodesPlugin());
 		await keg.addPlugin(new ChangesPlugin());
@@ -55,96 +76,44 @@ export class Keg {
 	static async fromStorage(
 		storage: string | GenericStorage | KegStorage,
 		env: EnvStorage,
-	): Promise<Keg | null> {
-		let store: KegStorage;
-		if (typeof storage === 'string') {
-			store = loadKegStorage(storage);
-		} else if (storage instanceof KegStorage) {
-			store = storage;
-		} else {
-			store = KegStorage.fromStorage(storage);
+	): MyPromise<MyOption<Keg>> {
+		const store = loadKegStorage(storage);
+		if (optional.isNone(store)) {
+			return optional.none;
 		}
-
-		const kegFile = await KegFile.fromStorage(store);
+		const kegFile = await pipe(
+			KegFile.fromStorage(store),
+			promise.map(O.fromNullable),
+			optionT.getOrElse(promise.Monad)(async () => KegFile.create()),
+		);
 		const dex = Dex.create();
-		if (!kegFile) {
-			return null;
-		}
 		const keg = new Keg(kegFile, dex, store, env);
 		await keg.addPlugin(new NodesPlugin());
 		await keg.addPlugin(new ChangesPlugin());
 		await keg.addPlugin(new FuseKegPlugin());
-		return keg;
-	}
-
-	static async create(
-		storage: string | GenericStorage | KegStorage,
-		env: EnvStorage,
-	) {
-		let store: KegStorage;
-		if (typeof storage === 'string') {
-			store = loadKegStorage(storage);
-		} else if (storage instanceof KegStorage) {
-			store = storage;
-		} else {
-			store = KegStorage.fromStorage(storage);
-		}
-
-		const kegFile = KegFile.create();
-		const dex = Dex.create();
-		if (!kegFile) {
-			return null;
-		}
-		const keg = new Keg(kegFile, dex, store, env);
-		await keg.addPlugin(new NodesPlugin());
-		await keg.addPlugin(new ChangesPlugin());
-		await keg.addPlugin(new FuseKegPlugin());
-		const zeroNode = await KegNode.zeroNode();
-		await keg.setNode(new NodeId(0), zeroNode);
-		return keg;
+		return optional.some(keg);
 	}
 
 	private constructor(
 		public readonly kegFile: KegFile,
 		public readonly dex: Dex,
 		public readonly storage: KegStorage,
-		private readonly env: EnvStorage,
+		public readonly env: EnvStorage,
 	) {}
 
-	/**
-	 * config is the config storage
-	 **/
-	get config() {
-		return this.env.config;
-	}
-
-	/**
-	 * var is the variable storage
-	 **/
-	get var() {
-		return this.env.variable;
-	}
-
-	/**
-	 * cache is the cache storage
-	 **/
-	get cache() {
-		return this.env.config;
-	}
-
-	async last(): Promise<NodeId | null> {
+	async last(): Promise<MyOption<NodeId>> {
 		const nodeList = await collectAsync(this.storage.listNodes());
 		nodeList.sort((a, b) => (a.lt(b) ? 1 : -1));
 		const nodeId = nodeList.length > 0 ? nodeList[0] : null;
-		return nodeId;
+		return optional.fromNullable(nodeId);
 	}
 
-	async getNode(nodeId: NodeId): Promise<KegNode | null> {
+	async getNode(nodeId: NodeId): MyPromise<MyOption<KegNode>> {
 		const node = await KegNode.fromStorage(nodeId, this.storage);
 		return node;
 	}
 
-	async createNode(): Promise<NodeId> {
+	async createNode(): MyPromise<NodeId> {
 		const nodeId = pipe(
 			await this.last(),
 			(a) => a?.next() ?? new NodeId(0),
@@ -154,7 +123,7 @@ export class Keg {
 		return nodeId;
 	}
 
-	async setNode(nodeId: NodeId, node: KegNode): Promise<void> {
+	async setNode(nodeId: NodeId, node: KegNode): MyPromise<void> {
 		const filepath = NodeContent.filePath(nodeId);
 		const metapath = MetaFile.filePath(nodeId);
 		await this.storage.write(filepath, node.content);
@@ -178,11 +147,11 @@ export class Keg {
 		}
 	}
 
-	async update(name?: string | string[]): Promise<void> {
+	async update(name?: string | string[]): MyPromise<void> {
 		const run = pipe(
-			option.fromNullable(name ?? null),
-			option.map((a) => (typeof a === 'string' ? [a] : a)),
-			option.getOrElse(() => {
+			optional.fromNullable(name ?? null),
+			optional.map((a) => (typeof a === 'string' ? [a] : a)),
+			optional.getOrElse(() => {
 				return pipe(
 					this.indexPlugins,
 					FPMap.collect(FPString.Ord)((name) => name),
@@ -206,12 +175,12 @@ export class Keg {
 		);
 		await run();
 		this.kegFile.updated = new Date();
-		this.storage.write(KegFile.filePath(), stringify(this.kegFile));
+		this.storage.write('keg', stringify(this.kegFile));
 	}
 
 	async search(
 		args: { name?: string } & SearchParams,
-	): Promise<SearchResult[]> {
+	): MyPromise<SearchResult[]> {
 		const name = args.name ?? this.kegFile.data.defaultSearch ?? null;
 		if (name === null) {
 			return [];
@@ -311,7 +280,7 @@ export class Keg {
 		await state.activate();
 	}
 
-	async removePlugin(name: string): Promise<void> {
+	async removePlugin(name: string): MyPromise<void> {
 		const state = this.plugins.get(name);
 		if (!state) {
 			return;

@@ -100,7 +100,7 @@ export class FuseKegPlugin implements KegPlugin {
 		const dirname = hashString(keg.storage.root)
 			.toString(16)
 			.padStart(8, '0');
-		const storage = keg.cache.child(dirname);
+		const storage = keg.env.cache.child(dirname);
 		return storage;
 	}
 

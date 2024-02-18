@@ -1,5 +1,8 @@
 # yaml-language-server: $schema=../../../knutSchema.json
 format: yaml
+varDir: ../../share/knut
+configDir: .
+cacheDir: '{{test_cache}}'
 kegs:
   - url: ../../samplekeg
     alias: sample

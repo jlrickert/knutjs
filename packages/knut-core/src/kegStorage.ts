@@ -1,48 +1,63 @@
-import * as Path from 'path';
 import { NodeId } from './node.js';
 import {
 	GenericStorage,
 	StorageNodeStats,
-	loadStorage,
+	StorageNodeTime,
 } from './storage/storage.js';
+import { MyPromise } from './internal/myPromise.js';
+import { Stringer } from './utils.js';
+import { pipe } from 'fp-ts/lib/function.js';
+import { fromUri } from './storage/storageUtils.js';
+import { Optional, optional } from './internal/optional.js';
 
-export const loadKegStorage = (url: string) => {
-	if (Path.isAbsolute(url)) {
-		const storage = loadStorage(url);
-		const kegStorage = KegStorage.fromStorage(storage);
-		return kegStorage;
+export class KegStorage extends GenericStorage {
+	static fromURI(uri: string): Optional<KegStorage> {
+		return pipe(uri, fromUri, optional.map(KegStorage.create));
 	}
-	const storage = loadStorage(url);
-	const kegStorage = KegStorage.fromStorage(storage);
-	return kegStorage;
-};
 
-export class KegStorage {
 	static fromStorage(storage: GenericStorage): KegStorage {
 		return new KegStorage(storage);
 	}
 
-	private constructor(public fs: GenericStorage) {}
-
-	get root() {
-		return this.fs.root;
+	static create(fs: GenericStorage) {
+		return new KegStorage(fs);
 	}
 
-	async read(filepath: string): Promise<string | null> {
-		return this.fs.read(filepath);
+	private constructor(private fs: GenericStorage) {
+		super(fs.root);
 	}
 
-	async write(filepath: string, content: string): Promise<boolean> {
-		return this.fs.write(filepath, content);
+	rm(path: Stringer): MyPromise<boolean> {
+		return this.fs.rm(path);
 	}
-
-	async stats(filepath: string): Promise<StorageNodeStats | null> {
-		return this.fs.stats(filepath);
+	mkdir(path: Stringer): MyPromise<boolean> {
+		return this.fs.mkdir(path);
+	}
+	readdir(path: Stringer): MyPromise<Optional<string[]>> {
+		return this.readdir(path);
+	}
+	rmdir(
+		path: Stringer,
+		options?: { recursive?: boolean | undefined } | undefined,
+	): MyPromise<boolean> {
+		return this.fs.rmdir(path, options);
+	}
+	utime(path: Stringer, stats: StorageNodeTime): MyPromise<boolean> {
+		return this.fs.utime(path, stats);
+	}
+	read(path: Stringer): MyPromise<Optional<string>> {
+		return this.fs.read(path);
+	}
+	write(path: Stringer, contents: Stringer): MyPromise<boolean> {
+		return this.fs.write(path, contents);
+	}
+	stats(path: Stringer): MyPromise<Optional<StorageNodeStats>> {
+		return this.fs.stats(path);
 	}
 
 	async *listNodes() {
 		const dirList = await this.fs.readdir('');
-		if (!dirList) {
+		if (optional.isNone(dirList)) {
 			return [];
 		}
 		let nodes: NodeId[] = [];
@@ -51,7 +66,7 @@ export class KegStorage {
 			// FIXME(jared): something tells me this will pick up some thing
 			// strange like dex/some/wierd/dex/numbered/234/file.
 			const nodeId = NodeId.parsePath(dir);
-			if (nodeId && stat?.isDirectory()) {
+			if (nodeId && optional.isSome(stat) && stat?.isDirectory()) {
 				yield nodeId;
 				nodes.push(nodeId);
 			}

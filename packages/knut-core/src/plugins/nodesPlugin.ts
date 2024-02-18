@@ -6,6 +6,7 @@ import { Keg } from '../keg.js';
 import { IndexEntryData } from '../kegFile.js';
 import { NodeId } from '../node.js';
 import { DexEntry } from '../dex.js';
+import { MyPromise } from '../internal/myPromise.js';
 
 export class NodesPlugin implements KegPlugin {
 	name = 'nodes';
@@ -25,7 +26,7 @@ export class NodesPlugin implements KegPlugin {
 	 * filePaths lists all files in the keg file that is assocated with this
 	 * keg and plugin
 	 **/
-	async filePaths(keg: Keg): Promise<string[]> {
+	async filePaths(keg: Keg): MyPromise<string[]> {
 		const options = await this.getConfig(keg);
 		const filenames = options.map((a) => a.file);
 		return filenames;

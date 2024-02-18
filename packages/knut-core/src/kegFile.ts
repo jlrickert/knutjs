@@ -2,6 +2,11 @@ import * as YAML from 'yaml';
 import { MY_JSON, currentDate, stringify } from './utils.js';
 import { NodeId } from './node.js';
 import { KegStorage } from './kegStorage.js';
+import { GenericStorage } from './storage/storage.js';
+import { MyPromise, promise } from './internal/myPromise.js';
+import { option as O, optionT } from 'fp-ts';
+import { pipe } from 'fp-ts/lib/function.js';
+import { Optional } from './internal/optional.js';
 
 export type KegVersion = '2023-01';
 
@@ -53,19 +58,20 @@ export type KegFileData = {
 };
 
 export class KegFile {
-	static filePath() {
-		return 'keg';
-	}
-
 	/**
 	 * Load a keg file for the given path
 	 */
-	static async fromStorage(storage: KegStorage): Promise<KegFile | null> {
-		const kegdata = await storage.read('keg');
-		if (!kegdata) {
-			return null;
-		}
-		return KegFile.fromYAML(kegdata);
+	static async fromStorage(
+		storage: GenericStorage | KegStorage,
+	): MyPromise<Optional<KegFile>> {
+		const map = optionT.map(promise.Monad);
+		const kegFile = await pipe(
+			storage.read('keg'),
+			promise.map(O.fromNullable),
+			map(KegFile.fromYAML),
+			promise.map((a) => (a._tag === 'Some' ? a.value : null)),
+		);
+		return kegFile;
 	}
 
 	static fromYAML(yaml: string): KegFile {
@@ -100,7 +106,7 @@ export class KegFile {
 		}
 	}
 
-	async writeTo(storage: KegStorage): Promise<boolean> {
+	async writeTo(storage: KegStorage): MyPromise<boolean> {
 		return await storage.write('keg', stringify(this));
 	}
 

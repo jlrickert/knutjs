@@ -1,19 +1,13 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { TestKegContext, createTestKeg } from '../internal/testUtils.js';
+import { describe, expect, test } from 'vitest';
+import { testUtilsM } from '../internal/testUtils.js';
 import { ChangesPlugin } from './changesPlugin.js';
 
 describe('nodes plugin', () => {
-	let ctx: TestKegContext;
-	beforeEach(async () => {
-		ctx = await createTestKeg();
-	});
-	afterEach(async () => {
-		await ctx.reset();
-	});
 	test('should be able to generate a valid dex/changes.md file', async () => {
+		const keg = await testUtilsM.createTestKeg();
 		const plugin = new ChangesPlugin();
-		const content = await plugin.buildIndex(ctx.keg);
-		const expected = await ctx.keg.storage.read('dex/changes.md');
+		const content = await plugin.buildIndex(keg);
+		const expected = await keg.storage.read('dex/changes.md');
 		expect(content?.trim()).toEqual(expected?.trim());
 	});
 });

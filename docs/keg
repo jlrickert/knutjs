@@ -1,4 +1,4 @@
-updated: 2024-01-31 19:26:12Z
+updated: 2024-02-08 19:07:14Z
 kegv:    2023-01
 
 title:   Knut documentation
@@ -13,7 +13,7 @@ summary:
 indexes:
   - file: dex/nodes.tsv
     summary: all nodes by id
-	plugin: nodes
+	name: nodes
   - file: dex/changes.md
     summary: latest changes
-	plugin: changes
+	name: changes

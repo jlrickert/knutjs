@@ -5,7 +5,7 @@ import { ConfigDefinition, KnutConfigFile } from './configFile.js';
 import { Filter } from './filterTypes.js';
 import { MetaFile, MetaData } from './metaFile.js';
 import { NodeId } from './node.js';
-import { EnvStorage } from './envStorage.js';
+import { EnvStorage, envStorageM } from './envStorage.js';
 import { Keg } from './keg.js';
 import { KegStorage, loadKegStorage } from './kegStorage.js';
 import { MemoryStorage } from './storage/memoryStorage.js';
@@ -74,8 +74,9 @@ type PublishOptions = {
 
 export type SearchStrategy = 'classic' | 'semantic';
 
-export type KnutOptions = {
-	env: EnvStorage;
+export type KnutCreateOptions = {
+	conf?: string | ConfigDefinition;
+	env?: EnvStorage;
 };
 
 type PluginState = {
@@ -94,43 +95,56 @@ type PluginState = {
 export class Knut {
 	private kegMap = new Map<string, Keg>();
 
-	static empty(): Knut {
+	static async empty(): Promise<Knut> {
 		const storage = MemoryStorage.create();
-		return new Knut(
-			EnvStorage.fromStorage({
-				config: storage.child('config'),
-				cache: storage.child('cache'),
-				variable: storage.child('variable'),
-			}),
-		);
-	}
-
-	static async create(): Promise<Knut> {
-		const env = await EnvStorage.create();
-		const knut = await Knut.fromEnvironment(env.child('knut'));
+		const env: EnvStorage = {
+			config: storage.child('config'),
+			variable: storage.child('variables'),
+			cache: storage.child('cache'),
+		};
+		const knut = Knut.fromConfig(KnutConfigFile.create().data, env);
 		return knut;
 	}
 
 	static async fromEnvironment(env: EnvStorage): Promise<Knut> {
-		const configFile = await KnutConfigFile.fromEnvStorage(env, {
-			resolve: true,
-		});
-		const knut = await Knut.fromConfig(configFile.data, { env: env });
+		const config = await KnutConfigFile.fromEnvStorage(env);
+		const knut = Knut.fromConfig(config.data, env);
 		return knut;
 	}
 
 	static async fromConfig(
 		config: ConfigDefinition,
-		options?: KnutOptions,
+		env?: EnvStorage,
 	): Promise<Knut> {
-		const env = options?.env ?? EnvStorage.createInMemory();
-		const knut = new Knut(env);
-		await knut.init(config);
-		knut.addPlugin(new FuseKnutPlugin());
+		const environment = env ?? (await envStorageM.create());
+		const knut = new Knut(config, environment);
+		await knut.addPlugin(new FuseKnutPlugin());
+		await knut.loadConfig(config);
 		return knut;
 	}
 
-	private constructor(public readonly env: EnvStorage) {}
+	static async create(): Promise<Knut> {
+		const env = await envStorageM.create();
+		const config = await KnutConfigFile.fromEnvStorage(env);
+		const knut = Knut.fromConfig(config.data, env);
+		return knut;
+	}
+
+	private constructor(
+		public readonly config: ConfigDefinition,
+		public readonly env: EnvStorage,
+	) {}
+
+	/**
+	 * loadConfig loads the configuration. This reinitializes everything.
+	 **/
+	async loadConfig(config: ConfigDefinition) {
+		this.kegMap.clear();
+		for (const keg of config.kegs) {
+			const storage = loadKegStorage(keg.url);
+			await this.loadKeg(keg.alias, storage);
+		}
+	}
 
 	/**
 	 * Loads required data for a keg
@@ -141,14 +155,6 @@ export class Knut {
 			return;
 		}
 		this.kegMap.set(kegalias, keg);
-	}
-
-	private async init(config: ConfigDefinition) {
-		this.kegMap.clear();
-		for (const keg of config.kegs) {
-			const storage = loadKegStorage(keg.url);
-			await this.loadKeg(keg.alias, storage);
-		}
 	}
 
 	getKeg(kegalias: string): Keg | null {
@@ -191,7 +197,7 @@ export class Knut {
 		if (name === null) {
 			return [];
 		}
-		const plugin = this.searchPlugin.get(name) ?? null;
+		const plugin = this.searchPlugins.get(name) ?? null;
 		if (plugin === null) {
 			return [];
 		}
@@ -202,7 +208,7 @@ export class Knut {
 
 	private plugins = new Map<string, PluginState>();
 	private indexPlugins = new Map<string, IndexPlugin>();
-	private searchPlugin = new Map<string, SearchPlugin>();
+	private searchPlugins = new Map<string, SearchPlugin>();
 	async addPlugin(plugin: KnutPlugin): Promise<void> {
 		const indexes = new Map<string, IndexPlugin>();
 		const searches = new Map<string, SearchPlugin>();
@@ -223,14 +229,14 @@ export class Knut {
 				indexes.delete(name);
 			},
 			async registerSearch(plug) {
-				knut.searchPlugin.set(plugin.name, plug);
+				knut.searchPlugins.set(plugin.name, plug);
 				searches.set(plug.name, plug);
 			},
 			async getSearchList() {
-				return pipe(knut.searchPlugin, FPMap.keys(FPString.Ord));
+				return pipe(knut.searchPlugins, FPMap.keys(FPString.Ord));
 			},
 			async degregisterSearch(name) {
-				knut.searchPlugin.delete(name);
+				knut.searchPlugins.delete(name);
 				searches.delete(name);
 			},
 		};
@@ -250,7 +256,7 @@ export class Knut {
 					knut.indexPlugins.set(name, plug);
 				}
 				for (const [name, plug] of searches) {
-					knut.searchPlugin.set(name, plug);
+					knut.searchPlugins.set(name, plug);
 				}
 				this.active = true;
 			},
@@ -262,7 +268,7 @@ export class Knut {
 					knut.indexPlugins.delete(name);
 				}
 				for (const [name] of searches) {
-					knut.searchPlugin.delete(name);
+					knut.searchPlugins.delete(name);
 				}
 				if (plugin.deactivate) {
 					await plugin.deactivate(ctx);

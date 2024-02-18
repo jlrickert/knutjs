@@ -1,34 +1,18 @@
 import invariant from 'tiny-invariant';
-import {
-	afterAll,
-	afterEach,
-	beforeEach,
-	describe,
-	expect,
-	test,
-	vi,
-} from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { pipe } from 'fp-ts/lib/function.js';
-import { TestKegContext, createTestKeg } from './internal/testUtils.js';
 import { collectAsync, stringify } from './utils.js';
 import { MemoryStorage } from './storage/memoryStorage.js';
-import { EnvStorage } from './envStorage.js';
 import { Keg } from './keg.js';
 import { KegFile } from './kegFile.js';
 import { KegNode } from './node.js';
+import { testUtilsM } from './internal/testUtils.js';
+import { envStorageM } from './envStorage.js';
+import { optional } from './internal/optional.js';
 
 describe('keg', () => {
-	let ctx: TestKegContext;
-
-	beforeEach(async () => {
-		ctx = await createTestKeg();
-	});
-
 	afterEach(async () => {
 		vi.useRealTimers();
-	});
-	afterAll(async () => {
-		await ctx.reset();
 	});
 
 	test('should be able to create a new empty keg', async () => {
@@ -36,18 +20,20 @@ describe('keg', () => {
 		const now = new Date();
 		vi.setSystemTime(now);
 		const rootStorage = MemoryStorage.create();
-		const env = EnvStorage.createInMemory();
+		const env = envStorageM.memoryEnv();
 		const storage = rootStorage.child('testkeg');
-		const keg = await Keg.create(storage, env);
-		expect(stringify(keg!.kegFile)).toEqual(stringify(KegFile.create()));
-		expect(await collectAsync(keg!.getNodeList())).toHaveLength(1);
+		const keg = await Keg.fromStorage(storage, env);
+		invariant(optional.isSome(keg));
+		expect(stringify(keg.kegFile)).toEqual(stringify(KegFile.create()));
+		expect(await collectAsync(keg.getNodeList())).toHaveLength(1);
 		expect(await rootStorage.read('testkeg/0/README.md')).toEqual(
 			(await KegNode.zeroNode()).content,
 		);
 	});
 
 	test('should be able to search for lorem ipsum node', async () => {
-		const results = await ctx.keg.search({
+		const keg = await testUtilsM.createTestKeg();
+		const results = await keg.search({
 			name: 'fuse',
 			filter: { $text: { $search: 'lorem ipsum' } },
 		});
@@ -58,17 +44,18 @@ describe('keg', () => {
 	});
 
 	test('should be able to create a node', async () => {
+		const keg = await testUtilsM.createTestKeg();
 		const prevCount = pipe(
-			await collectAsync(ctx.keg.storage.listNodes()),
+			await collectAsync(keg.storage.listNodes()),
 			(a) => a.length,
 		);
-		const nodeId = await ctx.keg.createNode();
+		const nodeId = await keg.createNode();
 		const count = pipe(
-			await collectAsync(ctx.keg.storage.listNodes()),
+			await collectAsync(keg.storage.listNodes()),
 			(a) => a.length,
 		);
 		expect(count - prevCount).toEqual(1);
-		const node = await ctx.keg.getNode(nodeId);
+		const node = await keg.getNode(nodeId);
 		const now = new Date();
 		expect(node).toBeTruthy();
 		invariant(
@@ -86,6 +73,7 @@ describe('keg', () => {
 	});
 
 	test('should load dex', async () => {
-		expect(ctx.keg.dex.entries).matchSnapshot('dex entries');
+		const keg = await testUtilsM.createTestKeg();
+		expect(keg.dex.entries).matchSnapshot('dex entries');
 	});
 });

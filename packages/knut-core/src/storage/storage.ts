@@ -1,11 +1,9 @@
+import invariant from 'tiny-invariant';
 import * as Path from 'path';
 import { TimeLike } from 'fs';
-import { Stringer, currentEnvironment } from '../utils.js';
-import { ApiStorage } from './apiStorage.js';
-import { WebStorage } from './webStorage.js';
-import { FsStorage } from './fsStorage.js';
-import { MemoryStorage } from './memoryStorage.js';
-import invariant from 'tiny-invariant';
+import { Stringer } from '../utils.js';
+import { MyPromise } from '../internal/myPromise.js';
+import { Optional, optional } from '../internal/optional.js';
 
 export type StorageNodeTime = {
 	/**
@@ -34,138 +32,134 @@ export type StorageNodeStats = StorageNodeTime & {
 	isFile(): boolean;
 };
 
-export type GenericStorage = {
-	readonly root: string;
+export abstract class GenericStorage {
+	constructor(public readonly root: string) {}
+
 	/**
 	 * Read a files content if it exists. This updates access time.
 	 **/
-	read(path: Stringer): Promise<string | null>;
+	abstract read(path: Stringer): MyPromise<Optional<string>>;
 
 	/**
 	 * Create or overwrite a file if it exists. Modifies modified time.
 	 **/
-	write(path: Stringer, contents: Stringer): Promise<boolean>;
+	abstract write(path: Stringer, contents: Stringer): MyPromise<boolean>;
 
 	/**
 	 * Remove a file if it exists
 	 **/
-	rm(path: Stringer): Promise<boolean>;
+	abstract rm(path: Stringer): MyPromise<boolean>;
 
 	/**
 	 * Copy over a file or directory. Creates directories if needed. Copies over all contents if it is a directory.
 	 **/
-	// cp(src: Stringer, dest: Stringer): Promise<boolean>;
+	// cp(src: Stringer, dest: Stringer): MyPromise<boolean>;
+
+	/**
+	 * Create a directory if it doesn't exist
+	 **/
+	abstract mkdir(path: Stringer): MyPromise<boolean>;
 
 	/**
 	 * read directory and get all subpaths. The returned paths are all full
 	 * paths.
 	 */
-	readdir(path: Stringer): Promise<string[] | null>;
+	abstract readdir(path: Stringer): MyPromise<Optional<string[]>>;
 
 	/**
 	 * Remove a directory if it exists
 	 **/
-	rmdir(path: Stringer, options?: { recursive?: boolean }): Promise<boolean>;
+	abstract rmdir(
+		path: Stringer,
+		options?: { recursive?: boolean },
+	): MyPromise<boolean>;
 
 	/**
 	 * Modify access time, modified time, and/or created time values.
 	 **/
-	utime(path: string, stats: StorageNodeTime): Promise<boolean>;
-
-	/**
-	 * Create a directory if it doesn't exist
-	 **/
-	mkdir(path: Stringer): Promise<boolean>;
+	abstract utime(path: Stringer, stats: StorageNodeTime): MyPromise<boolean>;
 
 	/**
 	 * Get time stats about a node on the filesystem
 	 **/
-	stats(path: Stringer): Promise<StorageNodeStats | null>;
+	abstract stats(path: Stringer): MyPromise<Optional<StorageNodeStats>>;
 
 	/**
 	 * Get an underlying reference to the file system that changes the current
 	 * working directory
 	 **/
-	child(subpath: Stringer): GenericStorage;
-};
+	abstract child(subpath: Stringer): GenericStorage;
 
-export const loadStorage = (path: string): GenericStorage => {
-	if (path.match(/^https?/)) {
-		const storage = new ApiStorage(path);
-		return storage;
-	}
-	switch (currentEnvironment) {
-		case 'dom': {
-			const storage = WebStorage.create();
-			return storage.child(path);
-		}
-		case 'node': {
-			const storage = new FsStorage(path);
-			return storage;
-		}
-		default: {
-			const storage = MemoryStorage.create();
-			return storage;
-		}
-	}
-};
-
-const walk = async (
-	storage: GenericStorage,
-	f: (dirs: string[], files: string[]) => Promise<void>,
-): Promise<void> => {
-	const items = await storage.readdir('/');
-	if (items === null) {
-		return;
-	}
-	const dirs = [] as string[];
-	const files = [] as string[];
-	for (const item of items) {
-		const stats = await storage.stats(item);
-		const path = Path.join(storage.root, item);
-		invariant(stats !== null, 'Expect readdir to only provide valid paths');
-		if (stats.isFile()) {
-			files.push(path);
-		} else if (stats.isDirectory()) {
-			dirs.push(path);
-			await walk(storage.child(item), f);
-		}
-	}
-	await f(dirs, files);
-};
-
-/**
- * copy over all contents from the source to the destination.
- */
-export const overwrite = async (src: GenericStorage, dest: GenericStorage) => {
-	const pathList = await src.readdir('');
-	if (!pathList) {
-		return;
-	}
-	for (const path of pathList) {
-		const stats = await src.stats(path);
-		invariant(stats, 'Expect readdir to only list items that exist');
-		if (stats.isDirectory()) {
-			await dest.mkdir(path);
-			await overwrite(src.child(path), dest.child(path));
-		} else if (stats.isFile()) {
-			const content = await src.read(path);
-			invariant(content, 'Expect readdir to list a valid file');
-			await dest.write(path, content);
-		} else {
-			throw new Error('Unknown node type');
-		}
-		const s = await src.stats(path);
-		await dest.utime(path, s!);
+	static isGenericStorage(storage: any): storage is GenericStorage {
+		return storage instanceof GenericStorage;
 	}
 
-	const stats = await src.stats('');
-	if (stats !== null) {
-		await dest.utime('', stats);
+	async walk(
+		f: (dirs: string[], files: string[]) => MyPromise<void>,
+	): MyPromise<void> {
+		const items = await this.readdir('/');
+		if (optional.isNone(items)) {
+			return;
+		}
+		const dirs = [] as string[];
+		const files = [] as string[];
+		for (const item of items) {
+			const stats = await this.stats(item);
+			const path = Path.join(this.root, item);
+			invariant(
+				optional.isSome(stats),
+				'Expect readdir to only provide valid paths',
+			);
+			if (stats.isFile()) {
+				files.push(path);
+			} else if (stats.isDirectory()) {
+				dirs.push(path);
+				await this.child(item).walk(f);
+			}
+		}
+		await f(dirs, files);
 	}
-};
 
-/**
- * Makes the destination look like the source
- */
-export const archive = async (src: GenericStorage, dest: GenericStorage) => {};
+	/**
+	 * copy over all contents from the source to the destination.
+	 */
+	async overwrite(dest: GenericStorage): MyPromise<void> {
+		const pathList = await this.readdir('');
+		if (optional.isNone(pathList)) {
+			return;
+		}
+		for (const path of pathList) {
+			const stats = await this.stats(path);
+			invariant(
+				optional.isSome(stats),
+				'Expect readdir to only list items that exist',
+			);
+			if (stats.isDirectory()) {
+				await dest.mkdir(path);
+				await this.child(path).overwrite(dest.child(path));
+			} else if (stats.isFile()) {
+				const content = await this.read(path);
+				invariant(
+					optional.isSome(content),
+					'Expect readdir to list a valid file',
+				);
+				await dest.write(path, content);
+			} else {
+				throw new Error('Unknown node type');
+			}
+			const s = await this.stats(path);
+			invariant(optional.isSome(s));
+			await dest.utime(path, s);
+		}
+
+		const stats = await this.stats('');
+		if (optional.isSome(stats)) {
+			await dest.utime('', stats);
+		}
+	}
+
+	/**
+	 * Makes the destination look like the source
+	 */
+	async archive(src: GenericStorage, dest: GenericStorage) {}
+}

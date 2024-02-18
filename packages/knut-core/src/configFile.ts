@@ -5,6 +5,10 @@ import { MY_JSON, absurd, deepCopy, stringify } from './utils.js';
 import { KegVersion } from './kegFile.js';
 import { GenericStorage } from './storage/storage.js';
 import { EnvStorage } from './envStorage.js';
+import { pipe } from 'fp-ts/lib/function.js';
+import { MyPromise, promise } from './internal/myPromise.js';
+import { Optional, optional } from './internal/optional.js';
+import { optionalT } from './internal/optionalT.js';
 
 export type KegConfigDefinition = {
 	alias: string;
@@ -31,6 +35,8 @@ export type ConfigDefinition = {
 	kegs: KegConfigDefinition[];
 };
 
+const T = optionalT(promise.Monad);
+
 /**
  * Represents a config file
  */
@@ -38,64 +44,56 @@ export class KnutConfigFile {
 	static async fromEnvStorage(
 		env: EnvStorage,
 		options?: { resolve: boolean },
-	) {
-		let varConfig: KnutConfigFile;
-		{
-			varConfig =
-				(await KnutConfigFile.fromStorage(env.variable)) ??
-				KnutConfigFile.create();
-			if (options?.resolve) {
-				varConfig = await varConfig.resolve(env.variable.root);
-			}
-		}
+	): MyPromise<KnutConfigFile> {
+		const f = async (storage: GenericStorage) => {
+			return pipe(
+				KnutConfigFile.fromStorage(storage),
+				T.getOrElse(async () => KnutConfigFile.create()),
+				promise.chain((a) => {
+					return options?.resolve === true
+						? a.resolve(storage.root)
+						: promise.of(a);
+				}),
+			);
+		};
 
-		let userConfig;
-		{
-			userConfig =
-				(await KnutConfigFile.fromStorage(env.config)) ??
-				KnutConfigFile.create();
-			if (options?.resolve === true) {
-				userConfig = await userConfig.resolve(env.config.root);
-			}
-		}
-
+		const varConfig = await f(env.variable);
+		const userConfig = await f(env.config);
 		const configFile = varConfig.concat(userConfig);
 		return configFile;
 	}
 
 	static async fromStorage(
 		storage: GenericStorage,
-	): Promise<KnutConfigFile | null> {
-		let config: KnutConfigFile | null = null;
+	): MyPromise<Optional<KnutConfigFile>> {
+		const T = optionalT(promise.Monad);
+		const config = await pipe(
+			storage.read('config.yaml'),
+			T.chain(KnutConfigFile.fromYAML),
 
-		const yamlData = await storage.read('config.yaml');
-		if (yamlData) {
-			config = await KnutConfigFile.fromYAML(yamlData);
-		}
-
-		if (!config) {
-			const jsonData = await storage.read('config.json');
-			if (jsonData) {
-				config = await KnutConfigFile.fromJSON(jsonData);
-			}
-		}
-
-		if (!config) {
-			config = KnutConfigFile.create();
-		}
+			T.alt(() =>
+				pipe(
+					storage.read('config.json'),
+					T.chain(KnutConfigFile.fromJSON),
+				),
+			),
+		);
 
 		return config;
 	}
 
-	static async fromJSON(json: string): Promise<KnutConfigFile | null> {
+	static async fromJSON(json: string): MyPromise<Optional<KnutConfigFile>> {
 		const value = JSON.parse(json) as ConfigDefinition;
 		const config = new KnutConfigFile(value);
 		return config;
 	}
 
-	static async fromYAML(yaml: string): Promise<KnutConfigFile | null> {
-		const data = YAML.parse(yaml) as ConfigDefinition;
-		return new KnutConfigFile(data);
+	static async fromYAML(yaml: string): MyPromise<Optional<KnutConfigFile>> {
+		return pipe(
+			YAML.parse(yaml) as ConfigDefinition,
+			(data) => new KnutConfigFile(data),
+			optional.some,
+		);
 	}
 
 	static create(): KnutConfigFile {
@@ -118,7 +116,7 @@ export class KnutConfigFile {
 	/**
 	 * Resolve urls to some path
 	 **/
-	async resolve(path: string): Promise<KnutConfigFile> {
+	async resolve(path: string): MyPromise<KnutConfigFile> {
 		const next = this.clone();
 		for (const keg of next.data.kegs) {
 			const home = homedir();
@@ -131,7 +129,7 @@ export class KnutConfigFile {
 	/**
 	 * Make urls relative
 	 **/
-	async relative(path: string): Promise<KnutConfigFile> {
+	async relative(path: string): MyPromise<KnutConfigFile> {
 		const next = this.clone();
 		if (path.match(/^https?/)) {
 			return next;

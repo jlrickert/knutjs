@@ -8,17 +8,24 @@
 		"version": {
 			"type": "string",
 			"description": "knut config file version",
-			"enum": [
-				"draft-0.1"
-			]
+			"enum": ["draft-0.1"]
 		},
 		"format": {
 			"type": "string",
 			"description": "prefered format to use",
-			"enum": [
-				"yaml",
-				"json"
-			]
+			"enum": ["yaml", "json"]
+		},
+		"cacheDir": {
+			"type": "string",
+			"description": "custom location for cache. defaults to ~/.cache/knut"
+		},
+		"varDir": {
+			"type": "string",
+			"description": "custom location for variable data. defaults to ~/.local/share/knut"
+		},
+		"configDir": {
+			"type": "string",
+			"description": "custom location for variable data. defaults to ~/.config/knut"
 		},
 		"defaultSearch": {
 			"type": "string",

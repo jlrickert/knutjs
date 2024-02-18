@@ -2,10 +2,6 @@ import { Command, Option } from 'commander';
 import { version } from './internal/packageJSON.cjs';
 
 export type KegPathOption = { kegpath?: string[] };
-export const kegpathOption = new Option(
-	'-kp, --kegpath <kegpath...>',
-	'Keg to use',
-);
 
 export const parseKegPath = (value: string): string[] => {
 	return value.split(',').map((a) => a.trim());
@@ -42,6 +38,6 @@ export const knutCli = new Command('knut')
 export const KnutCommand = (name: string): Command => {
 	return new Command(name)
 		.passThroughOptions(true)
-		.addOption(configOption)
-		.addOption(kegpathOption);
+		.option('-c, --config <config>', 'Configuration to load')
+		.option('-kp, --kegpath <kegpath...>', 'Kegpaths to use');
 };

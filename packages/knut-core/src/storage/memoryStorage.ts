@@ -1,12 +1,15 @@
+import { pipe } from 'fp-ts/lib/function.js';
+import { NonEmptyArray } from 'fp-ts/lib/NonEmptyArray.js';
 import * as Path from 'path';
 import invariant from 'tiny-invariant';
-import { Stringer, stringify } from '../utils.js';
 import {
 	GenericStorage,
 	StorageNodeStats,
 	StorageNodeTime,
-	overwrite,
 } from './storage.js';
+import { MyPromise } from '../internal/myPromise.js';
+import { Optional, optional } from '../internal/optional.js';
+import { Stringer, stringify } from '../utils.js';
 
 type FsNodeTimestamps = {
 	mtime: string;
@@ -55,11 +58,21 @@ type FsNode = FsFileNode | FsDirNode;
 
 type Fs = {
 	version: '0.1';
-	nodes: FsNode[];
+	nodes: NonEmptyArray<FsNode>;
 	index: { [filepath: string]: number };
 };
 
-export class MemoryStorage implements GenericStorage {
+const currentStats = (timestamp?: Date) => {
+	const now = stringify(timestamp ?? new Date());
+	return {
+		atime: now,
+		mtime: now,
+		btime: now,
+		ctime: now,
+	} satisfies FsNodeTimestamps;
+};
+
+export class MemoryStorage extends GenericStorage {
 	static parse(content: string): MemoryStorage | null {
 		const fs = JSON.parse(content) as Fs;
 		switch (fs.version) {
@@ -72,9 +85,11 @@ export class MemoryStorage implements GenericStorage {
 		}
 	}
 
-	static async fromStorage(storage: GenericStorage): Promise<MemoryStorage> {
+	static async fromStorage(
+		storage: GenericStorage,
+	): MyPromise<MemoryStorage> {
 		const store = MemoryStorage.create();
-		await overwrite(storage, store);
+		storage.overwrite(store);
 		return store;
 	}
 
@@ -105,9 +120,11 @@ export class MemoryStorage implements GenericStorage {
 	}
 
 	private constructor(
-		readonly root: string,
+		public readonly root: string,
 		private fs: Fs,
-	) {}
+	) {
+		super(root);
+	}
 
 	/**
 	 * Get the full path relative to the root. Normalize the path relative to
@@ -250,22 +267,22 @@ export class MemoryStorage implements GenericStorage {
 		}
 	}
 
-	async read(path: Stringer): Promise<string | null> {
+	async read(path: Stringer): MyPromise<Optional<string>> {
 		const fullpath = this.getFullPath(path);
 		const currentTime = stringify(new Date());
 		const node = this.getNode(fullpath);
 		if (node?.type !== 'file') {
-			return null;
+			return optional.none;
 		}
 		const parentPath = this.getDirpath(fullpath);
 		invariant(parentPath, 'Expect valid file to have a parent directory');
 		await this.utime(fullpath, { atime: currentTime });
 		await this.utime(parentPath, { atime: currentTime });
 
-		return node.content;
+		return optional.some(node.content);
 	}
 
-	async write(path: Stringer, content: Stringer): Promise<boolean> {
+	async write(path: Stringer, content: Stringer): MyPromise<boolean> {
 		const fullpath = this.getFullPath(path);
 		const node = this.writeNode(fullpath, stringify(content));
 		if (node === null) {
@@ -274,7 +291,7 @@ export class MemoryStorage implements GenericStorage {
 		return true;
 	}
 
-	async rm(path: Stringer): Promise<boolean> {
+	async rm(path: Stringer): MyPromise<boolean> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (!node || node?.type !== 'file') {
@@ -301,11 +318,11 @@ export class MemoryStorage implements GenericStorage {
 	/**
 	 * Reading a directory updates the atime for both itself and the parent if available
 	 **/
-	async readdir(path: Stringer): Promise<string[] | null> {
+	async readdir(path: Stringer): MyPromise<Optional<string[]>> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (node === null || node.type === 'file') {
-			return null;
+			return optional.none;
 		}
 
 		const now = new Date();
@@ -316,12 +333,15 @@ export class MemoryStorage implements GenericStorage {
 			await this.utime(parentPath, { atime: now });
 		}
 
-		return node.children.map((child) => {
-			return Path.relative(this.root, child);
-		});
+		return pipe(
+			node.children.map((child) => {
+				return Path.relative(this.root, child);
+			}),
+			optional.some,
+		);
 	}
 
-	async utime(path: Stringer, stats: StorageNodeTime): Promise<boolean> {
+	async utime(path: Stringer, stats: StorageNodeTime): MyPromise<boolean> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (!node) {
@@ -352,7 +372,7 @@ export class MemoryStorage implements GenericStorage {
 		return true;
 	}
 
-	async mkdir(path: Stringer): Promise<boolean> {
+	async mkdir(path: Stringer): MyPromise<boolean> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (
@@ -383,7 +403,7 @@ export class MemoryStorage implements GenericStorage {
 	async rmdir(
 		path: Stringer,
 		options?: { recursive?: boolean },
-	): Promise<boolean> {
+	): MyPromise<boolean> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 
@@ -418,13 +438,13 @@ export class MemoryStorage implements GenericStorage {
 		return true;
 	}
 
-	async stats(path: Stringer): Promise<StorageNodeStats | null> {
+	async stats(path: Stringer): MyPromise<Optional<StorageNodeStats>> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (node === null) {
-			return null;
+			return optional.none;
 		}
-		return {
+		return optional.some({
 			...node.stats,
 			isFile() {
 				return node?.type === 'file';
@@ -432,7 +452,7 @@ export class MemoryStorage implements GenericStorage {
 			isDirectory() {
 				return node?.type === 'directory';
 			},
-		};
+		});
 	}
 
 	child(subpath: Stringer): MemoryStorage {

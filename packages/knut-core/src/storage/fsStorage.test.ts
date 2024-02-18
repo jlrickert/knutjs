@@ -1,6 +1,7 @@
 import * as Path from 'path';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { TestContext, createSampleKnutApp } from '../internal/testUtils.js';
+import { pipe } from 'fp-ts/lib/function.js';
+import { describe, expect, test } from 'vitest';
+import { testUtilsM } from '../internal/testUtils.js';
 import { MemoryStorage } from './memoryStorage.js';
 import { GenericStorage } from './storage.js';
 
@@ -28,19 +29,9 @@ test('path library exploration', () => {
 });
 
 describe('file system storage', () => {
-	let ctx!: TestContext;
-
-	beforeEach(async () => {
-		ctx = await createSampleKnutApp();
-	});
-
-	afterEach(async () => {
-		await ctx.reset();
-	});
-
 	test('should mirror the behavior of memory storage', async () => {
+		const storage = await testUtilsM.createEmptyStorage();
 		const memory = MemoryStorage.create();
-		const storage = ctx.storage.child('');
 		const check = async <K extends keyof Omit<GenericStorage, 'root'>>(
 			key: K,
 			...args: Parameters<GenericStorage[K]>
@@ -51,10 +42,12 @@ describe('file system storage', () => {
 				return Math.abs(new Date(a).getTime() - new Date(b).getTime());
 			};
 			if (key === 'stats') {
+				const statsA = pipe(a, testUtilsM.unwrap) as any;
+				const statsB = pipe(b, testUtilsM.unwrap) as any;
 				// Assuming Api will be less than 1 second to update
-				expect(diffDate(a.mtime, b.mtime)).toBeLessThan(1000);
-				expect(diffDate(a.atime, b.atime)).toBeLessThan(1000);
-				expect(diffDate(a.btime, b.btime)).toBeLessThan(1000);
+				expect(diffDate(statsA.mtime, statsB.mtime)).toBeLessThan(1000);
+				expect(diffDate(statsA.atime, statsB.atime)).toBeLessThan(1000);
+				expect(diffDate(statsA.btime, statsB.btime)).toBeLessThan(1000);
 				return;
 			}
 			expect(a).toStrictEqual(b);
