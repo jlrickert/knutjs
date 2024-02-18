@@ -36,7 +36,7 @@ describe('file system storage', () => {
 	test('should mirror the behavior of memory storage', async () => {
 		const memory = MemoryStorage.create();
 		const storage = ctx.storage.child('');
-		const check = async <K extends keyof GenericStorage>(
+		const check = async <K extends keyof Omit<GenericStorage, 'root'>>(
 			key: K,
 			...args: Parameters<GenericStorage[K]>
 		) => {

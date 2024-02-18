@@ -4,6 +4,8 @@ import * as FS from 'fs/promises';
 import { Stringer, stringify } from '../utils.js';
 import { NodeId } from '../node.js';
 import { GenericStorage, StorageNodeStats } from './storage.js';
+import { MyPromise } from '../internal/promise.js';
+import { Optional } from '../internal/optional.js';
 
 export class FsStorage extends GenericStorage {
 	private static parsePath(path: Stringer): string {
@@ -31,7 +33,7 @@ export class FsStorage extends GenericStorage {
 		return this.root;
 	}
 
-	async read(filepath: Stringer): Promise<string | null> {
+	async read(filepath: Stringer): MyPromise<Optional<string>> {
 		const fullpath = this.getFullPath(FsStorage.parsePath(filepath));
 		try {
 			const content = await FS.readFile(fullpath, { encoding: 'utf-8' });
@@ -41,7 +43,7 @@ export class FsStorage extends GenericStorage {
 		}
 	}
 
-	async write(filepath: Stringer, contents: Stringer): Promise<boolean> {
+	async write(filepath: Stringer, contents: Stringer): MyPromise<boolean> {
 		const fullpath = this.getFullPath(filepath);
 		const content = stringify(contents);
 		try {
@@ -54,7 +56,7 @@ export class FsStorage extends GenericStorage {
 		}
 	}
 
-	async rm(filepath: Stringer): Promise<boolean> {
+	async rm(filepath: Stringer): MyPromise<boolean> {
 		try {
 			await FS.rm(this.getFullPath(filepath), { recursive: true });
 			return true;
@@ -63,7 +65,7 @@ export class FsStorage extends GenericStorage {
 		}
 	}
 
-	async readdir(dirpath: Stringer): Promise<string[] | null> {
+	async readdir(dirpath: Stringer): MyPromise<Optional<string[]>> {
 		const fullPath = this.getFullPath(dirpath);
 		const children = await FS.readdir(fullPath);
 		return children
@@ -83,7 +85,7 @@ export class FsStorage extends GenericStorage {
 	async rmdir(
 		filepath: Stringer,
 		options?: { recursive?: boolean | undefined } | undefined,
-	): Promise<boolean> {
+	): MyPromise<boolean> {
 		const fullPath = this.getFullPath(filepath);
 		try {
 			await FS.rmdir(fullPath, { recursive: options?.recursive });
@@ -93,7 +95,7 @@ export class FsStorage extends GenericStorage {
 		}
 	}
 
-	async utime(path: string, stats: StorageNodeStats): Promise<boolean> {
+	async utime(path: string, stats: StorageNodeStats): MyPromise<boolean> {
 		const fullpath = this.getFullPath(path);
 		try {
 			const s = await FS.stat(fullpath);
@@ -108,7 +110,7 @@ export class FsStorage extends GenericStorage {
 		}
 	}
 
-	async mkdir(dirpath: Stringer): Promise<boolean> {
+	async mkdir(dirpath: Stringer): MyPromise<boolean> {
 		const fullpath = this.getFullPath(dirpath);
 		try {
 			await FS.mkdir(fullpath, {
@@ -120,7 +122,7 @@ export class FsStorage extends GenericStorage {
 		}
 	}
 
-	async stats(filepath: Stringer): Promise<StorageNodeStats | null> {
+	async stats(filepath: Stringer): MyPromise<Optional<StorageNodeStats>> {
 		const fullpath = this.getFullPath(filepath);
 		try {
 			const stats = await FS.stat(fullpath);

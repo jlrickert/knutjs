@@ -8,7 +8,8 @@ import { EnvStorage } from './envStorage.js';
 import { Keg } from './keg.js';
 import { KegStorage, loadKegStorage } from './kegStorage.js';
 import invariant from 'tiny-invariant';
-import { FsStorage } from './storage/fsStorage.js';
+import { MyPromise } from './internal/promise.js';
+import { Optional } from './internal/optional.js';
 
 export type NodeCreateOptions = {
 	kegalias: string;
@@ -84,13 +85,13 @@ export type KnutOptions = {
 export class Knut {
 	private kegMap = new Map<string, Keg>();
 
-	static async create(): Promise<Knut> {
+	static async create(): MyPromise<Knut> {
 		const env = await EnvStorage.create();
 		const knut = await Knut.fromEnvironment(env.child('knut'));
 		return knut;
 	}
 
-	static async fromEnvironment(env: EnvStorage): Promise<Knut> {
+	static async fromEnvironment(env: EnvStorage): MyPromise<Knut> {
 		const configFile = await KnutConfigFile.fromEnvStorage(env, {
 			resolve: true,
 		});
@@ -101,7 +102,7 @@ export class Knut {
 	static async fromConfig(
 		config: ConfigDefinition,
 		options?: KnutOptions,
-	): Promise<Knut> {
+	): MyPromise<Knut> {
 		const env = options?.env ?? EnvStorage.createInMemory();
 		const knut = new Knut(env);
 		await knut.init(config);
@@ -113,7 +114,7 @@ export class Knut {
 	/**
 	 * Loads required data for a keg
 	 */
-	async loadKeg(kegalias: string, storage: KegStorage): Promise<void> {
+	async loadKeg(kegalias: string, storage: KegStorage): MyPromise<void> {
 		const keg = await Keg.fromStorage(storage, this.env);
 		if (!keg) {
 			return;
@@ -129,7 +130,7 @@ export class Knut {
 		}
 	}
 
-	getKeg(kegalias: string): Keg | null {
+	getKeg(kegalias: string): Optional<Keg> {
 		return this.kegMap.get(kegalias) ?? null;
 	}
 
@@ -155,12 +156,12 @@ export class Knut {
 		}
 	}
 
-	async update(): Promise<void> {
+	async update(): MyPromise<void> {
 		this.env.cache.rm('fuse-data.json');
 		this.env.cache.rm('fuse-index.json');
 	}
 
-	async search({ limit, filter }: SearchOptions): Promise<SearchResult[]> {
+	async search({ limit, filter }: SearchOptions): MyPromise<SearchResult[]> {
 		const results: SearchResult[] = [];
 		type Data = {
 			nodeId: string;
@@ -280,22 +281,25 @@ export class Knut {
 	/**
 	 * Export keg to an external source. This could be with git.
 	 */
-	async publish(kegpath: string, options?: PublishOptions): Promise<void> {}
+	async publish(kegpath: string, options?: PublishOptions): MyPromise<void> {}
 
 	/**
 	 * Share a specific shareable node by providing a link.
 	 */
-	async share({ kegalias, nodeId }: ShareOptions): Promise<string | null> {
+	async share({
+		kegalias,
+		nodeId,
+	}: ShareOptions): MyPromise<Optional<string>> {
 		return null;
 	}
 
 	/**
 	 * Remove access to a node
 	 **/
-	async unshare(options: ShareOptions): Promise<void> {}
+	async unshare(options: ShareOptions): MyPromise<void> {}
 
 	/**
 	 * import nodes from another keg. Used for combining multiple kegs into 1.
 	 */
-	async merge(from: string | string[], to: string): Promise<void> {}
+	async merge(from: string | string[], to: string): MyPromise<void> {}
 }

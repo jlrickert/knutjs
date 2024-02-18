@@ -1,5 +1,7 @@
 import { TimeLike } from 'fs';
 import { Stringer } from '../utils.js';
+import { Optional } from '../internal/optional.js';
+import { MyPromise } from '../internal/promise.js';
 
 export type StorageNodeTime = {
 	/**
@@ -34,17 +36,17 @@ export abstract class GenericStorage {
 	/**
 	 * Read a files content if it exists. This updates access time.
 	 **/
-	abstract read(path: Stringer): Promise<string | null>;
+	abstract read(path: Stringer): MyPromise<Optional<string>>;
 
 	/**
 	 * Create or overwrite a file if it exists. Modifies modified time.
 	 **/
-	abstract write(path: Stringer, contents: Stringer): Promise<boolean>;
+	abstract write(path: Stringer, contents: Stringer): MyPromise<boolean>;
 
 	/**
 	 * Remove a file if it exists
 	 **/
-	abstract rm(path: Stringer): Promise<boolean>;
+	abstract rm(path: Stringer): MyPromise<boolean>;
 
 	/**
 	 * Copy over a file or directory. Creates directories if needed. Copies over all contents if it is a directory.
@@ -55,7 +57,7 @@ export abstract class GenericStorage {
 	 * read directory and get all subpaths. The returned paths are all full
 	 * paths.
 	 */
-	abstract readdir(path: Stringer): Promise<string[] | null>;
+	abstract readdir(path: Stringer): MyPromise<Optional<string[]>>;
 
 	/**
 	 * Remove a directory if it exists
@@ -63,22 +65,22 @@ export abstract class GenericStorage {
 	abstract rmdir(
 		path: Stringer,
 		options?: { recursive?: boolean },
-	): Promise<boolean>;
+	): MyPromise<boolean>;
 
 	/**
 	 * Modify access time, modified time, and/or created time values.
 	 **/
-	abstract utime(path: string, stats: StorageNodeTime): Promise<boolean>;
+	abstract utime(path: string, stats: StorageNodeTime): MyPromise<boolean>;
 
 	/**
 	 * Create a directory if it doesn't exist
 	 **/
-	abstract mkdir(path: Stringer): Promise<boolean>;
+	abstract mkdir(path: Stringer): MyPromise<boolean>;
 
 	/**
 	 * Get time stats about a node on the filesystem
 	 **/
-	abstract stats(path: Stringer): Promise<StorageNodeStats | null>;
+	abstract stats(path: Stringer): MyPromise<Optional<StorageNodeStats>>;
 
 	/**
 	 * Get an underlying reference to the file system that changes the current

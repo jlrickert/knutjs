@@ -7,6 +7,7 @@ import { absurd, currentPlatform } from '../utils.js';
 import { WebStorage } from './webStorage.js';
 import { Optional, optional } from '../internal/optional.js';
 import invariant from 'tiny-invariant';
+import { MyPromise } from '../internal/promise.js';
 
 const isHTTPSUri: Predicate<string> = (uri) =>
 	uri.startsWith('http://') || uri.startsWith('https://');
@@ -65,7 +66,7 @@ export const loadStorage = (path: string): GenericStorage => {
 export const walk = async (
 	storage: GenericStorage,
 	f: (dirs: string[], files: string[]) => void,
-): Promise<void> => {
+): MyPromise<void> => {
 	const item = storage.readdir('/');
 };
 
