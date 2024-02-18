@@ -1,4 +1,4 @@
-import { Stringer, currentEnvironment } from '../utils.js';
+import { Stringer, currentPlatform } from '../utils.js';
 import { MemoryStorage } from './memoryStorage.js';
 import {
 	GenericStorage,
@@ -6,12 +6,12 @@ import {
 	StorageNodeTime,
 } from './storage.js';
 
-export class WebStorage implements GenericStorage {
+export class WebStorage extends GenericStorage {
 	private prefix: string;
 	private storage: MemoryStorage;
 
 	static create(prefix = 'kegfs'): WebStorage {
-		if (currentEnvironment !== 'dom') {
+		if (currentPlatform !== 'dom') {
 			throw new Error('WebStorage not supported');
 		}
 		const rawData = window.localStorage.getItem(prefix);
@@ -23,6 +23,7 @@ export class WebStorage implements GenericStorage {
 	}
 
 	private constructor(storage: MemoryStorage, prefix: string) {
+		super(':memory:');
 		this.prefix = prefix;
 		this.storage = storage;
 	}

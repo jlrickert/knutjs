@@ -1,10 +1,7 @@
 import * as Path from 'path';
 import { NodeId } from './node.js';
-import {
-	GenericStorage,
-	StorageNodeStats,
-	loadStorage,
-} from './storage/storage.js';
+import { GenericStorage, StorageNodeStats } from './storage/storage.js';
+import { loadStorage } from './storage/storageUtils.js';
 
 export const loadKegStorage = (url: string) => {
 	if (Path.isAbsolute(url)) {

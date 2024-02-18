@@ -61,6 +61,9 @@ importers:
       '@types/mdast':
         specifier: ^4.0.3
         version: 4.0.3
+      fp-ts:
+        specifier: ^2.16.2
+        version: 2.16.2
       fuse.js:
         specifier: ^7.0.0
         version: 7.0.0
@@ -2595,6 +2598,10 @@ packages:
       cross-spawn: 7.0.3
       signal-exit: 4.1.0
     dev: true
+
+  /fp-ts@2.16.2:
+    resolution: {integrity: sha512-CkqAjnIKFqvo3sCyoBTqgJvF+bHrSik584S9nhTjtBESLx26cbtVMR/T9a6ApChOcSDAaM3JydDmWDUn4EEXng==}
+    dev: false
 
   /fs-extra@7.0.1:
     resolution: {integrity: sha512-YJDaCJZEnBmcbw13fvdAM9AwNOJwOzrE4pqMqBq5nFiEqXUqHwlK4B+3pUw6JNvfSPtX05xFHtYy/1ni01eGCw==}
