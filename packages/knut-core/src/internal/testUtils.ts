@@ -3,7 +3,8 @@ import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { Knut } from '../knut.js';
 import { EnvStorage } from '../envStorage.js';
-import { GenericStorage, loadStorage, overwrite } from '../storage/storage.js';
+import { GenericStorage } from '../storage/storage.js';
+import { loadStorage, overwrite } from '../storage/storageUtils.js';
 
 export const testDataPath = Path.resolve(__dirname, '..', '..', 'testdata');
 

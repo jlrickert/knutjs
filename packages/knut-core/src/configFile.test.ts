@@ -6,11 +6,11 @@ import {
 	createSampleKnutApp,
 	knutConfigPath,
 } from './internal/testUtils.js';
-import { loadStorage } from './storage/storage.js';
 import { loadKegStorage } from './kegStorage.js';
 import { KegFile } from './kegFile.js';
 import { FsStorage } from './storage/fsStorage.js';
 import invariant from 'tiny-invariant';
+import { loadStorage } from './storage/storageUtils.js';
 
 describe('knutConfigFile', async () => {
 	let ctx!: TestContext;

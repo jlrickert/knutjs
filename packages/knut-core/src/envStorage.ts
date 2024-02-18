@@ -7,7 +7,7 @@ import { ApiStorage } from './storage/apiStorage.js';
 import { MemoryStorage } from './storage/memoryStorage.js';
 import { GenericStorage, loadStorage } from './storage/storage.js';
 import { WebStorage } from './storage/webStorage.js';
-import { absurd, currentEnvironment } from './utils.js';
+import { absurd, currentPlatform } from './utils.js';
 
 export const loadEnvApiStorage = async (
 	url: string,
@@ -39,7 +39,7 @@ export class EnvStorage {
 	}
 
 	static async create(): Promise<EnvStorage> {
-		switch (currentEnvironment) {
+		switch (currentPlatform) {
 			case 'dom': {
 				const storage = WebStorage.create('knut');
 				return EnvStorage.fromStorage({
@@ -63,7 +63,7 @@ export class EnvStorage {
 				});
 			}
 			default: {
-				return absurd(currentEnvironment);
+				return absurd(currentPlatform);
 			}
 		}
 	}

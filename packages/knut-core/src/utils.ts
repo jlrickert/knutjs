@@ -72,7 +72,7 @@ const isBrowser =
 	typeof window.localStorage !== 'undefined';
 
 type Environment = 'node' | 'dom';
-export const currentEnvironment: Environment = isBrowser ? 'dom' : 'node';
+export const currentPlatform: Environment = isBrowser ? 'dom' : 'node';
 
 export type Stringer =
 	| string

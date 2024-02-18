@@ -5,8 +5,8 @@ import {
 	GenericStorage,
 	StorageNodeStats,
 	StorageNodeTime,
-	overwrite,
 } from './storage.js';
+import { overwrite } from './storageUtils.js';
 
 type FsNodeTimestamps = {
 	mtime: string;
@@ -59,7 +59,7 @@ type Fs = {
 	index: { [filepath: string]: number };
 };
 
-export class MemoryStorage implements GenericStorage {
+export class MemoryStorage extends GenericStorage {
 	static parse(content: string): MemoryStorage | null {
 		const fs = JSON.parse(content) as Fs;
 		switch (fs.version) {
@@ -105,16 +105,18 @@ export class MemoryStorage implements GenericStorage {
 	}
 
 	private constructor(
-		private cwd: string,
+		root: string,
 		private fs: Fs,
-	) {}
+	) {
+		super(root);
+	}
 
 	/**
 	 * Get the full path relative to the root. Normalize the path relative to
 	 * the current working directory
 	 **/
 	private getFullPath(path: Stringer) {
-		const fullpath = Path.join(this.cwd, stringify(path));
+		const fullpath = Path.join(this.root, stringify(path));
 		return fullpath;
 	}
 
@@ -250,7 +252,7 @@ export class MemoryStorage implements GenericStorage {
 		}
 
 		return node.children.map((child) => {
-			return Path.relative(this.cwd, child);
+			return Path.relative(this.root, child);
 		});
 	}
 
@@ -387,7 +389,7 @@ export class MemoryStorage implements GenericStorage {
 
 	child(subpath: Stringer): MemoryStorage {
 		const storage = new MemoryStorage(
-			Path.join(this.cwd, stringify(subpath)),
+			Path.join(this.root, stringify(subpath)),
 			// child needs to reference the data of the parent
 			this.fs,
 		);

@@ -5,8 +5,10 @@ import {
 	StorageNodeTime,
 } from './storage.js';
 
-export class ApiStorage implements GenericStorage {
-	constructor(private url: string) {}
+export class ApiStorage extends GenericStorage {
+	constructor(private url: string) {
+		super(url);
+	}
 
 	async relative(path: string): Promise<string> {
 		throw new Error('Method not implemented.');
