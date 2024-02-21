@@ -1,9 +1,14 @@
 import * as Path from 'path';
 import { NodeId } from './node.js';
-import { GenericStorage, StorageNodeStats } from './storage/storage.js';
+import {
+	GenericStorage,
+	StorageNodeStats,
+	StorageNodeTime,
+} from './storage/storage.js';
 import { loadStorage } from './storage/storageUtils.js';
-import { MyPromise } from './internal/promise.js';
 import { Optional } from './internal/optional.js';
+import { Stringer } from './utils.js';
+import { Future } from './internal/future.js';
 
 export const loadKegStorage = (url: string) => {
 	if (Path.isAbsolute(url)) {
@@ -16,23 +21,48 @@ export const loadKegStorage = (url: string) => {
 	return kegStorage;
 };
 
-export class KegStorage {
+export class KegStorage extends GenericStorage {
 	static fromStorage(storage: GenericStorage): KegStorage {
 		return new KegStorage(storage);
 	}
 
-	private constructor(public fs: GenericStorage) {}
-
-	async read(filepath: string): MyPromise<Optional<string>> {
-		return this.fs.read(filepath);
+	private constructor(private fs: GenericStorage) {
+		super(fs.root);
 	}
 
-	async write(filepath: string, content: string): MyPromise<boolean> {
-		return this.fs.write(filepath, content);
+	read(path: Stringer): Future<Optional<string>> {
+		return this.fs.read(path);
 	}
 
-	async stats(filepath: string): MyPromise<Optional<StorageNodeStats>> {
-		return this.fs.stats(filepath);
+	write(path: Stringer, contents: Stringer): Future<boolean> {
+		return this.fs.write(path, contents);
+	}
+
+	rm(path: Stringer): Future<boolean> {
+		return this.fs.rm(path);
+	}
+
+	readdir(path: Stringer): Future<Optional<string[]>> {
+		return this.fs.readdir(path);
+	}
+
+	rmdir(
+		path: Stringer,
+		options?: { recursive?: boolean | undefined } | undefined,
+	): Future<boolean> {
+		return this.fs.rmdir(path, options);
+	}
+
+	utime(path: string, stats: StorageNodeTime): Future<boolean> {
+		return this.fs.utime(path, stats);
+	}
+
+	mkdir(path: Stringer): Future<boolean> {
+		return this.fs.mkdir(path);
+	}
+
+	stats(path: Stringer): Future<Optional<StorageNodeStats>> {
+		return this.fs.stats(path);
 	}
 
 	async *listNodes() {

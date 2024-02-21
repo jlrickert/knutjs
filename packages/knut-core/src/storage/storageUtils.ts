@@ -1,13 +1,14 @@
 import { Predicate } from 'fp-ts/lib/Predicate.js';
+import { absurd } from 'fp-ts/lib/function.js';
+import invariant from 'tiny-invariant';
 import { GenericStorage } from './storage.js';
 import { ApiStorage } from './apiStorage.js';
 import { MemoryStorage } from './memoryStorage.js';
-import { FsStorage } from './fsStorage.js';
-import { absurd, currentPlatform } from '../utils.js';
+import { NodeStorage } from './nodeStorage.js';
+import { currentPlatform } from '../utils.js';
 import { WebStorage } from './webStorage.js';
 import { Optional, optional } from '../internal/optional.js';
-import invariant from 'tiny-invariant';
-import { MyPromise } from '../internal/promise.js';
+import { Future } from '../internal/future.js';
 
 const isHTTPSUri: Predicate<string> = (uri) =>
 	uri.startsWith('http://') || uri.startsWith('https://');
@@ -25,11 +26,11 @@ export const fromUri = (uri: string): Optional<GenericStorage> => {
 			return optional.some(MemoryStorage.create());
 		}
 		case isFile(uri): {
-			return optional.some(new FsStorage(uri));
+			return optional.some(new NodeStorage(uri));
 		}
 
 		case currentPlatform === 'node': {
-			return optional.some(new FsStorage(uri));
+			return optional.some(new NodeStorage(uri));
 		}
 
 		case currentPlatform === 'dom': {
@@ -53,7 +54,7 @@ export const loadStorage = (path: string): GenericStorage => {
 			return storage.child(path);
 		}
 		case 'node': {
-			const storage = new FsStorage(path);
+			const storage = new NodeStorage(path);
 			return storage;
 		}
 		default: {
@@ -66,16 +67,19 @@ export const loadStorage = (path: string): GenericStorage => {
 export const walk = async (
 	storage: GenericStorage,
 	f: (dirs: string[], files: string[]) => void,
-): MyPromise<void> => {
+): Future<void> => {
 	const item = storage.readdir('/');
 };
 
 /**
  * copy over all contents from the source to the destination.
  */
-export const overwrite = async (src: GenericStorage, dest: GenericStorage) => {
+export const overwrite = async (
+	src: GenericStorage,
+	dest: GenericStorage,
+): Future<void> => {
 	const pathList = await src.readdir('');
-	if (!pathList) {
+	if (optional.isNone(pathList)) {
 		return;
 	}
 	for (const path of pathList) {

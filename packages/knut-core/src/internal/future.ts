@@ -6,26 +6,24 @@ import { Monad1 } from 'fp-ts/lib/Monad.js';
 import { Pointed1 } from 'fp-ts/lib/Pointed.js';
 import { identity, pipe } from 'fp-ts/lib/function.js';
 
-export type MyPromise<A> = Promise<A>;
+export type Future<A> = Promise<A>;
 
-export const URI = 'Promise';
+export const URI = 'Future';
 export type URI = typeof URI;
 declare module 'fp-ts/HKT' {
 	interface URItoKind<A> {
-		readonly [URI]: MyPromise<A>;
+		readonly [URI]: Future<A>;
 	}
 }
 
-export const promise = {
-	of<A>(a: A): MyPromise<A> {
+export const future = {
+	of<A>(a: A): Future<A> {
 		return Promise.resolve(a);
 	},
-	ap<A>(fa: MyPromise<A>): <B>(fab: MyPromise<(a: A) => B>) => MyPromise<B> {
+	ap<A>(fa: Future<A>): <B>(fab: Future<(a: A) => B>) => Future<B> {
 		return (fab) => pipe(fab, this.apPar(fa));
 	},
-	apSeq<A>(
-		fa: MyPromise<A>,
-	): <B>(fab: MyPromise<(a: A) => B>) => MyPromise<B> {
+	apSeq<A>(fa: Future<A>): <B>(fab: Future<(a: A) => B>) => Future<B> {
 		return (fab) => {
 			return pipe(
 				fab,
@@ -33,16 +31,14 @@ export const promise = {
 			);
 		};
 	},
-	apPar<A>(
-		fa: MyPromise<A>,
-	): <B>(fab: MyPromise<(a: A) => B>) => MyPromise<B> {
+	apPar<A>(fa: Future<A>): <B>(fab: Future<(a: A) => B>) => Future<B> {
 		return (fab) => {
 			return Promise.all([fab, fa]).then(([f, a]) => {
 				return f(a);
 			});
 		};
 	},
-	tap<A>(f: (a: A) => void): (ma: MyPromise<A>) => MyPromise<A> {
+	tap<A>(f: (a: A) => void): (ma: Future<A>) => Future<A> {
 		return (ma) => {
 			return pipe(
 				ma,
@@ -51,27 +47,27 @@ export const promise = {
 			);
 		};
 	},
-	flatten<A>(a: MyPromise<MyPromise<A>>): MyPromise<A> {
+	flatten<A>(a: Future<Future<A>>): Future<A> {
 		return pipe(a, this.chain(identity));
 	},
-	map<A, B>(f: (a: A) => B): (fa: MyPromise<A>) => MyPromise<B> {
+	map<A, B>(f: (a: A) => B): (fa: Future<A>) => Future<B> {
 		return (fa) => {
 			return fa.then(f);
 		};
 	},
-	chain<A, B>(f: (a: A) => MyPromise<B>): (fa: MyPromise<A>) => MyPromise<B> {
+	chain<A, B>(f: (a: A) => Future<B>): (fa: Future<A>) => Future<B> {
 		return async (fa) => {
 			const r = await f(await fa);
 			return r;
 		};
 	},
-	get Do(): MyPromise<{}> {
+	get Do(): Future<{}> {
 		return this.of({});
 	},
 	bind<N extends string, A, B>(
 		name: Exclude<N, keyof A>,
-		f: (a: A) => MyPromise<B>,
-	): (ma: MyPromise<A>) => MyPromise<{
+		f: (a: A) => Future<B>,
+	): (ma: Future<A>) => Future<{
 		readonly [K in keyof A | N]: K extends keyof A ? A[K] : B;
 	}> {
 		return async (ma) => {
@@ -81,7 +77,7 @@ export const promise = {
 	},
 	bindTo<N extends string>(
 		name: string,
-	): <A>(ma: MyPromise<A>) => MyPromise<{ readonly [K in N]: A }> {
+	): <A>(ma: Future<A>) => Future<{ readonly [K in N]: A }> {
 		return (ma) => {
 			return pipe(
 				this.Do,
@@ -107,7 +103,7 @@ export const promise = {
 			ap: (fab, ma) => this.apPar(ma)(fab),
 		};
 	},
-	get Chain(): Chain1<'Promise'> {
+	get Chain(): Chain1<URI> {
 		return {
 			URI: URI,
 			chain: (ma, fab) => this.chain(fab)(ma),

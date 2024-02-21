@@ -1,65 +1,33 @@
-import * as Path from 'path';
-import { test, describe, expect, beforeEach, afterEach } from 'vitest';
+import { test, describe, expect } from 'vitest';
+import { pipe } from 'fp-ts/lib/function.js';
 import { KnutConfigFile } from './configFile.js';
-import {
-	TestContext,
-	createSampleKnutApp,
-	knutConfigPath,
-} from './internal/testUtils.js';
-import { loadKegStorage } from './kegStorage.js';
-import { KegFile } from './kegFile.js';
-import { FsStorage } from './storage/fsStorage.js';
-import invariant from 'tiny-invariant';
-import { loadStorage } from './storage/storageUtils.js';
+import { TestContext } from './internal/testUtils.js';
+import { optionalT } from './internal/optionalT.js';
+import { future } from './internal/future.js';
 
 describe('knutConfigFile', async () => {
-	let ctx!: TestContext;
-
-	beforeEach(async () => {
-		ctx = await createSampleKnutApp();
-	});
-
-	afterEach(async () => {
-		await ctx.reset();
-	});
-
 	test('should be able load config files from storage', async () => {
-		const storage = loadStorage(knutConfigPath);
-		invariant(storage instanceof FsStorage);
-		const original = await KnutConfigFile.fromStorage(storage);
-		const config = await original!.resolve(storage.getRoot());
-		const kegConfig = config.getKeg('sample') ?? null;
-		const kegpath = kegConfig!.url;
-
-		const kegStorage = loadKegStorage(kegpath);
-		const kegFile = kegStorage
-			? await KegFile.fromStorage(kegStorage)
-			: null;
-		expect(kegFile!.data.title).toEqual('A Sample Keg');
+		const context = await TestContext.nodeContext();
+		await context.popluateFixture();
+		const original = await KnutConfigFile.fromStorage(
+			context.root.child('config/knut'),
+		);
+		const T = optionalT(future.Monad);
+		const data = pipe(
+			context.fixture.read('config/knut/config.yaml'),
+			T.map(KnutConfigFile.fromYAML),
+		);
+		expect(original?.data).toStrictEqual(expect.objectContaining(data));
 	});
 
-	test('should be able to resolve to the right path when there is relative paths', async () => {
-		const storage = ctx.storage.child('config/knut');
-		invariant(storage instanceof FsStorage);
-		const original = await KnutConfigFile.fromStorage(storage);
-
-		{
-			const resolved = await original!.resolve(
-				storage instanceof FsStorage ? storage.getRoot() : '',
-			);
-			expect(resolved.data.kegs[0].url).toEqual(
-				Path.join(storage.child('../..').getRoot(), 'samplekeg'),
-			);
-		}
-
-		{
-			const resolved = await original!.resolve(
-				storage instanceof FsStorage ? storage.getRoot() : '',
-			);
-			const kegfile = await resolved.relative(storage.getRoot());
-			expect(kegfile.data.kegs[0].url).toEqual(
-				original!.data.kegs[0].url,
-			);
-		}
+	test('should should be able to resolve relative paths', async () => {
+		const context = await TestContext.nodeContext();
+		await context.popluateFixture();
+		const env = await context.getEnv();
+		const config = await KnutConfigFile.fromStorage(env.config);
+		expect(config?.resolve().relative().data).toEqual(config?.data);
+		expect(config?.resolve().getKeg('sample1')?.url).toEqual(
+			context.root.child('samplekeg1').root,
+		);
 	});
 });

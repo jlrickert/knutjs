@@ -1,7 +1,7 @@
 import { TimeLike } from 'fs';
 import { Stringer } from '../utils.js';
 import { Optional } from '../internal/optional.js';
-import { MyPromise } from '../internal/promise.js';
+import { Future } from '../internal/future.js';
 
 export type StorageNodeTime = {
 	/**
@@ -36,17 +36,17 @@ export abstract class GenericStorage {
 	/**
 	 * Read a files content if it exists. This updates access time.
 	 **/
-	abstract read(path: Stringer): MyPromise<Optional<string>>;
+	abstract read(path: Stringer): Future<Optional<string>>;
 
 	/**
 	 * Create or overwrite a file if it exists. Modifies modified time.
 	 **/
-	abstract write(path: Stringer, contents: Stringer): MyPromise<boolean>;
+	abstract write(path: Stringer, contents: Stringer): Future<boolean>;
 
 	/**
 	 * Remove a file if it exists
 	 **/
-	abstract rm(path: Stringer): MyPromise<boolean>;
+	abstract rm(path: Stringer): Future<boolean>;
 
 	/**
 	 * Copy over a file or directory. Creates directories if needed. Copies over all contents if it is a directory.
@@ -57,7 +57,7 @@ export abstract class GenericStorage {
 	 * read directory and get all subpaths. The returned paths are all full
 	 * paths.
 	 */
-	abstract readdir(path: Stringer): MyPromise<Optional<string[]>>;
+	abstract readdir(path: Stringer): Future<Optional<string[]>>;
 
 	/**
 	 * Remove a directory if it exists
@@ -65,22 +65,22 @@ export abstract class GenericStorage {
 	abstract rmdir(
 		path: Stringer,
 		options?: { recursive?: boolean },
-	): MyPromise<boolean>;
+	): Future<boolean>;
 
 	/**
 	 * Modify access time, modified time, and/or created time values.
 	 **/
-	abstract utime(path: string, stats: StorageNodeTime): MyPromise<boolean>;
+	abstract utime(path: string, stats: StorageNodeTime): Future<boolean>;
 
 	/**
 	 * Create a directory if it doesn't exist
 	 **/
-	abstract mkdir(path: Stringer): MyPromise<boolean>;
+	abstract mkdir(path: Stringer): Future<boolean>;
 
 	/**
 	 * Get time stats about a node on the filesystem
 	 **/
-	abstract stats(path: Stringer): MyPromise<Optional<StorageNodeStats>>;
+	abstract stats(path: Stringer): Future<Optional<StorageNodeStats>>;
 
 	/**
 	 * Get an underlying reference to the file system that changes the current

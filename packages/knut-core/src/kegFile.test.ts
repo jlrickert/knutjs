@@ -1,32 +1,22 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import {
-	TestContext,
-	createSampleKnutApp,
-	sampleKegpath,
-} from './internal/testUtils';
-import { KegFile } from './kegFile';
-import { KegStorage } from './kegStorage';
+import { describe, expect, test } from 'vitest';
+import { KegFile } from './kegFile.js';
+import { TestContext } from './internal/testUtils.js';
+import { KegStorage } from './kegStorage.js';
 
 describe('keg file', () => {
-	let ctx: TestContext;
-	beforeEach(async () => {
-		ctx = await createSampleKnutApp();
-	});
-	afterEach(async () => {
-		await ctx.reset();
-	});
 	test('should be able to parse from a valid yaml file', async () => {
-		const data = await ctx.storage.read('sampleKeg/keg');
+		const context = await TestContext.nodeContext();
+		const data = await context.fixture.read('samplekeg1/keg');
 		const kegFile = KegFile.fromYAML(data!);
 		expect(kegFile.data.creator).toEqual('git@github.com:YOU/YOU.git');
 		expect(kegFile.data.url).toEqual('git@github.com:YOU/keg.git');
 	});
 
 	test('should be able to parse from keg storage', async () => {
-		const storage = KegStorage.fromStorage(
-			ctx.storage.child(sampleKegpath),
+		const context = await TestContext.nodeContext();
+		const kegFile = await KegFile.fromStorage(
+			KegStorage.fromStorage(context.fixture.child('samplekeg1')),
 		);
-		const kegFile = await KegFile.fromStorage(storage);
 		expect(kegFile!.data.creator).toEqual('git@github.com:YOU/YOU.git');
 		expect(kegFile!.data.url).toEqual('git@github.com:YOU/keg.git');
 	});

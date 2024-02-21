@@ -1,7 +1,6 @@
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MemoryStorage } from './memoryStorage.js';
-import { stringify } from '../utils';
-import { afterEach } from 'node:test';
+import { stringify } from '../utils.js';
 
 describe('describe memory storage', () => {
 	afterEach(() => {

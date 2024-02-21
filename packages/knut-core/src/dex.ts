@@ -1,5 +1,7 @@
 import { KegNode, NodeId } from './node.js';
 import { KegStorage } from './kegStorage.js';
+import { Optional, optional } from './internal/optional.js';
+import { Future } from './internal/future.js';
 
 export type DexEntry = {
 	nodeId: NodeId;
@@ -14,10 +16,10 @@ export type DexEntry = {
 export class Dex {
 	private entryList: DexEntry[] = [];
 
-	static async fromStorage(storage: KegStorage) {
+	static async fromStorage(storage: KegStorage): Future<Optional<Dex>> {
 		const content = await storage.read('dex/nodes.tsv');
-		if (content === null) {
-			return null;
+		if (optional.isNone(content)) {
+			return content;
 		}
 		const lines = content.split('\n');
 		const dex = new Dex();

@@ -1,4 +1,5 @@
 import { randomInt } from 'crypto';
+import { absurd } from 'fp-ts/lib/function.js';
 
 export type JSONObject = { [key: string]: MY_JSON };
 export type JSONArray = MY_JSON[];
@@ -30,16 +31,12 @@ export const createId = (options: {
 	postfix?: string;
 }): string => {
 	const CHARS = '1234567890abcdefghijklmnopqrstufwqyz';
-	let id = [];
+	let id: number[] = [];
 	for (let i = 0; i < options.count; i++) {
 		const n = randomInt(CHARS.length);
 		id.push(n);
 	}
 	return `${options.prefix ?? ''}${id.join('')}${options.postfix ?? ''}`;
-};
-
-export const absurd = <T>(value: never): T => {
-	throw new Error('This is absurd');
 };
 
 export type DateFormat = 'Y-m-D' | 'Y-m-D H:M' | 'DD/MM/YY';
@@ -106,8 +103,8 @@ export const deepCopy = <T extends undefined | Date | MY_JSON>(obj: T): T => {
 	}
 
 	// Handle Array
-	if (obj instanceof Array) {
-		const copy = [];
+	if (Array.isArray(obj)) {
+		const copy: any[] = [];
 		for (let i = 0, len = obj.length; i < len; i++) {
 			copy[i] = deepCopy(obj[i]);
 		}
