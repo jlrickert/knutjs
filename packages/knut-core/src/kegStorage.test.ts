@@ -1,21 +1,13 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { TestContext, createSampleKnutApp } from './internal/testUtils';
-import { KegStorage } from './kegStorage';
-import { collectAsync } from './utils';
+import { describe, expect, test } from 'vitest';
+import { collectAsync } from './utils.js';
+import { TestContext } from './internal/testUtils.js';
+import { KegStorage } from './kegStorage.js';
 
 describe('keg storage', () => {
-	let ctx!: TestContext;
-
-	beforeEach(async () => {
-		ctx = await createSampleKnutApp();
-	});
-
-	afterEach(async () => {
-		await ctx.reset();
-	});
-
 	test('should be able to list nodes', async () => {
-		const storage = KegStorage.fromStorage(ctx.storage.child('samplekeg'));
-		expect(await collectAsync(storage.listNodes())).toHaveLength(13);
+		const context = await TestContext.nodeContext();
+		await context.popluateFixture();
+		const ks = KegStorage.fromStorage(context.root.child('samplekeg1'));
+		expect(await collectAsync(ks.listNodes())).toHaveLength(13);
 	});
 });

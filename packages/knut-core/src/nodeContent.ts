@@ -1,7 +1,7 @@
 import { Root, RootContent } from 'mdast';
 import { MarkdownAST } from './markdown.js';
 import { NodeId } from './node.js';
-import { MyPromise } from './internal/promise.js';
+import { Future } from './internal/future.js';
 import { Optional } from './internal/optional.js';
 
 export class NodeContent {
@@ -13,7 +13,7 @@ export class NodeContent {
 		return `${nodeId.stringify()}/README.md`;
 	}
 
-	static async fromMarkdown(markdown: string): MyPromise<NodeContent> {
+	static async fromMarkdown(markdown: string): Future<NodeContent> {
 		const root = MarkdownAST.from(markdown);
 		return new NodeContent(root);
 	}

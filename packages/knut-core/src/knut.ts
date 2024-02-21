@@ -1,15 +1,18 @@
 import Fuse, { FuseIndex, FuseOptionKey, FuseSearchOptions } from 'fuse.js';
-import { ConfigDefinition, KnutConfigFile } from './configFile.js';
+import { KnutConfigFile } from './configFile.js';
 import { Filter } from './filterTypes.js';
 import { MetaFile, MetaData } from './metaFile.js';
 import { NodeId } from './node.js';
 import { MY_JSON, stringify } from './utils.js';
 import { EnvStorage } from './envStorage.js';
 import { Keg } from './keg.js';
-import { KegStorage, loadKegStorage } from './kegStorage.js';
+import { KegStorage } from './kegStorage.js';
 import invariant from 'tiny-invariant';
-import { MyPromise } from './internal/promise.js';
-import { Optional } from './internal/optional.js';
+import { Future, future } from './internal/future.js';
+import { Optional, optional } from './internal/optional.js';
+import { fromUri } from './storage/storageUtils.js';
+import { pipe } from 'fp-ts/lib/function.js';
+import { optionalT } from './internal/optionalT.js';
 
 export type NodeCreateOptions = {
 	kegalias: string;
@@ -85,49 +88,72 @@ export type KnutOptions = {
 export class Knut {
 	private kegMap = new Map<string, Keg>();
 
-	static async create(): MyPromise<Knut> {
+	static async create(): Future<Knut> {
 		const env = await EnvStorage.create();
 		const knut = await Knut.fromEnvironment(env.child('knut'));
 		return knut;
 	}
 
-	static async fromEnvironment(env: EnvStorage): MyPromise<Knut> {
-		const configFile = await KnutConfigFile.fromEnvStorage(env, {
-			resolve: true,
-		});
-		const knut = await Knut.fromConfig(configFile.data, { env: env });
+	static async fromEnvironment(env: EnvStorage): Future<Knut> {
+		const T = optionalT(future.Monad);
+		const varConfig = await pipe(
+			KnutConfigFile.fromStorage(env.variable),
+			T.getOrElse(() =>
+				pipe(env.variable.root, KnutConfigFile.create, future.of),
+			),
+		);
+		const configFile = await pipe(
+			KnutConfigFile.fromStorage(env.config),
+			T.getOrElse(() =>
+				pipe(env.config.root, KnutConfigFile.create, future.of),
+			),
+		);
+		const knut = await Knut.fromConfig(configFile, env);
+		await knut.loadConfig(varConfig);
+		await knut.loadConfig(configFile);
 		return knut;
 	}
 
 	static async fromConfig(
-		config: ConfigDefinition,
-		options?: KnutOptions,
-	): MyPromise<Knut> {
-		const env = options?.env ?? EnvStorage.createInMemory();
-		const knut = new Knut(env);
-		await knut.init(config);
+		config: KnutConfigFile,
+		environment?: EnvStorage,
+	): Future<Knut> {
+		const T = optionalT(future.Monad);
+		const env = await pipe(
+			future.of(environment),
+			T.getOrElse(() => EnvStorage.create()),
+		);
+		const knut = new Knut(env ?? EnvStorage.create());
+		await knut.loadConfig(config);
 		return knut;
 	}
 
 	private constructor(public readonly env: EnvStorage) {}
 
+	async reset() {
+		// TODO(Jared): deactive keg plugins before clearing
+		this.kegMap.clear();
+	}
+
+	async loadConfig(config: KnutConfigFile) {
+		for (const keg of config.resolve().data.kegs) {
+			const storage = fromUri(keg.url);
+			if (optional.isSome(storage)) {
+				await this.loadKeg(keg.alias, KegStorage.fromStorage(storage));
+			}
+		}
+		return future.of<void>(void {});
+	}
+
 	/**
 	 * Loads required data for a keg
 	 */
-	async loadKeg(kegalias: string, storage: KegStorage): MyPromise<void> {
+	async loadKeg(kegalias: string, storage: KegStorage): Future<void> {
 		const keg = await Keg.fromStorage(storage, this.env);
 		if (!keg) {
 			return;
 		}
 		this.kegMap.set(kegalias, keg);
-	}
-
-	private async init(config: ConfigDefinition) {
-		this.kegMap.clear();
-		for (const keg of config.kegs) {
-			const storage = loadKegStorage(keg.url);
-			await this.loadKeg(keg.alias, storage);
-		}
 	}
 
 	getKeg(kegalias: string): Optional<Keg> {
@@ -156,12 +182,12 @@ export class Knut {
 		}
 	}
 
-	async update(): MyPromise<void> {
+	async update(): Future<void> {
 		this.env.cache.rm('fuse-data.json');
 		this.env.cache.rm('fuse-index.json');
 	}
 
-	async search({ limit, filter }: SearchOptions): MyPromise<SearchResult[]> {
+	async search({ limit, filter }: SearchOptions): Future<SearchResult[]> {
 		const results: SearchResult[] = [];
 		type Data = {
 			nodeId: string;
@@ -174,9 +200,9 @@ export class Knut {
 			meta: MY_JSON;
 		};
 		const rawData = await this.env.cache.read('fuse-data.json');
-		let data = rawData ? (JSON.parse(rawData) as Data[]) : null;
+		let data = rawData ? (JSON.parse(rawData) as Data[]) : optional.none;
 
-		if (data === null) {
+		if (optional.isNone(data)) {
 			data = [];
 			for await (const [kegalias, nodeId, node] of this.getNodeList()) {
 				const keg = this.getKeg(kegalias);
@@ -203,7 +229,10 @@ export class Knut {
 					kegalias,
 					nodeId: stringify(nodeId),
 					title: node?.title ?? '',
-					author,
+					author: pipe(
+						author,
+						optional.getOrElse(() => null),
+					),
 					tags: [...tags],
 					updated: node?.updated ?? '',
 					meta: node?.meta.export() ?? null,
@@ -281,25 +310,22 @@ export class Knut {
 	/**
 	 * Export keg to an external source. This could be with git.
 	 */
-	async publish(kegpath: string, options?: PublishOptions): MyPromise<void> {}
+	async publish(kegpath: string, options?: PublishOptions): Future<void> {}
 
 	/**
 	 * Share a specific shareable node by providing a link.
 	 */
-	async share({
-		kegalias,
-		nodeId,
-	}: ShareOptions): MyPromise<Optional<string>> {
+	async share({ kegalias, nodeId }: ShareOptions): Future<Optional<string>> {
 		return null;
 	}
 
 	/**
 	 * Remove access to a node
 	 **/
-	async unshare(options: ShareOptions): MyPromise<void> {}
+	async unshare(options: ShareOptions): Future<void> {}
 
 	/**
 	 * import nodes from another keg. Used for combining multiple kegs into 1.
 	 */
-	async merge(from: string | string[], to: string): MyPromise<void> {}
+	async merge(from: string | string[], to: string): Future<void> {}
 }

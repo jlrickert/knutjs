@@ -2,8 +2,10 @@ import * as YAML from 'yaml';
 import { MY_JSON, currentDate, stringify } from './utils.js';
 import { NodeId } from './node.js';
 import { KegStorage } from './kegStorage.js';
-import { MyPromise } from './internal/promise.js';
-import { Optional } from './internal/optional.js';
+import { Future } from './internal/future.js';
+import { Optional, optional } from './internal/optional.js';
+import { pipe } from 'fp-ts/lib/function.js';
+import { GenericStorage } from './storage/storage.js';
 
 export type KegVersion = '2023-01';
 
@@ -52,13 +54,13 @@ export class KegFile {
 	 * Load a keg file for the given path
 	 */
 	static async fromStorage(
-		storage: KegStorage,
-	): MyPromise<Optional<KegFile>> {
-		const kegdata = await storage.read('keg');
-		if (!kegdata) {
-			return null;
-		}
-		return KegFile.fromYAML(kegdata);
+		storage: GenericStorage,
+	): Future<Optional<KegFile>> {
+		const kegdata = pipe(
+			await storage.read('keg'),
+			optional.map(KegFile.fromYAML),
+		);
+		return kegdata;
 	}
 
 	static fromYAML(yaml: string): KegFile {
@@ -87,7 +89,7 @@ export class KegFile {
 		return entries;
 	}
 
-	async writeTo(storage: KegStorage): MyPromise<boolean> {
+	async writeTo(storage: KegStorage): Future<boolean> {
 		return await storage.write('keg', stringify(this));
 	}
 

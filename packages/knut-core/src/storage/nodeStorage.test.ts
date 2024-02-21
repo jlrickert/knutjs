@@ -1,8 +1,8 @@
 import * as Path from 'path';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { TestContext, createSampleKnutApp } from '../internal/testUtils';
-import { MemoryStorage } from './memoryStorage';
-import { GenericStorage } from './storage';
+import { describe, expect, test } from 'vitest';
+import { MemoryStorage } from './memoryStorage.js';
+import { GenericStorage } from './storage.js';
+import { TestContext } from '../internal/testUtils.js';
 
 test('path library exploration', () => {
 	expect(Path.isAbsolute('/home/user/.config/knut')).toBeTruthy();
@@ -23,19 +23,9 @@ test('path library exploration', () => {
 });
 
 describe('file system storage', () => {
-	let ctx!: TestContext;
-
-	beforeEach(async () => {
-		ctx = await createSampleKnutApp();
-	});
-
-	afterEach(async () => {
-		await ctx.reset();
-	});
-
 	test('should mirror the behavior of memory storage', async () => {
+		const { root: storage } = await TestContext.nodeContext();
 		const memory = MemoryStorage.create();
-		const storage = ctx.storage.child('');
 		const check = async <K extends keyof Omit<GenericStorage, 'root'>>(
 			key: K,
 			...args: Parameters<GenericStorage[K]>
