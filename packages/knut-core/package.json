@@ -27,7 +27,7 @@
 		"build:tsup": "cross-env NODE_ENV=production tsup",
 		"clean:tsup": "rimraf dist",
 		"typecheck": "tsc --noEmit",
-		"lint": "eslint src/",
+		"lint": "eslint ./src",
 		"test": "vitest",
 		"prepare": "pnpm run build"
 	},
