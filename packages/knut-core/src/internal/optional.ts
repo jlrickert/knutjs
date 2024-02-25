@@ -68,21 +68,29 @@ const traverse: PipeableTraverse1<URI> = (F: any) => (f: any) => (ta: any) =>
 const bind: <N extends string, A, B>(
 	name: Exclude<N, keyof A>,
 	f: (a: A) => Optional<B>,
-) => (ma: Optional<B>) => Optional<{
+) => (ma: Optional<A>) => Optional<{
 	readonly [K in keyof A | N]: K extends keyof A ? A[K] : B;
-}> = (name, f) => (ma) =>
-	isNone(ma)
-		? none
-		: (Object.assign({}, ma, { [name]: f(ma as any) }) as any);
+}> = (name, f) => (ma) => {
+	return pipe(
+		ma,
+		chain((a) => {
+			return pipe(
+				f(a),
+				map((b) => Object.assign({}, a, { [name]: b }) as any),
+			);
+		}),
+	);
+};
 
 const bindTo: <N extends string>(
-	name: string,
+	name: N,
 ) => <A>(ma: Optional<A>) => Optional<{ readonly [K in N]: A }> =
-	(name) => (ma) =>
-		pipe(
-			Do as any,
+	(name) => (ma) => {
+		return pipe(
+			Do,
 			bind(name, () => ma),
-		) as any;
+		);
+	};
 
 const Monad: Monad1<URI> = {
 	URI,
