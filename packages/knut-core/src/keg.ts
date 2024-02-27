@@ -2,12 +2,13 @@ import { pipe } from 'fp-ts/lib/function.js';
 import { Dex } from './dex.js';
 import { EnvStorage } from './envStorage.js';
 import { Optional, optional } from './internal/optional.js';
-import { Future } from './internal/future.js';
+import { Future, future } from './internal/future.js';
 import { KegFile } from './kegFile.js';
 import { KegStorage } from './kegStorage.js';
 import { KegNode, NodeId } from './node.js';
 import { fromUri } from './storage/storageUtils.js';
-import { collectAsync } from './utils.js';
+import { collectAsync, stringify } from './utils.js';
+import { optionalT } from './internal/optionalT.js';
 
 export type CreateNodeOptions = {
 	content: string;
@@ -37,11 +38,50 @@ export class Keg {
 		return keg;
 	}
 
-	static async create(storage: KegStorage, env: EnvStorage): Future<Keg> {
-		const kegFile =
-			(await KegFile.fromStorage(storage)) ?? KegFile.default();
+	static async create(
+		storage: KegStorage,
+		env: EnvStorage,
+	): Future<Optional<Keg>> {
+		const T = optionalT(future.Monad);
+		const keg = await pipe(
+			T.Do,
+			T.bind('kegFile', () => KegFile.fromStorage(storage)),
+			T.bind('dex', () => Dex.fromStorage(storage)),
+			T.map(({ kegFile, dex }) => new Keg(kegFile, dex, storage)),
+		);
+		return keg;
+	}
+
+	/**
+	 * create a new keg if it doesn't exist
+	 **/
+	static async init(
+		storage: KegStorage,
+		env: EnvStorage,
+	): Future<Optional<Keg>> {
+		const T = optionalT(future.Monad);
+		const kegFile = await pipe(
+			KegFile.fromStorage(storage),
+			T.alt(async () => {
+				const kegFile = KegFile.default();
+				await storage.write('keg', kegFile);
+				return kegFile;
+			}),
+		);
+		if (optional.isNone(kegFile)) {
+			return optional.none;
+		}
+
 		const dex = (await Dex.fromStorage(storage)) ?? new Dex();
 		const keg = new Keg(kegFile, dex, storage);
+		await pipe(
+			keg.createNode(),
+			T.chain(async (nodeId) => {
+				const node = await KegNode.zeroNode();
+				await node.toStorage(nodeId, keg.storage);
+				return nodeId;
+			}),
+		);
 		return keg;
 	}
 
@@ -54,13 +94,42 @@ export class Keg {
 	async last(): Future<Optional<NodeId>> {
 		const nodeList = await collectAsync(this.storage.listNodes());
 		nodeList.sort((a, b) => (a.lt(b) ? 1 : -1));
-		const nodeId = nodeList.length > 0 ? nodeList[0] : null;
+		const nodeId =
+			nodeList.length > 0 ? optional.some(nodeList[0]) : optional.none;
+		return nodeId;
+	}
+
+	async createNode(): Future<Optional<NodeId>> {
+		const T = optionalT(future.Monad);
+		const nodeId = await pipe(
+			this.last(),
+			T.map((a) => a.next()),
+			T.getOrElse(() => new NodeId(0)),
+			T.chain(async (nodeId) => {
+				return pipe(
+					this.storage.stats(stringify(nodeId)),
+					T.match(
+						() => optional.some(nodeId),
+						() => optional.none,
+					),
+				);
+			}),
+		);
+
 		return nodeId;
 	}
 
 	async getNode(nodeId: NodeId): Future<Optional<KegNode>> {
 		const node = await KegNode.fromStorage(nodeId, this.storage);
 		return node;
+	}
+
+	async writeNode(nodeId: NodeId, node: KegNode): Future<boolean> {
+		return node.toStorage(nodeId, this.storage);
+	}
+
+	async deleteNode(nodeId: NodeId): Future<boolean> {
+		return this.storage.rm(stringify(nodeId));
 	}
 
 	async *getNodeList(): AsyncGenerator<
