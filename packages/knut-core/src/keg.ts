@@ -104,7 +104,7 @@ export class Keg {
 		const nodeId = await pipe(
 			this.last(),
 			T.map((a) => a.next()),
-			T.getOrElse(() => new NodeId(0)),
+			T.getOrElse(() => future.of(new NodeId(0))),
 			T.chain(async (nodeId) => {
 				return pipe(
 					this.storage.stats(stringify(nodeId)),

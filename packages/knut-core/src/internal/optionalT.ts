@@ -1,6 +1,6 @@
 import { Kind, URIS } from 'fp-ts/HKT';
 import { Monad1 } from 'fp-ts/lib/Monad.js';
-import { flow, pipe } from 'fp-ts/lib/function.js';
+import { pipe } from 'fp-ts/lib/function.js';
 import { Refinement } from 'fp-ts/lib/Refinement.js';
 import { Optional, optional } from './optional.js';
 import { Predicate } from 'fp-ts/lib/Predicate.js';
@@ -107,10 +107,11 @@ const ap: <M extends URIS>(
 
 const getOrElse: <M extends URIS>(
 	M: Monad1<M>,
-) => <A>(onNone: () => A) => (ma: Kind<M, Optional<A>>) => Kind<M, A> =
-	(M) => (onNone) => (ma) => {
-		return M.chain(ma, flow(optional.getOrElse(onNone), M.of));
-	};
+) => <A>(
+	onNone: () => Kind<M, A>,
+) => (ma: Kind<M, Optional<A>>) => Kind<M, A> = (M) => (onNone) => (ma) => {
+	return M.chain(ma, optional.match(onNone, M.of));
+};
 
 const Do: <M extends URIS>(M: Monad1<M>) => Kind<M, Optional<{}>> = (M) =>
 	some(M)({});

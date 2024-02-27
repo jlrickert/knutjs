@@ -41,6 +41,15 @@ describe.concurrent('OptionalT', () => {
 		expect(o2).toStrictEqual(optional.none);
 	});
 
+	test('fromNullable', async () => {
+		expect(await pipe(undefined, T.fromNullable)).toStrictEqual(
+			optional.none,
+		);
+		expect(await pipe('hello', T.fromNullable)).toStrictEqual(
+			optional.some('hello'),
+		);
+	});
+
 	test('alt', async () => {
 		expect(
 			await pipe(
@@ -89,13 +98,13 @@ describe.concurrent('OptionalT', () => {
 		expect(
 			await pipe(
 				T.some('ok'),
-				T.getOrElse(() => 'rawr'),
+				T.getOrElse(() => future.of('rawr')),
 			),
 		).toStrictEqual('ok');
 		expect(
 			await pipe(
 				T.none,
-				T.getOrElse(() => 'rawr'),
+				T.getOrElse(() => future.of('rawr')),
 			),
 		).toStrictEqual('rawr');
 	});

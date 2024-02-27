@@ -120,7 +120,7 @@ export class Knut {
 	): Future<Knut> {
 		const T = optionalT(future.Monad);
 		const env = await pipe(
-			future.of(environment),
+			T.fromNullable(environment),
 			T.getOrElse(() => EnvStorage.create()),
 		);
 		const knut = new Knut(env ?? EnvStorage.create());
