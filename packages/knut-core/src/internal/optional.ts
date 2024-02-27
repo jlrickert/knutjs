@@ -1,4 +1,5 @@
 import { Monad1 } from 'fp-ts/lib/Monad.js';
+import { Refinement } from 'fp-ts/lib/Refinement.js';
 import { PipeableTraverse1 } from 'fp-ts/lib/Traversable.js';
 import { identity, pipe } from 'fp-ts/lib/function.js';
 
@@ -6,7 +7,7 @@ type Some<A> = NonNullable<A>;
 type None = null | undefined;
 export type Optional<A> = Some<A> | None;
 
-export const URI = 'MyOption';
+export const URI = 'Optional';
 export type URI = typeof URI;
 declare module 'fp-ts/HKT' {
 	interface URItoKind<A> {
@@ -14,12 +15,11 @@ declare module 'fp-ts/HKT' {
 	}
 }
 
-const none: Optional<never> = null;
+const none: Optional<never> = null as Optional<never>;
 
-const some: <A extends NonNullable<any>>(a: A) => Optional<A> = (value) =>
-	value as any;
+const some: <A>(a: NonNullable<A>) => Optional<A> = (value) => value as any;
 
-const of: <A>(value: A) => Optional<A> = some;
+const of: <A>(value: A) => Optional<A> = some as any;
 
 const Do: Optional<{}> = of({});
 
@@ -34,11 +34,19 @@ const fromNullable: <A>(a: A) => Optional<NonNullable<A>> = (a) => {
 	return a ?? none;
 };
 
+const fromPredicate: <A, B extends A>(
+	refinement: Refinement<A, B>,
+) => (a: A) => Optional<B> = (refinement) => (a) => {
+	return refinement(a) ? some(a as any) : none;
+};
+
 const getOrElse: <A, B>(onNone: () => B) => (ma: Optional<A>) => A | B =
 	(onNone) => (ma) => (isSome(ma) ? (ma as any) : onNone());
 
 const map: <A, B>(f: (a: A) => B) => (ma: Optional<A>) => Optional<B> =
-	(f) => (ma) => (isSome(ma) ? pipe(ma, f, of) : none);
+	(f) => (ma) => {
+		return isSome(ma) ? pipe(ma, f, of) : none;
+	};
 
 const chain: <A, B>(
 	f: (a: A) => Optional<B>,
@@ -107,6 +115,7 @@ export const optional = {
 	isSome,
 	isNone,
 	fromNullable,
+	fromPredicate,
 	getOrElse,
 	flap,
 	ap,
