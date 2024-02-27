@@ -3,9 +3,12 @@ import { MetaFile as MetaFile, Tag } from './metaFile.js';
 import { stringify } from './utils.js';
 import { NodeContent } from './nodeContent.js';
 import { KegStorage } from './kegStorage.js';
+import { GenericStorage } from './storage/storage.js';
+import { Future } from './internal/future.js';
+import { Optional } from './internal/optional.js';
 
 export class NodeId {
-	static parsePath(path: string): NodeId | null {
+	static parsePath(path: string): Optional<NodeId> {
 		const parts = path.split('/');
 		for (const part of parts) {
 			const id = Number(part);
@@ -79,7 +82,7 @@ export class KegNode extends EventEmitter {
 	static async fromStorage(
 		nodeId: NodeId,
 		storage: KegStorage,
-	): Promise<KegNode | null> {
+	): Future<Optional<KegNode>> {
 		const nodePath = NodeContent.filePath(nodeId);
 		const metaPath = MetaFile.filePath(nodeId);
 		const rawContent = await storage.read(nodePath);
@@ -103,7 +106,7 @@ export class KegNode extends EventEmitter {
 		return node;
 	}
 
-	static parseNodeId(filepath: string): string | null {
+	static parseNodeId(filepath: string): Optional<string> {
 		const parts = filepath.split('/');
 		parts.pop();
 		const nodeId = parts.pop();
@@ -114,13 +117,26 @@ export class KegNode extends EventEmitter {
 		return `${nodeId}/meta.yaml`;
 	}
 
-	static async fromContent(options: NodeOptions): Promise<KegNode> {
+	static async fromContent(options: NodeOptions): Future<KegNode> {
 		const content = await NodeContent.fromMarkdown(options.content);
 		return new KegNode({
 			content,
 			meta: options.meta ?? new MetaFile(),
 			updated: options.updated,
 		});
+	}
+
+	static async zeroNode(): Future<KegNode> {
+		const content = await NodeContent.fromMarkdown(
+			`
+# Sorry, planned but not yet available
+
+This is a filler until I can provide someone better for the link that brought you here. If you are really anxious, consider opening an issue describing why you would like this missing content created before the rest.
+				`.trim(),
+		);
+		const now = new Date();
+		const meta = new MetaFile();
+		return new KegNode({ content, meta, updated: stringify(now) });
 	}
 
 	private constructor(private data: NodeData) {
@@ -147,13 +163,16 @@ export class KegNode extends EventEmitter {
 		return this.data.updated;
 	}
 
-	async updateContent(content: string): Promise<void> {
+	async updateContent(content: string): Future<void> {
 		this.data.content = await NodeContent.fromMarkdown(content);
 		this.data.updated = stringify(new Date());
+	}
 
-		this.emit('update', {
-			node: this,
-		});
+	async toStorage(nodeId: NodeId, storage: GenericStorage): Future<boolean> {
+		return (
+			(await storage.write(nodeId.getReadmePath(), this.content)) &&
+			(await storage.write(nodeId.getMetaPath(), stringify(this.meta)))
+		);
 	}
 
 	updateMeta(f: MetaFile | ((meta: MetaFile) => void)): void {

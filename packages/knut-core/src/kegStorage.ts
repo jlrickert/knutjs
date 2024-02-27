@@ -6,7 +6,7 @@ import {
 	StorageNodeTime,
 } from './storage/storage.js';
 import { loadStorage } from './storage/storageUtils.js';
-import { Optional } from './internal/optional.js';
+import { Optional, optional } from './internal/optional.js';
 import { Stringer } from './utils.js';
 import { Future } from './internal/future.js';
 
@@ -67,10 +67,9 @@ export class KegStorage extends GenericStorage {
 
 	async *listNodes() {
 		const dirList = await this.fs.readdir('');
-		if (!dirList) {
-			return [];
+		if (optional.isNone(dirList)) {
+			return;
 		}
-		let nodes: NodeId[] = [];
 		for (const dir of dirList) {
 			const stat = await this.fs.stats(dir);
 			// FIXME(jared): something tells me this will pick up some thing
@@ -78,10 +77,8 @@ export class KegStorage extends GenericStorage {
 			const nodeId = NodeId.parsePath(dir);
 			if (nodeId && stat?.isDirectory()) {
 				yield nodeId;
-				nodes.push(nodeId);
 			}
 		}
-		return nodes;
 	}
 
 	child(subpath: string): KegStorage {
