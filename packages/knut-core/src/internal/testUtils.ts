@@ -1,21 +1,27 @@
+import { Kind, URIS } from 'fp-ts/HKT';
 import * as Path from 'path';
 import invariant from 'tiny-invariant';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { afterEach } from 'vitest';
-import { optional } from './optional.js';
-import { Future } from './future.js';
+import { Optional, optional } from './optional.js';
+import { Future, future } from './future.js';
 import { Knut } from '../knut.js';
 import { Keg } from '../keg.js';
 import { overwrite } from '../storage/storageUtils.js';
 import { GenericStorage } from '../storage/storage.js';
-import { EnvStorage } from '../envStorage.js';
 import { NodeStorage } from '../storage/nodeStorage.js';
+import { EnvStorage } from '../envStorage.js';
 import { KegStorage } from '../kegStorage.js';
+import { Platform, platform } from '../platform.js';
+import { pipe } from 'fp-ts/lib/function.js';
 
 export type Kegpath = 'samplekeg1' | 'samplekeg2' | 'samplekeg3';
 
 export class TestContext {
+	/**
+	 * root path for fixtures
+	 **/
 	static fixturePath = Path.resolve(__dirname, '..', '..', 'testdata');
 
 	/**
@@ -82,7 +88,7 @@ export class TestContext {
 		// this.root.rmdir('');
 	}
 
-	async getEnv() {
+	getEnv() {
 		const cache = this.root.child('cache/knut');
 		const variable = this.root.child('local/share/knut');
 		const config = this.root.child('config/knut');
@@ -92,6 +98,21 @@ export class TestContext {
 			cache,
 		});
 		return env;
+	}
+
+	setEnv(env: EnvStorage) {
+		return <
+			M extends URIS,
+			F extends (...params: unknown[]) => Kind<M, unknown>,
+		>(
+			f: F,
+		): F => {
+			return ((...args: any[]): any => {
+				platform.setStorage(env);
+				const output = f(...args);
+				return output;
+			}) as any;
+		};
 	}
 
 	async popluateFixture() {
@@ -129,9 +150,8 @@ export class TestContext {
 	}
 
 	async getKeg(kegpath: Kegpath) {
-		const env = await this.getEnv();
 		const storage = KegStorage.fromStorage(this.root.child(kegpath));
-		const keg = await Keg.fromStorage(storage, env);
+		const keg = await Keg.fromStorage(storage);
 		invariant(
 			optional.isSome(keg),
 			'Expect fixtures to be populated. run .populateKegs',
@@ -140,8 +160,21 @@ export class TestContext {
 	}
 
 	async getKnut() {
-		const env = await this.getEnv();
+		const env = this.getEnv();
 		const knut = await Knut.fromEnvironment(env);
 		return knut;
 	}
 }
+
+const getKeg: (name: string) => Platform<Future<Optional<Keg>>> =
+	(kegpath) =>
+	({ storage }) =>
+		pipe(
+			storage.child(kegpath),
+			KegStorage.fromStorage,
+			future.chain(Keg.fromStorage),
+		);
+
+export const testUtils = {
+	getKeg,
+};

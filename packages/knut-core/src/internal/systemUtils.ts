@@ -1,7 +1,7 @@
 import * as Path from 'path';
 import { homedir } from 'os';
 
-export const getUserDataDir = async (): Promise<string> => {
+export const getUserVarDir = async (): Promise<string> => {
 	const platform = process.platform;
 
 	const dataDir = process.env.XDG_DATA_HOME ?? null;

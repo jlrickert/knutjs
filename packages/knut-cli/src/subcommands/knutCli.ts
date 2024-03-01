@@ -1,5 +1,5 @@
 import { Command, Option } from 'commander';
-import { version } from './internal/packageJSON.cjs';
+import { version } from '../internal/packageJSON.cjs';
 
 export type KegPathOption = { kegpath?: string[] };
 export const kegpathOption = new Option(

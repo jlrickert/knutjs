@@ -9,7 +9,7 @@ describe('common programming patterns', async () => {
 	test('should be able to load keg file details from sample keg', async () => {
 		const context = await TestContext.nodeContext();
 		await context.popluateFixture();
-		const env = await context.getEnv();
+		const env = context.getEnv();
 		const knut = await Knut.fromEnvironment(env);
 		const keg = knut.getKeg('sample1');
 		expect(keg!.kegFile?.getAuthor()).toEqual('git@github.com:YOU/YOU.git');
@@ -20,10 +20,6 @@ describe('common programming patterns', async () => {
 		await context.popluateFixture();
 		const knut = await context.getKnut();
 		const nodes = await collectAsync(knut.getNodeList());
-		// const nodes: KegNode[] = [];
-		// for await (const [, , node] of knut.getNodeList()) {
-		// 	nodes.push(node);
-		// }
 		expect(nodes).toHaveLength(39);
 	});
 

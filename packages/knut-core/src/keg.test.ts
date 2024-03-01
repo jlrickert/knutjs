@@ -12,7 +12,7 @@ describe('keg', async () => {
 		const context = await TestContext.nodeContext();
 		const env = await context.getEnv();
 		const storage = KegStorage.fromStorage(context.root.child('testkeg'));
-		const keg = await Keg.init(storage, env);
+		const keg = await Keg.init(storage);
 		invariant(optional.isSome(keg));
 
 		const kegFileContent = await storage.read('keg');

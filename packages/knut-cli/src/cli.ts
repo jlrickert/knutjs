@@ -1,9 +1,9 @@
-import { configCli } from './configCli.js';
-import { knutCli } from './knutCli.js';
-import { kegCli } from './kegCli.js';
-import { searchCli } from './searchCli.js';
-import { shareCli } from './shareCli.js';
-import { updateCli } from './updateCli.js';
+import { configCli } from './subcommands/configCli.js';
+import { knutCli } from './subcommands/knutCli.js';
+import { kegCli } from './subcommands/kegCli.js';
+import { searchCli } from './subcommands/searchCli.js';
+import { shareCli } from './subcommands/shareCli.js';
+import { updateCli } from './subcommands/updateCli.js';
 
 knutCli.addCommand(searchCli);
 knutCli.addCommand(kegCli);

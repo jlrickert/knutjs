@@ -1,18 +1,18 @@
+import { absurd, pipe } from 'fp-ts/lib/function.js';
 import { sequenceS } from 'fp-ts/lib/Apply.js';
 import { Optional, optional } from './internal/optional.js';
-import { Future } from './internal/future.js';
+import { Future, future } from './internal/future.js';
 import {
 	getUserCacheDir,
 	getUserConfigDir,
-	getUserDataDir as getUserVarDir,
+	getUserVarDir,
 } from './internal/systemUtils.js';
 import { ApiStorage } from './storage/apiStorage.js';
 import { MemoryStorage } from './storage/memoryStorage.js';
 import { GenericStorage } from './storage/storage.js';
-import { fromUri, loadStorage } from './storage/storageUtils.js';
+import { fromUri } from './storage/storageUtils.js';
 import { WebStorage } from './storage/webStorage.js';
 import { currentPlatform } from './utils.js';
-import { absurd, pipe } from 'fp-ts/lib/function.js';
 
 export const loadEnvApiStorage = async (
 	url: string,
@@ -74,37 +74,21 @@ export class EnvStorage {
 		return env;
 	}
 
-	static async domEnv(): Promise<EnvStorage> {
+	static async domEnv(): Future<EnvStorage> {
 		const storage = WebStorage.create('knut');
 		const cache = storage.child('cache');
 		const variable = storage.child('variables');
 		const config = storage.child('config');
-		return this.make({ cache, config, variable: variable });
+		return this.make({ cache, config, variable });
 	}
 
-	static async create(): Future<EnvStorage> {
+	static async create(): Future<Optional<EnvStorage>> {
 		switch (currentPlatform) {
 			case 'dom': {
-				const storage = WebStorage.create('knut');
-				return EnvStorage.fromStorage({
-					config: storage.child('config'),
-					cache: storage.child('cache'),
-					variable: storage.child('var'),
-				});
+				return pipe(EnvStorage.domEnv(), future.map(optional.some));
 			}
 			case 'node': {
-				const cacheDir = await getUserCacheDir();
-				const varDir = await getUserVarDir();
-				const configDir = await getUserConfigDir();
-
-				const cache = loadStorage(cacheDir);
-				const variable = loadStorage(varDir);
-				const config = loadStorage(configDir);
-				return EnvStorage.fromStorage({
-					cache,
-					config,
-					variable,
-				});
+				return this.nodeEnv();
 			}
 			default: {
 				return absurd(currentPlatform);

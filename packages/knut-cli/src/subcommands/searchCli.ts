@@ -10,6 +10,8 @@ import {
 	rawOption,
 	yamlOption,
 } from './knutCli.js';
+import { terminal } from '../terminal.js';
+import { pipe } from 'fp-ts/lib/function.js';
 
 type SearchOptions = {
 	pager?: boolean;
@@ -37,11 +39,8 @@ export const search = async (query: string, options: SearchOptions) => {
 		return b.rank - a.rank;
 	});
 
-	if (options.raw) {
-		console.log(JSON.stringify(results));
-	} else {
-		console.log(results);
-	}
+	const message = options.raw ? JSON.stringify(results) : results;
+	return await pipe(terminal.fmtLn(message));
 };
 
 export const searchCli = KnutCommand('search')
