@@ -4,15 +4,15 @@ import { Filter } from './filterTypes.js';
 import { MetaFile, MetaData } from './metaFile.js';
 import { NodeId } from './node.js';
 import { MY_JSON, stringify } from './utils.js';
-import { EnvStorage } from './envStorage.js';
 import { Keg } from './keg.js';
 import { KegStorage } from './kegStorage.js';
 import invariant from 'tiny-invariant';
 import { Future, future } from './internal/future.js';
 import { Optional, optional } from './internal/optional.js';
-import { fromUri } from './storage/storageUtils.js';
 import { pipe } from 'fp-ts/lib/function.js';
 import { optionalT } from './internal/optionalT.js';
+import { Backend, backend as backendM } from './backend.js';
+import { GenericStorage } from './storage/storage.js';
 
 export type NodeCreateOptions = {
 	kegalias: string;
@@ -78,9 +78,7 @@ type PublishOptions = {
 
 export type SearchStrategy = 'classic' | 'semantic';
 
-export type KnutOptions = {
-	env: EnvStorage;
-};
+export type KnutOptions = {};
 
 /**
  * Knut Provides a high level api for managing a keg
@@ -88,27 +86,20 @@ export type KnutOptions = {
 export class Knut {
 	private kegMap = new Map<string, Keg>();
 
-	static async create(): Future<Knut> {
-		const env = await EnvStorage.create();
-		const knut = await Knut.fromEnvironment(env.child('knut'));
-		return knut;
-	}
-
-	static async fromEnvironment(env: EnvStorage): Future<Knut> {
+	static async fromBackend(backend: Backend): Future<Knut> {
 		const T = optionalT(future.Monad);
-		const varConfig = await pipe(
-			KnutConfigFile.fromStorage(env.variable),
-			T.getOrElse(() =>
-				pipe(env.variable.root, KnutConfigFile.create, future.of),
-			),
-		);
-		const configFile = await pipe(
-			KnutConfigFile.fromStorage(env.config),
-			T.getOrElse(() =>
-				pipe(env.config.root, KnutConfigFile.create, future.of),
-			),
-		);
-		const knut = await Knut.fromConfig(configFile, env);
+		const load = async (storage: GenericStorage) => {
+			const config = await pipe(
+				KnutConfigFile.fromStorage(storage),
+				T.getOrElse(() =>
+					pipe(storage.root, KnutConfigFile.create, future.of),
+				),
+			);
+			return config;
+		};
+		const varConfig = await load(backend.variable);
+		const configFile = await load(backend.config);
+		const knut = new Knut(backend);
 		await knut.loadConfig(varConfig);
 		await knut.loadConfig(configFile);
 		return knut;
@@ -116,19 +107,23 @@ export class Knut {
 
 	static async fromConfig(
 		config: KnutConfigFile,
-		environment?: EnvStorage,
+		backend: Backend,
 	): Future<Knut> {
-		const T = optionalT(future.Monad);
-		const env = await pipe(
-			T.fromNullable(environment),
-			T.getOrElse(() => EnvStorage.create()),
-		);
-		const knut = new Knut(env ?? EnvStorage.create());
+		const knut = new Knut(backend);
 		await knut.loadConfig(config);
 		return knut;
 	}
 
-	private constructor(public readonly env: EnvStorage) {}
+	static async create(): Future<Optional<Knut>> {
+		const T = optionalT(future.Monad);
+		const knut = await pipe(
+			backendM.detectBackend(),
+			T.chain(Knut.fromBackend),
+		);
+		return knut;
+	}
+
+	private constructor(public readonly backend: Backend) {}
 
 	async reset() {
 		// TODO(Jared): deactive keg plugins before clearing
@@ -137,7 +132,7 @@ export class Knut {
 
 	async loadConfig(config: KnutConfigFile) {
 		for (const keg of config.resolve().data.kegs) {
-			const storage = fromUri(keg.url);
+			const storage = await this.backend.loader(keg.url);
 			if (optional.isSome(storage)) {
 				await this.loadKeg(keg.alias, KegStorage.fromStorage(storage));
 			}
@@ -149,8 +144,8 @@ export class Knut {
 	 * Loads required data for a keg
 	 */
 	async loadKeg(kegalias: string, storage: KegStorage): Future<void> {
-		const keg = await Keg.fromStorage(storage, this.env);
-		if (!keg) {
+		const keg = await Keg.fromStorage(storage);
+		if (optional.isNone(keg)) {
 			return;
 		}
 		this.kegMap.set(kegalias, keg);
@@ -183,8 +178,8 @@ export class Knut {
 	}
 
 	async update(): Future<void> {
-		this.env.cache.rm('fuse-data.json');
-		this.env.cache.rm('fuse-index.json');
+		this.backend.cache.rm('fuse-data.json');
+		this.backend.cache.rm('fuse-index.json');
 	}
 
 	async search({ limit, filter }: SearchOptions): Future<SearchResult[]> {
@@ -199,7 +194,7 @@ export class Knut {
 			updated: string;
 			meta: MY_JSON;
 		};
-		const rawData = await this.env.cache.read('fuse-data.json');
+		const rawData = await this.backend.cache.read('fuse-data.json');
 		let data = rawData ? (JSON.parse(rawData) as Data[]) : optional.none;
 
 		if (optional.isNone(data)) {
@@ -240,7 +235,7 @@ export class Knut {
 			}
 		}
 		if (rawData === null) {
-			this.env.cache.write('fuse-data.json', JSON.stringify(data));
+			this.backend.cache.write('fuse-data.json', JSON.stringify(data));
 		}
 
 		const search = filter?.$text?.$search ?? '';
@@ -265,11 +260,11 @@ export class Knut {
 			{ name: 'title', weight: 2 },
 			'content',
 		];
-		const indexData = await this.env.cache.read('fuse-index.json');
+		const indexData = await this.backend.cache.read('fuse-index.json');
 		let index: FuseIndex<Data>;
 		if (!indexData) {
 			index = Fuse.createIndex(keys, data);
-			await this.env.cache.write(
+			await this.backend.cache.write(
 				'fuse-index.json',
 				JSON.stringify(index.toJSON()),
 			);

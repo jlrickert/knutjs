@@ -5,7 +5,6 @@ import { absurd, pipe } from 'fp-ts/lib/function.js';
 import { deepCopy, stringify } from './utils.js';
 import { KegVersion } from './kegFile.js';
 import { GenericStorage } from './storage/storage.js';
-import { EnvStorage } from './envStorage.js';
 import { Optional, optional } from './internal/optional.js';
 import { optionalT } from './internal/optionalT.js';
 import { Future, future } from './internal/future.js';
@@ -33,19 +32,6 @@ export type ConfigDefinition = {
  * Represents a config file
  */
 export class KnutConfigFile {
-	static async fromEnvStorage(env: EnvStorage) {
-		const varConfig =
-			(await KnutConfigFile.fromStorage(env.variable)) ??
-			KnutConfigFile.create(env.variable.root);
-
-		const userConfig =
-			(await KnutConfigFile.fromStorage(env.config)) ??
-			KnutConfigFile.create(env.config.root);
-
-		const configFile = varConfig.concat(userConfig);
-		return configFile;
-	}
-
 	static async fromStorage(
 		storage: GenericStorage,
 	): Future<Optional<KnutConfigFile>> {

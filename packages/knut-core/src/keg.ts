@@ -1,14 +1,13 @@
 import { pipe } from 'fp-ts/lib/function.js';
 import { Dex } from './dex.js';
-import { EnvStorage } from './envStorage.js';
 import { Optional, optional } from './internal/optional.js';
 import { Future, future } from './internal/future.js';
 import { KegFile } from './kegFile.js';
 import { KegStorage } from './kegStorage.js';
 import { KegNode, NodeId } from './node.js';
-import { fromUri } from './storage/storageUtils.js';
 import { collectAsync, stringify } from './utils.js';
 import { optionalT } from './internal/optionalT.js';
+import { detectBackend } from './backend.js';
 
 export type CreateNodeOptions = {
 	content: string;
@@ -16,19 +15,19 @@ export type CreateNodeOptions = {
 };
 
 export class Keg {
-	static async fromUri(uri: string, env: EnvStorage): Future<Optional<Keg>> {
-		const keg = pipe(
-			uri,
-			fromUri,
-			optional.map(KegStorage.fromStorage),
-			optional.map((s) => Keg.fromStorage(s, env)),
-		);
-		return keg;
+	static async fromUri(uri: string): Future<Optional<Keg>> {
+		const platform = await detectBackend();
+		if (optional.isNone(platform)) {
+			return optional.none;
+		}
+		const storage = await platform.loader(uri);
+		if (optional.isNone(storage)) {
+			return optional.none;
+		}
+		return Keg.fromStorage(storage);
 	}
-	static async fromStorage(
-		storage: KegStorage,
-		env: EnvStorage,
-	): Future<Optional<Keg>> {
+
+	static async fromStorage(storage: KegStorage): Future<Optional<Keg>> {
 		const kegFile = await KegFile.fromStorage(storage);
 		const dex = await Dex.fromStorage(storage);
 		if (!kegFile || !dex) {
@@ -38,10 +37,7 @@ export class Keg {
 		return keg;
 	}
 
-	static async create(
-		storage: KegStorage,
-		env: EnvStorage,
-	): Future<Optional<Keg>> {
+	static async create(storage: KegStorage): Future<Optional<Keg>> {
 		const T = optionalT(future.Monad);
 		const keg = await pipe(
 			T.Do,
@@ -55,10 +51,7 @@ export class Keg {
 	/**
 	 * create a new keg if it doesn't exist
 	 **/
-	static async init(
-		storage: KegStorage,
-		env: EnvStorage,
-	): Future<Optional<Keg>> {
+	static async init(storage: KegStorage): Future<Optional<Keg>> {
 		const T = optionalT(future.Monad);
 		const kegFile = await pipe(
 			KegFile.fromStorage(storage),

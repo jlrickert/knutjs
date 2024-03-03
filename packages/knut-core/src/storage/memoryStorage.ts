@@ -62,7 +62,7 @@ type Fs = {
 };
 
 export class MemoryStorage extends GenericStorage {
-	static parse(content: string): MemoryStorage | null {
+	static parse(content: string): Optional<MemoryStorage> {
 		const fs = JSON.parse(content) as Fs;
 		switch (fs.version) {
 			case '0.1': {
@@ -118,7 +118,11 @@ export class MemoryStorage extends GenericStorage {
 	 * the current working directory
 	 **/
 	private getFullPath(path: Stringer) {
-		const fullpath = Path.join(this.root, stringify(path));
+		const filepath = stringify(path);
+		if (Path.isAbsolute(filepath)) {
+			return filepath;
+		}
+		const fullpath = Path.resolve(this.root, stringify(path));
 		return fullpath;
 	}
 

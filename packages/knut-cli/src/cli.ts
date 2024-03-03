@@ -1,11 +1,14 @@
-import { configCli } from './configCli.js';
-import { knutCli } from './knutCli.js';
-import { kegCli } from './kegCli.js';
-import { searchCli } from './searchCli.js';
-import { shareCli } from './shareCli.js';
-import { updateCli } from './updateCli.js';
+import { configCli } from './subCommands/configCli.js';
+import { knutCli } from './subCommands/knutCli.js';
+import { kegCli } from './subCommands/kegCli.js';
+import { searchCli } from './subCommands/searchCli.js';
+import { shareCli } from './subCommands/shareCli.js';
+import { updateCli } from './subCommands/updateCli.js';
+import { detectBackend } from './backend.js';
 
-knutCli.addCommand(searchCli);
+const backend = await detectBackend();
+
+knutCli.addCommand(searchCli(backend));
 knutCli.addCommand(kegCli);
 knutCli.addCommand(shareCli);
 knutCli.addCommand(configCli);

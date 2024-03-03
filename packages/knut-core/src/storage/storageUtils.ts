@@ -17,32 +17,32 @@ const isMemory: Predicate<string> = (uri) => uri === ':memory:';
 
 const isFile: Predicate<string> = (uri) => uri.startsWith('file://');
 
-export const fromUri = (uri: string): Optional<GenericStorage> => {
-	switch (true) {
-		case isHTTPSUri(uri): {
-			return optional.some(new ApiStorage(uri));
-		}
-		case isMemory(uri): {
-			return optional.some(MemoryStorage.create());
-		}
-		case isFile(uri): {
-			return optional.some(new NodeStorage(uri));
-		}
-
-		case currentPlatform === 'node': {
-			return optional.some(new NodeStorage(uri));
-		}
-
-		case currentPlatform === 'dom': {
-			return optional.some(WebStorage.create());
-		}
-
-		default: {
-			return absurd(currentPlatform);
-		}
-	}
-};
-
+// export const fromUri = (uri: string): Optional<GenericStorage> => {
+// 	switch (true) {
+// 		case isHTTPSUri(uri): {
+// 			return optional.some(new ApiStorage(uri));
+// 		}
+// 		case isMemory(uri): {
+// 			return optional.some(MemoryStorage.create());
+// 		}
+// 		case isFile(uri): {
+// 			return optional.some(new NodeStorage(uri));
+// 		}
+//
+// 		case currentPlatform === 'node': {
+// 			return optional.some(new NodeStorage(uri));
+// 		}
+//
+// 		case currentPlatform === 'dom': {
+// 			return optional.some(WebStorage.create());
+// 		}
+//
+// 		default: {
+// 			return absurd(currentPlatform);
+// 		}
+// 	}
+// };
+//
 export const loadStorage = (path: string): GenericStorage => {
 	if (path.match(/^https?/)) {
 		const storage = new ApiStorage(path);

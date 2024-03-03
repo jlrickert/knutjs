@@ -1,49 +1,77 @@
+import { pipe } from 'fp-ts/lib/function.js';
+import invariant from 'tiny-invariant';
 import { describe, expect, it } from 'vitest';
-import { TestContext } from './testUtils.js';
+import { testUtils } from './testUtils.js';
+import { Knut } from '../knut.js';
+import { Keg } from '../keg.js';
+import { optional } from './optional.js';
+import { optionalT } from './optionalT.js';
+import { future } from './future.js';
 
-describe('testUtils.createTestNodePlatform', async () => {
-	it('should have a filesystem with expected fixtures', async () => {
-		const context = await TestContext.nodeContext();
+for await (const { name, getBackend } of testUtils.backends) {
+	describe(`${name} backend`, async () => {
+		it('should have a filesystem with expected fixtures', async () => {
+			const backend = await getBackend();
+			const fixture = testUtils.fixtureStorage;
 
-		const fixture = context.fixture.readdir('');
-		const root = context.root.readdir('');
-		expect(fixture).toStrictEqual(root);
+			expect(await backend.config.readdir('')).toStrictEqual(
+				await fixture.child('config/knut').readdir(''),
+			);
+			for (const kegalias of ['samplekeg1', 'samplekeg2', 'samplekeg3']) {
+				expect(
+					(await backend.loader(kegalias))?.readdir(''),
+				).toStrictEqual(fixture.child(kegalias).readdir(''));
+			}
+			expect(await fixture.readdir('')).not.toHaveLength(0);
+		});
+
+		it('should create keg data and config data', async () => {
+			const backend = await getBackend();
+
+			const fixtureData =
+				await testUtils.fixtureStorage.read('samplekeg1/keg');
+			const data = await pipe(
+				await backend.loader('samplekeg1'),
+				(ks) => ks?.read('keg'),
+			);
+			expect(fixtureData?.length).toBeGreaterThan(0);
+			invariant(optional.isSome(fixtureData));
+			expect(fixtureData).toStrictEqual(data);
+		});
+
+		it('knut should be able to load a keg', async () => {
+			const backend = await getBackend();
+			const knut = await Knut.fromBackend(backend);
+
+			const load = async (kegalias: string) => {
+				const T = optionalT(future.Monad);
+				const keg = pipe(
+					backend.loader(kegalias),
+					T.chain(Keg.fromStorage),
+					T.map((a) => a.kegFile.data),
+				);
+				return keg;
+			};
+
+			const testTable = [
+				{
+					l: await load('samplekeg1'),
+					r: knut.getKeg('sample1')?.kegFile.data,
+				},
+				{
+					l: await load('samplekeg2'),
+					r: knut.getKeg('sample2')?.kegFile.data,
+				},
+				{
+					l: await load('samplekeg3'),
+					r: knut.getKeg('sample3')?.kegFile.data,
+				},
+			];
+
+			for (const { l, r } of testTable) {
+				expect(l).toStrictEqual(r);
+				expect(l).toBeTruthy();
+			}
+		});
 	});
-
-	it('should create keg data and config data', async () => {
-		const context = await TestContext.nodeContext();
-		await context.popluateFixture();
-
-		const kegFileData = await context.fixture.read('samplekeg1/keg');
-		expect(kegFileData?.length).toBeGreaterThan(0);
-		expect(kegFileData).toStrictEqual(
-			await context.root.read('samplekeg1/keg'),
-		);
-	});
-
-	it('knut should have the kegs loaded', async () => {
-		const context = await TestContext.nodeContext();
-		await context.popluateFixture();
-		const knut = await context.getKnut();
-
-		const testTable = [
-			{
-				l: (await context.getKeg('samplekeg1'))?.kegFile.data,
-				r: knut.getKeg('sample1')?.kegFile.data,
-			},
-			{
-				l: (await context.getKeg('samplekeg2'))?.kegFile.data,
-				r: knut.getKeg('sample2')?.kegFile.data,
-			},
-			{
-				l: (await context.getKeg('samplekeg3'))?.kegFile.data,
-				r: knut.getKeg('sample3')?.kegFile.data,
-			},
-		];
-
-		for (const { l, r } of testTable) {
-			expect(l).toStrictEqual(r);
-			expect(l).toBeTruthy();
-		}
-	});
-});
+}
