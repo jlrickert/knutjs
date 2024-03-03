@@ -28,7 +28,7 @@
 		"clean:tsup": "rimraf dist",
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint ./src",
-		"test": "vitest",
+		"test": "vitest --dom",
 		"prepare": "pnpm run build"
 	},
 	"private": false,
@@ -39,6 +39,7 @@
 		"@jlrickert/knutjs-tsconfig": "workspace:*",
 		"@types/node": "^20.10.4",
 		"cross-env": "^7.0.3",
+		"happy-dom": "^13.6.2",
 		"rimraf": "^5.0.5",
 		"tsup": "^8.0.1",
 		"typescript": "^5.3.3",

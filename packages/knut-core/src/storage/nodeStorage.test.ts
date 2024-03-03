@@ -2,7 +2,7 @@ import * as Path from 'path';
 import { describe, expect, test } from 'vitest';
 import { MemoryStorage } from './memoryStorage.js';
 import { GenericStorage } from './storage.js';
-import { TestContext } from '../internal/testUtils.js';
+import { testUtils } from '../internal/testUtils.js';
 
 test('path library exploration', () => {
 	expect(Path.isAbsolute('/home/user/.config/knut')).toBeTruthy();
@@ -24,7 +24,7 @@ test('path library exploration', () => {
 
 describe('file system storage', () => {
 	test('should mirror the behavior of memory storage', async () => {
-		const { root: storage } = await TestContext.nodeContext();
+		const storage = await testUtils.tempNodeStorage();
 		const memory = MemoryStorage.create();
 		const check = async <K extends keyof Omit<GenericStorage, 'root'>>(
 			key: K,

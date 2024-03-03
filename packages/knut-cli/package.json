@@ -46,6 +46,8 @@
 	},
 	"dependencies": {
 		"@jlrickert/knutjs-core": "workspace:*",
-		"commander": "^11.1.0"
+		"commander": "^11.1.0",
+		"fp-ts": "^2.16.2",
+		"tiny-invariant": "^1.3.1"
 	}
 }
