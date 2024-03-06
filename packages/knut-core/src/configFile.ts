@@ -10,6 +10,7 @@ import { optionalT } from './internal/optionalT.js';
 import { Future, future } from './internal/future.js';
 
 export type KegConfigDefinition = {
+	enabled: boolean;
 	alias: string;
 	url: string;
 	kegv?: KegVersion;
@@ -170,7 +171,12 @@ export class KnutConfigFile {
 			return null;
 		}
 
-		return { alias: data.alias, url: data.url, kegv: data.kegv };
+		return {
+			enabled: data.enabled,
+			alias: data.alias,
+			url: data.url,
+			kegv: data.kegv,
+		};
 	}
 
 	deleteKeg(kegalias: string) {
