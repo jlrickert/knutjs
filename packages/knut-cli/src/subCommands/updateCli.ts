@@ -1,5 +1,5 @@
 import { Knut } from '@jlrickert/knutjs-core/knut';
-import { KnutCommand } from './knutCli.js';
+import { KnutCommand } from '../knut.js';
 import invariant from 'tiny-invariant';
 import { optional } from '@jlrickert/knutjs-core/internal/optional';
 

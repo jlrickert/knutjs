@@ -20,8 +20,8 @@ const _pipe: () => [Readable, Writable] = () => {
 	});
 	const writer = new Writable({
 		write(chunk, encoding, callback) {
-			// buffer.push(chunk);
-			reader.push(chunk);
+			buffer.push(chunk);
+			// reader.push(chunk);
 		},
 	});
 	return [reader, writer] as const;
@@ -55,9 +55,19 @@ const input: (terminal: Terminal) => Future<string> = async ({ input }) => {
 	});
 };
 
-const readAll: (r: Readable) => Future<string> = (r) => {
+const readAll: (r: Readable) => Future<string> = async (r) => {
 	return new Promise((resolve) => {
-		resolve(r.read());
+		const data = r.read();
+		if (data === null) {
+			resolve('');
+		}
+		if (typeof data === 'string') {
+			resolve(data);
+			return;
+		}
+		if ('toString' in data) {
+			resolve(data.toString());
+		}
 	});
 };
 

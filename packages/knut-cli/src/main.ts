@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
-import { knutCli } from './cli.js';
+import { detectBackend } from './backend.js';
+import { rootCli } from './root.js';
 
-knutCli.parse(process.argv);
+const backend = await detectBackend();
+rootCli(backend).parse(process.argv);

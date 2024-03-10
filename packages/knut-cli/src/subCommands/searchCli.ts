@@ -1,17 +1,19 @@
+import { pipe } from 'fp-ts/lib/function.js';
 import { Command } from 'commander';
 import { Knut, SearchStrategy } from '@jlrickert/knutjs-core/knut';
 import {
 	JSONOption,
-	KegPathOption,
+	KegAliasOption,
 	KnutCommand,
 	RawOption,
 	YAMLOption,
 	jsonOption,
 	rawOption,
 	yamlOption,
-} from './knutCli.js';
+} from '../knut.js';
 import { terminal } from '../terminal.js';
 import { Backend } from '../backend.js';
+import { Cmd, command } from '../command.js';
 
 type SearchOptions = {
 	pager?: boolean;
@@ -45,31 +47,40 @@ export const search =
 		);
 	};
 
-export const searchCli = (backend: Backend) =>
-	KnutCommand('search')
-		.argument('[query]')
-		.option('-t, --tag <tag...>', 'comma separated list of tags')
-		.option('-l, --limit <limit>', 'limit of search results')
-		.addOption(jsonOption)
-		.addOption(rawOption)
-		.addOption(yamlOption)
-		.action(
-			async (
-				query: string,
-				options: YAMLOption &
-					JSONOption &
-					KegPathOption &
-					RawOption & { tag?: string[]; limit?: string },
-				command: Command,
-			) => {
-				await search(query ?? '', {
-					tags: options.tag,
-					json: options.json,
-					yaml: options.yaml,
-					pager: false,
-					kegpaths: options.kegpath ?? [],
-					raw: options.raw,
-					limit: options.limit ? parseInt(options.limit) : 10,
-				})(backend);
-			},
-		);
+export const searchCli: Cmd = pipe(
+	command.context,
+	command.map(() => KnutCommand('search')),
+	command.map((c) => c.argument('[query]')),
+	command.map((c) =>
+		c.option('-t, --tag <tag...>', 'comma separated list of tags'),
+	),
+	command.map((c) =>
+		c.option('-l, --limit <limit>', 'limit of search results', Number),
+	),
+	command.map((c) => c.addOption(jsonOption)),
+	command.map((c) => c.addOption(rawOption)),
+	command.map((c) => c.addOption(yamlOption)),
+	command.chain(
+		(c) => (backend) =>
+			c.action(
+				async (
+					query: string,
+					options: YAMLOption &
+						JSONOption &
+						KegAliasOption &
+						RawOption & { tag?: string[]; limit?: string },
+					command: Command,
+				) => {
+					await search(query ?? '', {
+						tags: options.tag,
+						json: options.json,
+						yaml: options.yaml,
+						pager: false,
+						kegpaths: options.aliases ?? [],
+						raw: options.raw,
+						limit: options.limit ? parseInt(options.limit) : 10,
+					})(backend);
+				},
+			),
+	),
+);
