@@ -177,7 +177,7 @@ export class Knut {
 				return config;
 			}),
 			T.chain((config) => {
-				return config.writeTo(this.backend.variable);
+				return config.toStorage(this.backend.variable);
 			}),
 		);
 

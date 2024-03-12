@@ -96,7 +96,7 @@ export class KnutConfigFile {
 		return this._root;
 	}
 
-	async writeTo(storage: GenericStorage): Future<boolean> {
+	async toStorage(storage: GenericStorage): Future<boolean> {
 		switch (this.format) {
 			case 'yaml': {
 				const ok = await storage.write('config.yaml', this.toYAML());

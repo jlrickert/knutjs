@@ -39,7 +39,7 @@ export class Dex {
 		return dex;
 	}
 
-	async writeTo(storage: GenericStorage): Future<boolean> {
+	async toStorage(storage: GenericStorage): Future<boolean> {
 		const data = this.entries
 			.map(({ nodeId, updated, title }) =>
 				[nodeId, updated, title].map(stringify).join('\t'),

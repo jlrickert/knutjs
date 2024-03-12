@@ -61,10 +61,10 @@ export class Keg {
 		}
 		const T = optionalT(future.Monad);
 		const kegFile = KegFile.default();
-		await kegFile.writeTo(storage);
+		await kegFile.toStorage(storage);
 
 		const dex = new Dex();
-		await dex.writeTo(storage);
+		await dex.toStorage(storage);
 
 		const keg = new Keg(kegFile, dex, KegStorage.fromStorage(storage));
 		await pipe(
