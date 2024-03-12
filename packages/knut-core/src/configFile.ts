@@ -103,7 +103,7 @@ export class KnutConfigFile {
 				return ok;
 			}
 			case 'json': {
-				const ok = await storage.write('config.yaml', this.toYAML());
+				const ok = await storage.write('config.json', this.toYAML());
 				return ok;
 			}
 
