@@ -1,124 +1,75 @@
-import { Reader } from 'fp-ts/lib/Reader.js';
-import { pipe, flow } from 'fp-ts/lib/function.js';
-import { Command, Option } from 'commander';
-import { future } from '@jlrickert/knutjs-core/internal/future';
-import { Backend } from '../backend.js';
-import { Keg } from '@jlrickert/knutjs-core/keg';
-import { optionalT } from '@jlrickert/knutjs-core/internal/optionalT';
-import { KnutConfigFile } from '@jlrickert/knutjs-core/configFile';
-import { KnutCommand } from '../knut.js';
+import { pipe } from 'fp-ts/lib/function.js';
+import { Option } from 'commander';
 import { terminal } from '../terminal.js';
-import { Cmd, command } from '../command.js';
+import { cmd } from '../command.js';
+import { Knut } from '@jlrickert/knutjs-core/knut';
+import { optional } from '@jlrickert/knutjs-core/internal/optional';
 
-type Action<T> = Reader<Backend, T>;
-
-// const directory: Action<string> = reader.map flow(() => {
-// 	return 'x';
-// });
-
-// const directoryCli = (backend: Backend) => cmdM.Cmd<string>();
-
-const aliasOption = new Option('-k, --keg <keg>', 'Keg alias')
+const kegOption = new Option('-k, --keg <keg>', 'Keg alias')
 	.makeOptionMandatory(true)
 	.env('KEG_CURRENT');
 
-const edit = (args: {}, options: any) => (backend: Backend) => {};
-
-const editCli = (backend: Backend) => {
-	return new Command('edit');
-};
-
-const directory = (args: {}, options: any) => (backend: Backend) => {
-	terminal.fmtLn('some directory')(backend.terminal);
-};
-
-const directoryCli = (backend: Backend) =>
-	new Command('dir')
-		.addOption(aliasOption)
-		.action((args, options) => directory(args, options)(backend));
-
-const init =
-	(uri: string, options: { keg: string; enabled: boolean }) =>
-	async (backend: Backend) => {
-		terminal.fmtLn(uri)(backend.terminal);
-		const T = optionalT(future.Monad);
-		terminal.fmtLn('test message')(backend.terminal);
-		await pipe(
-			backend.loader(uri),
-			T.chain(Keg.init),
-			T.chain(() => {
-				return pipe(
-					KnutConfigFile.fromStorage(backend.variable),
-					T.alt(() =>
-						T.some(KnutConfigFile.create(backend.variable.root)),
-					),
-				);
-			}),
-			T.map((config) => {
-				config.data.kegs.push({
-					enabled: true,
-					url: uri,
-					alias: options.keg,
-				});
-				terminal.fmtLn('rawr')(backend.terminal);
-				return config;
-			}),
-		);
+const edit = cmd.action<number, { keg: string; enabled: boolean }>(
+	(args, opts, parent) => async (ctx) => {
 		return;
-	};
-
-// export const initCli: Cmd = (backend: Backend) =>
-// 	KnutCommand('init')
-// 		.argument('<uri>', 'uri to where the keg is')
-// 		.passThroughOptions(false)
-// 		.enablePositionalOptions(true)
-// 		.addOption(aliasOption)
-// 		.option('-e, --enabled', 'Should the keg be enabled', true)
-// 		.action(async (uri, opts) => {
-// 			console.log(uri);
-// 			return await init(uri, opts)(backend);
-// 		});
-
-const initCli: Cmd = pipe(
-	command.context,
-	command.map(() => KnutCommand('init')),
-	command.map((c) => c.argument('<uri>', 'uri to where the keg is')),
-	command.map((c) => c.passThroughOptions(false)),
-	command.map((c) => c.enablePositionalOptions(true)),
-	command.map((c) => c.addOption(aliasOption)),
-	command.map((c) =>
-		c.option('-e, --enabled', 'Should the keg be enabled', true),
-	),
-	command.chain(
-		(c) => (backend) =>
-			c.action(async (uri, opts) => {
-				return await init(uri, opts)(backend);
-			}),
-	),
+	},
 );
 
-export const kegCli: Cmd = pipe(
-	command.context,
-	command.map(() => KnutCommand('keg')),
-	command.chain((c) => (backend) => c.addCommand(initCli(backend))),
-	command.chain((c) => (backend) => c.addCommand(editCli(backend))),
-	command.chain((c) => (backend) => c.addCommand(directoryCli(backend))),
+const editCli = pipe(
+	cmd.make('edit'),
+	cmd.addOption(kegOption),
+	cmd.addAction(edit),
 );
 
-// export const kegCli = (backend: Backend) =>
-// 	cmdM.Cmd<string, { alias: string }>(
-// 		'keg',
-// 		async (args, { alias }) => {},
-// 		async (c) => {
-// 			c.addOption(aliasOption);
-// 			c.option('-a, --alias', 'Alias ');
-// 			c.addCommand(backend);
-// 		},
-// 	);
-// const directoryCli = new Command('directory').action(
-// 	(options, parent: Command) => {
-// 		console.log({ message: 'ok', options, parent: parent });
-// 	},
-// );
-// return new Command('keg').addCommand(directoryCli);
-// };
+const directory = cmd.action<void, { keg: string }>(
+	(_, { keg: alias }) =>
+		async (ctx) => {
+			const knut = await Knut.fromBackend(ctx);
+			const keg = knut.getKeg(alias);
+			if (optional.isNone(keg)) {
+				await terminal.fmt(`${alias} is not a valid keg`)(ctx.terminal);
+				return;
+			}
+			await terminal.fmtLn(keg.storage.root)(ctx.terminal);
+		},
+);
+
+const directoryCli = pipe(
+	cmd.make('directory'),
+	cmd.alias('dir'),
+	cmd.alias('d'),
+	cmd.passThroughOptions(false),
+	cmd.enablePositionalOptions(true),
+	cmd.addOption(kegOption),
+	cmd.addAction(directory),
+);
+
+const init = cmd.action<string, { keg: string; enabled: boolean }>(
+	(uri, options) => async (ctx) => {
+		await terminal.fmtLn(uri)(ctx.terminal);
+		const knut = await Knut.fromBackend(ctx);
+		const keg = await knut.initKeg(options.keg, uri);
+		if (optional.isSome(keg)) {
+			terminal.fmtLn(`keg "${keg}" created`)(ctx.terminal);
+		}
+		return;
+	},
+);
+
+const initCli = pipe(
+	cmd.make('init'),
+	cmd.argument('<uri>', 'uri to where the keg is'),
+	cmd.passThroughOptions(false),
+	cmd.enablePositionalOptions(true),
+	cmd.addOption(kegOption),
+	cmd.option('-e, --enabled', 'Should the keg be enabled', true),
+	cmd.addAction(init),
+);
+
+export const kegCli = pipe(
+	cmd.make('keg'),
+	cmd.enablePositionalOptions(true),
+	cmd.addCommand(directoryCli),
+	cmd.addCommand(initCli),
+	cmd.addCommand(editCli),
+);

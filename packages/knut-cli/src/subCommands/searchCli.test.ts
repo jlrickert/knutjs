@@ -7,21 +7,18 @@ import { rootCli } from '../root.js';
 describe('searchCli', () => {
 	it('should be able to search with a basic query', async () => {
 		const [output, input] = terminal.pipe();
-		const backend = cliBackend({
-			...(await testUtils.testNodeBackend()),
-			input,
-			output,
-		});
+		const ctx = cliBackend(
+			await testUtils.testNodeBackend(),
+			terminal.make({
+				input,
+				output,
+			}),
+		);
 
-		await rootCli(backend).parseAsync([
-			'node',
-			'knut',
-			'search',
-			'-r',
-			'home',
-		]);
+		const c = await rootCli(ctx);
+		await c.parseAsync(['node', 'knut', 'search', '-r', 'home']);
 
-		const data = terminal.readAll(output);
+		const data = terminal.readAll(ctx.terminal);
 
 		expect(JSON.parse(await data)).toHaveLength(10);
 		expect(JSON.parse(await data)[0]).toStrictEqual(
@@ -33,23 +30,18 @@ describe('searchCli', () => {
 
 	it('should be able to search with a basic query with a set limit if queries', async () => {
 		const [output, input] = terminal.pipe();
-		const backend = cliBackend({
-			...(await testUtils.testNodeBackend()),
-			input,
-			output,
-		});
+		const ctx = cliBackend(
+			await testUtils.testNodeBackend(),
+			terminal.make({
+				input,
+				output,
+			}),
+		);
 
-		await rootCli(backend).parseAsync([
-			'node',
-			'knut',
-			'search',
-			'-r',
-			'-l',
-			'5',
-			'home',
-		]);
+		const c = await rootCli(ctx);
+		await c.parseAsync(['node', 'knut', 'search', '-r', '-l', '5', 'home']);
 
-		const data = terminal.readAll(output);
+		const data = terminal.readAll(ctx.terminal);
 
 		expect(JSON.parse(await data)).toHaveLength(5);
 		expect(JSON.parse(await data)[0]).toStrictEqual(

@@ -8,6 +8,8 @@ export type Terminal = {
 	output: Readable;
 };
 
+const make = (terminal: Terminal) => terminal;
+
 const _pipe: () => [Readable, Writable] = () => {
 	const buffer: Buffer[] = [];
 	const reader = new Readable({
@@ -30,18 +32,23 @@ const _pipe: () => [Readable, Writable] = () => {
 const fmt: (
 	message: any,
 	...params: any[]
-) => (terminal: Terminal) => Future<boolean> =
+) => (term: Terminal) => Future<boolean> =
 	(message, params) =>
 	async ({ input }) => {
 		const chunk = params ? format(message, params) : format(message);
-		return input.write(chunk);
+		// slice removes the added \n
+		return input.write(chunk.slice(0, -1));
 	};
 
 const fmtLn: (
 	message: any,
 	...params: any[]
-) => (terminal: Terminal) => Future<boolean> = (message, params) =>
-	fmt(message, ...(params ? params : ['\n']));
+) => (term: Terminal) => Future<boolean> = (message, params) => {
+	if (optional.isSome(params)) {
+		fmt(`${message}\n`);
+	}
+	return fmt(`${message}\n`, params);
+};
 
 const input: (terminal: Terminal) => Future<string> = async ({ input }) => {
 	return new Promise((resolve) => {
@@ -55,9 +62,9 @@ const input: (terminal: Terminal) => Future<string> = async ({ input }) => {
 	});
 };
 
-const readAll: (r: Readable) => Future<string> = async (r) => {
+const readAll: (term: Terminal) => Future<string> = async (term) => {
 	return new Promise((resolve) => {
-		const data = r.read();
+		const data = term.output.read();
 		if (data === null) {
 			resolve('');
 		}
@@ -72,6 +79,7 @@ const readAll: (r: Readable) => Future<string> = async (r) => {
 };
 
 export const terminal = {
+	make,
 	pipe: _pipe,
 	readAll,
 	input,
