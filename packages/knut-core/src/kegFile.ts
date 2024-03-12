@@ -1,7 +1,6 @@
 import * as YAML from 'yaml';
 import { MY_JSON, currentDate, stringify } from './utils.js';
 import { NodeId } from './node.js';
-import { KegStorage } from './kegStorage.js';
 import { Future } from './internal/future.js';
 import { Optional, optional } from './internal/optional.js';
 import { pipe } from 'fp-ts/lib/function.js';
@@ -89,7 +88,7 @@ export class KegFile {
 		return entries;
 	}
 
-	async writeTo(storage: KegStorage): Future<boolean> {
+	async writeTo(storage: GenericStorage): Future<boolean> {
 		return await storage.write('keg', stringify(this));
 	}
 

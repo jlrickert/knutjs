@@ -1,3 +1,4 @@
+import { pipe } from 'fp-ts/lib/function.js';
 import Fuse, { FuseIndex, FuseOptionKey, FuseSearchOptions } from 'fuse.js';
 import { KnutConfigFile } from './configFile.js';
 import { Filter } from './filterTypes.js';
@@ -9,7 +10,6 @@ import { KegStorage } from './kegStorage.js';
 import invariant from 'tiny-invariant';
 import { Future, future } from './internal/future.js';
 import { Optional, optional } from './internal/optional.js';
-import { pipe } from 'fp-ts/lib/function.js';
 import { optionalT } from './internal/optionalT.js';
 import { Backend, backend as backendM } from './backend.js';
 import { GenericStorage } from './storage/storage.js';
@@ -87,14 +87,10 @@ export class Knut {
 	private kegMap = new Map<string, Keg>();
 
 	static async fromBackend(backend: Backend): Future<Knut> {
-		const T = optionalT(future.Monad);
 		const load = async (storage: GenericStorage) => {
-			const config = await pipe(
-				KnutConfigFile.fromStorage(storage),
-				T.getOrElse(() =>
-					pipe(storage.root, KnutConfigFile.create, future.of),
-				),
-			);
+			const config =
+				(await KnutConfigFile.fromStorage(storage)) ??
+				KnutConfigFile.create(storage.root);
 			return config;
 		};
 		const varConfig = await load(backend.variable);
@@ -134,7 +130,7 @@ export class Knut {
 		for (const keg of config.resolve().data.kegs) {
 			const storage = await this.backend.loader(keg.url);
 			if (optional.isSome(storage)) {
-				await this.loadKeg(keg.alias, KegStorage.fromStorage(storage));
+				await this.loadKeg(keg.alias, storage);
 			}
 		}
 		return future.of<void>(void {});
@@ -149,6 +145,43 @@ export class Knut {
 			return;
 		}
 		this.kegMap.set(kegalias, keg);
+	}
+
+	async initKeg(
+		alias: string,
+		uri: string,
+		options?: { enabled: boolean },
+	): Future<Optional<Keg>> {
+		const T = optionalT(future.Monad);
+
+		const keg = await pipe(this.backend.loader(uri), T.chain(Keg.init));
+
+		if (optional.isNone(keg)) {
+			return optional.none;
+		}
+
+		this.kegMap.set(alias, keg);
+
+		// Update variable configuration to include the new keg
+		await pipe(
+			KnutConfigFile.fromStorage(this.backend.variable),
+			T.alt(() =>
+				T.some(KnutConfigFile.create(this.backend.variable.root)),
+			),
+			T.map((config) => {
+				config.data.kegs.push({
+					enabled: options?.enabled ?? true,
+					url: keg.storage.root,
+					alias,
+				});
+				return config;
+			}),
+			T.chain((config) => {
+				return config.writeTo(this.backend.variable);
+			}),
+		);
+
+		return keg;
 	}
 
 	getKeg(kegalias: string): Optional<Keg> {

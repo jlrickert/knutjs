@@ -1,7 +1,8 @@
 import { KegNode, NodeId } from './node.js';
-import { KegStorage } from './kegStorage.js';
 import { Optional, optional } from './internal/optional.js';
 import { Future } from './internal/future.js';
+import { stringify } from './utils.js';
+import { GenericStorage } from './storage/storage.js';
 
 export type DexEntry = {
 	nodeId: NodeId;
@@ -16,7 +17,7 @@ export type DexEntry = {
 export class Dex {
 	private entryList: DexEntry[] = [];
 
-	static async fromStorage(storage: KegStorage): Future<Optional<Dex>> {
+	static async fromStorage(storage: GenericStorage): Future<Optional<Dex>> {
 		const content = await storage.read('dex/nodes.tsv');
 		if (optional.isNone(content)) {
 			return content;
@@ -36,6 +37,16 @@ export class Dex {
 			}
 		}
 		return dex;
+	}
+
+	async writeTo(storage: GenericStorage): Future<boolean> {
+		const data = this.entries
+			.map(({ nodeId, updated, title }) =>
+				[nodeId, updated, title].map(stringify).join('\t'),
+			)
+			.join('\n');
+		const ok = await storage.write('dex/nodes.tsv', data);
+		return ok;
 	}
 
 	public constructor() {}

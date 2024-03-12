@@ -1,9 +1,12 @@
 # yaml-language-server: $schema=../../../knutSchema.json
 format: yaml
 kegs:
-  - url: ../../samplekeg1
+  - enabled: true
+    url: ../../samplekeg1
     alias: sample1
-  - url: ../../samplekeg2
+  - enabled: true
+    url: ../../samplekeg2
     alias: sample2
-  - url: ../../samplekeg3
+  - enabled: true
+    url: ../../samplekeg3
     alias: sample3

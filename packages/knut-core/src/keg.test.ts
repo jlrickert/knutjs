@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import invariant from 'tiny-invariant';
 import { testUtils } from './internal/testUtils.js';
+import { optional } from './internal/optional.js';
 import { Keg } from './keg.js';
 import { stringify } from './utils.js';
-import invariant from 'tiny-invariant';
-import { optional } from './internal/optional.js';
 import { KegNode, NodeId } from './node.js';
 
 describe('keg', async () => {

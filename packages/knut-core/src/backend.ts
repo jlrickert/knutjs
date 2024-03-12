@@ -55,7 +55,7 @@ export const nodeBackend: () => Future<Optional<Backend>> = async () => {
 		const kegStorage = KegStorage.fromStorage(storage);
 		return kegStorage;
 	};
-	const platform = pipe(
+	const backend = pipe(
 		sequenceS(optional.Monad)({ cache, config, variable }),
 		optional.map(
 			({ variable, config, cache }): Backend => ({
@@ -66,7 +66,7 @@ export const nodeBackend: () => Future<Optional<Backend>> = async () => {
 			}),
 		),
 	);
-	return platform;
+	return backend;
 };
 
 export const browserBackend: () => Future<Backend> = async () => {

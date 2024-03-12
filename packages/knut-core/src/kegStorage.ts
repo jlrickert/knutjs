@@ -22,6 +22,15 @@ export const loadKegStorage = (url: string) => {
 };
 
 export class KegStorage extends GenericStorage {
+	static async kegExists(storage: GenericStorage): Future<boolean> {
+		const items = await storage.readdir('');
+		return (
+			optional.isSome(items) &&
+			items.includes('dex') &&
+			items.includes('keg')
+		);
+	}
+
 	static fromStorage(storage: GenericStorage): KegStorage {
 		return new KegStorage(storage);
 	}
