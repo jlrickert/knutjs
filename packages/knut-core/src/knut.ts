@@ -262,7 +262,7 @@ export class Knut {
 						optional.getOrElse(() => null),
 					),
 					tags: [...tags],
-					updated: node?.updated ?? '',
+					updated: stringify(node.updated),
 					meta: node?.meta.export() ?? null,
 				});
 			}

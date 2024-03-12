@@ -1,11 +1,12 @@
 import { EventEmitter } from 'events';
+import { pipe } from 'fp-ts/lib/function.js';
 import { MetaFile as MetaFile, Tag } from './metaFile.js';
 import { stringify } from './utils.js';
 import { NodeContent } from './nodeContent.js';
 import { KegStorage } from './kegStorage.js';
 import { GenericStorage } from './storage/storage.js';
 import { Future } from './internal/future.js';
-import { Optional } from './internal/optional.js';
+import { Optional, optional } from './internal/optional.js';
 
 export class NodeId {
 	static parsePath(path: string): Optional<NodeId> {
@@ -66,7 +67,7 @@ export type NodeData = {
 
 export type NodeOptions = {
 	content: string;
-	updated: string;
+	updated?: Date;
 	meta?: MetaFile;
 };
 
@@ -122,7 +123,11 @@ export class KegNode extends EventEmitter {
 		return new KegNode({
 			content,
 			meta: options.meta ?? new MetaFile(),
-			updated: options.updated,
+			updated: pipe(
+				options.updated,
+				optional.getOrElse(() => new Date()),
+				stringify,
+			),
 		});
 	}
 
@@ -159,13 +164,17 @@ This is a filler until I can provide someone better for the link that brought yo
 		return this.data.meta;
 	}
 
-	get updated(): string {
-		return this.data.updated;
+	get updated(): Date {
+		return new Date(this.data.updated);
 	}
 
-	async updateContent(content: string): Future<void> {
+	set updated(date: Date) {
+		this.data.updated = stringify(date);
+	}
+
+	async updateContent(content: string, now?: Date): Future<void> {
 		this.data.content = await NodeContent.fromMarkdown(content);
-		this.data.updated = stringify(new Date());
+		this.data.updated = stringify(now ?? new Date());
 	}
 
 	async toStorage(nodeId: NodeId, storage: GenericStorage): Future<boolean> {
