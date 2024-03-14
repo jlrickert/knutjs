@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { pipe } from 'fp-ts/lib/function.js';
-import { MetaFile as MetaFile, Tag } from './metaFile.js';
+import { MetaFile, Tag } from './metaFile.js';
 import { stringify } from './utils.js';
 import { NodeContent } from './nodeContent.js';
 import { GenericStorage } from './storage/storage.js';
@@ -60,7 +60,7 @@ export class NodeId {
 
 export type NodeData = {
 	content: NodeContent;
-	updated: string;
+	updated: Date;
 	meta: MetaFile;
 };
 
@@ -86,21 +86,21 @@ export class KegNode extends EventEmitter {
 		const nodePath = NodeContent.filePath(nodeId);
 		const metaPath = MetaFile.filePath(nodeId);
 		const rawContent = await storage.read(nodePath);
-		if (!rawContent) {
-			return null;
+		if (optional.isNone(rawContent)) {
+			return optional.none;
 		}
 		const yamlData = await storage.read(metaPath);
 		const metaData = yamlData
 			? MetaFile.fromYAML(yamlData)
 			: new MetaFile();
 		const stats = await storage.stats(nodePath);
-		if (!rawContent && !stats) {
-			return null;
+		if (optional.isNone(rawContent) && optional.isNone(stats)) {
+			return optional.none;
 		}
 		const content = await NodeContent.fromMarkdown(rawContent);
 		const node = new KegNode({
 			content,
-			updated: stringify(stats?.mtime ?? new Date(0)),
+			updated: stats?.mtime ? new Date(stats.mtime) : new Date(),
 			meta: metaData,
 		});
 		return node;
@@ -125,7 +125,6 @@ export class KegNode extends EventEmitter {
 			updated: pipe(
 				options.updated,
 				optional.getOrElse(() => new Date()),
-				stringify,
 			),
 		});
 	}
@@ -140,7 +139,7 @@ This is a filler until I can provide someone better for the link that brought yo
 		);
 		const now = new Date();
 		const meta = new MetaFile();
-		return new KegNode({ content, meta, updated: stringify(now) });
+		return new KegNode({ content, meta, updated: now });
 	}
 
 	private constructor(private data: NodeData) {
@@ -164,23 +163,28 @@ This is a filler until I can provide someone better for the link that brought yo
 	}
 
 	get updated(): Date {
-		return new Date(this.data.updated);
+		return this.data.updated;
 	}
 
 	set updated(date: Date) {
-		this.data.updated = stringify(date);
+		this.data.updated = date;
 	}
 
 	async updateContent(content: string, now?: Date): Future<void> {
 		this.data.content = await NodeContent.fromMarkdown(content);
-		this.data.updated = stringify(now ?? new Date());
+		this.updated = now ?? new Date();
 	}
 
 	async toStorage(nodeId: NodeId, storage: GenericStorage): Future<boolean> {
-		return (
-			(await storage.write(nodeId.getReadmePath(), this.content)) &&
-			(await storage.write(nodeId.getMetaPath(), stringify(this.meta)))
-		);
+		const ok = [
+			await storage.write(nodeId.getReadmePath(), this.content),
+			await storage.utime(nodeId.getReadmePath(), {
+				mtime: this.updated,
+			}),
+			await storage.write(nodeId.getMetaPath(), stringify(this.meta)),
+		].reduce((a, b) => a || b, false);
+
+		return ok;
 	}
 
 	updateMeta(f: MetaFile | ((meta: MetaFile) => void)): void {

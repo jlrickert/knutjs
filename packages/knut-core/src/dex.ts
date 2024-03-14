@@ -1,3 +1,4 @@
+import { pipe } from 'fp-ts/lib/function.js';
 import { KegNode, NodeId } from './node.js';
 import { Optional, optional } from './internal/optional.js';
 import { Future } from './internal/future.js';
@@ -6,7 +7,7 @@ import { GenericStorage } from './storage/storage.js';
 
 export type DexEntry = {
 	nodeId: NodeId;
-	updated: string;
+	updated: Date;
 	title: string;
 	tags?: string[];
 };
@@ -30,9 +31,17 @@ export class Dex {
 				continue;
 			}
 			const [id, updated, title] = line.split('\t');
-			const nodeId = NodeId.parsePath(id);
-			if (nodeId) {
-				const entry: DexEntry = { title, updated, nodeId };
+			const entry = pipe(
+				NodeId.parsePath(id),
+				optional.map(
+					(nodeId): DexEntry => ({
+						title,
+						nodeId,
+						updated: new Date(updated),
+					}),
+				),
+			);
+			if (optional.isSome(entry)) {
 				dex.addEntry(entry);
 			}
 		}

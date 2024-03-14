@@ -1,5 +1,5 @@
 import { pipe } from 'fp-ts/lib/function.js';
-import { test, describe, expect } from 'vitest';
+import { test, describe, expect, afterEach } from 'vitest';
 import { NodeId } from './node.js';
 import { testUtils } from './internal/testUtils.js';
 import { optionalT } from './internal/optionalT.js';
@@ -11,6 +11,9 @@ import { NodeContent } from './nodeContent.js';
 
 for await (const { name, getBackend } of testUtils.backends) {
 	describe(`${name} backend - common programming patterns`, async () => {
+		afterEach(() => {
+			global.localStorage.clear();
+		});
 		test('should be able to load keg file details from sample keg', async () => {
 			const backend = await getBackend();
 			const knut = await Knut.fromBackend(backend);

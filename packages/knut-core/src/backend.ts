@@ -1,4 +1,3 @@
-import invariant from 'tiny-invariant';
 import { pipe } from 'fp-ts/lib/function.js';
 import { sequenceS } from 'fp-ts/lib/Apply.js';
 import { Optional, optional } from './internal/optional.js';
@@ -75,8 +74,7 @@ export const browserBackend: () => Future<Backend> = async () => {
 	const config = storage.child('config');
 	const loader: Loader = async (uri: string) => {
 		const storage = WebStorage.create('knut-kegs').child(uri);
-		const kegStorage = KegStorage.fromStorage(storage);
-		return kegStorage;
+		return storage;
 	};
 	return { loader, variable, config, cache };
 };
@@ -87,8 +85,8 @@ export const memoryBackend: () => Future<Backend> = async () => {
 	const variable = storage.child('variables');
 	const config = storage.child('config');
 	const loader: Loader = async (uri: string) => {
-		const kegStorage = KegStorage.fromStorage(storage.child(uri));
-		return kegStorage;
+		const store = storage.child(uri);
+		return store;
 	};
 	return { storage, cache, config, variable, loader };
 };
@@ -133,50 +131,10 @@ export const detectBackend: () => Future<Optional<Backend>> = async () => {
 	}
 };
 
-let globalPlatform = [await detectBackend()];
-
-export const getBackend = () => {
-	const plat = globalPlatform[globalPlatform.length - 1];
-	invariant(
-		optional.isSome(plat),
-		'Should detect a default platform in a production environment',
-	);
-	return plat;
-};
-
-export const setPlatform: (platform: Backend) => void = (platform) => {
-	globalPlatform.push(platform);
-};
-
-export const withPlatform: (
-	platform: Backend,
-) => <F extends (...params: unknown[]) => Future<unknown>>(f: F) => F =
-	(platform) =>
-	(f): any =>
-	async (...args: any[]) => {
-		globalPlatform.push(platform);
-		const output = await f(...args);
-		globalPlatform.pop();
-		return output;
-	};
-
 export const backend = {
 	nodeBackend,
 	browserBackend,
 	memoryBackend,
 	detectBackend,
 	apiBackend,
-
-	get cache() {
-		return getBackend().cache;
-	},
-	get variable() {
-		return getBackend().variable;
-	},
-	get config() {
-		return getBackend().config;
-	},
-
-	setPlatform,
-	withPlatform,
 };

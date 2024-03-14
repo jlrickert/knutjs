@@ -6,9 +6,11 @@ import { GenericStorage } from './storage/storage.js';
 import { KegFile } from './kegFile.js';
 import { Dex } from './dex.js';
 import { KegStorage } from './kegStorage.js';
-import { KegNode, NodeId } from './node.js';
+import { KegNode, NodeId, NodeOptions } from './node.js';
 import { collectAsync, stringify } from './utils.js';
 import { detectBackend } from './backend.js';
+
+const T = optionalT(future.Monad);
 
 export type CreateNodeOptions = {
 	content: string;
@@ -39,7 +41,6 @@ export class Keg {
 	}
 
 	static async create(storage: GenericStorage): Future<Optional<Keg>> {
-		const T = optionalT(future.Monad);
 		const keg = await pipe(
 			T.Do,
 			T.bind('kegFile', () => KegFile.fromStorage(storage)),
@@ -59,7 +60,6 @@ export class Keg {
 		if (await KegStorage.kegExists(storage)) {
 			return optional.none;
 		}
-		const T = optionalT(future.Monad);
 		const kegFile = KegFile.default();
 		await kegFile.toStorage(storage);
 
@@ -93,19 +93,14 @@ export class Keg {
 	}
 
 	async createNode(): Future<Optional<NodeId>> {
-		const T = optionalT(future.Monad);
 		const nodeId = await pipe(
 			this.last(),
 			T.map((a) => a.next()),
-			T.getOrElse(() => future.of(new NodeId(0))),
+			T.alt(() => future.of(new NodeId(0))),
 			T.chain(async (nodeId) => {
-				return pipe(
-					this.storage.stats(stringify(nodeId)),
-					T.match(
-						() => optional.some(nodeId),
-						() => optional.none,
-					),
-				);
+				const node = await KegNode.fromContent({ content: '' });
+				await this.writeNode(nodeId, node);
+				return nodeId;
 			}),
 		);
 
@@ -118,7 +113,29 @@ export class Keg {
 	}
 
 	async writeNode(nodeId: NodeId, node: KegNode): Future<boolean> {
-		return node.toStorage(nodeId, this.storage);
+		const ok = await node.toStorage(nodeId, this.storage);
+		return ok;
+	}
+
+	async writeNodeContent(
+		nodeId: NodeId,
+		{ content, updated, meta }: Partial<NodeOptions>,
+	): Future<boolean> {
+		const node = await this.getNode(nodeId);
+		if (optional.isNone(node)) {
+			return false;
+		}
+
+		if (optional.isSome(content)) {
+			await node.updateContent(content);
+		}
+		if (optional.isSome(meta)) {
+			node.updateMeta(meta);
+		}
+		if (optional.isSome(updated)) {
+			node.updated = updated;
+		}
+		return await node.toStorage(nodeId, this.storage);
 	}
 
 	async deleteNode(nodeId: NodeId): Future<boolean> {
