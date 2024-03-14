@@ -3,7 +3,6 @@ import { pipe } from 'fp-ts/lib/function.js';
 import { MetaFile as MetaFile, Tag } from './metaFile.js';
 import { stringify } from './utils.js';
 import { NodeContent } from './nodeContent.js';
-import { KegStorage } from './kegStorage.js';
 import { GenericStorage } from './storage/storage.js';
 import { Future } from './internal/future.js';
 import { Optional, optional } from './internal/optional.js';
@@ -82,7 +81,7 @@ export class KegNode extends EventEmitter {
 
 	static async fromStorage(
 		nodeId: NodeId,
-		storage: KegStorage,
+		storage: GenericStorage,
 	): Future<Optional<KegNode>> {
 		const nodePath = NodeContent.filePath(nodeId);
 		const metaPath = MetaFile.filePath(nodeId);

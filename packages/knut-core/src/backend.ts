@@ -16,7 +16,7 @@ import { MemoryStorage } from './storage/memoryStorage.js';
 import { ApiStorage } from './storage/apiStorage.js';
 import { KegStorage } from './kegStorage.js';
 
-export type Loader = (uri: string) => Future<Optional<KegStorage>>;
+export type Loader = (uri: string) => Future<Optional<GenericStorage>>;
 
 /**
  * Environment that knut is running in.
@@ -52,8 +52,7 @@ export const nodeBackend: () => Future<Optional<Backend>> = async () => {
 	const config = new NodeStorage(await getUserConfigDir()).child('knut');
 	const loader: Loader = async (uri) => {
 		const storage = new NodeStorage(uri);
-		const kegStorage = KegStorage.fromStorage(storage);
-		return kegStorage;
+		return storage;
 	};
 	const backend = pipe(
 		sequenceS(optional.Monad)({ cache, config, variable }),

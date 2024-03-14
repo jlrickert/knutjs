@@ -6,7 +6,6 @@ import { MetaFile, MetaData } from './metaFile.js';
 import { NodeId } from './node.js';
 import { MY_JSON, stringify } from './utils.js';
 import { Keg } from './keg.js';
-import { KegStorage } from './kegStorage.js';
 import invariant from 'tiny-invariant';
 import { Future, future } from './internal/future.js';
 import { Optional, optional } from './internal/optional.js';
@@ -139,7 +138,7 @@ export class Knut {
 	/**
 	 * Loads required data for a keg
 	 */
-	async loadKeg(kegalias: string, storage: KegStorage): Future<void> {
+	async loadKeg(kegalias: string, storage: GenericStorage): Future<void> {
 		const keg = await Keg.fromStorage(storage);
 		if (optional.isNone(keg)) {
 			return;

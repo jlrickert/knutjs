@@ -88,7 +88,7 @@ export class KegFile {
 		return entries;
 	}
 
-	async writeTo(storage: GenericStorage): Future<boolean> {
+	async toStorage(storage: GenericStorage): Future<boolean> {
 		return await storage.write('keg', stringify(this));
 	}
 

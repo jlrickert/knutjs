@@ -1,7 +1,6 @@
 import * as Path from 'path';
 import invariant from 'tiny-invariant';
 import { mkdtemp, rm } from 'fs/promises';
-import { pipe } from 'fp-ts/lib/function.js';
 import { tmpdir } from 'os';
 import { afterEach } from 'vitest';
 import { optional } from './optional.js';
@@ -9,7 +8,6 @@ import { Future } from './future.js';
 import { overwrite } from '../storage/storageUtils.js';
 import { GenericStorage } from '../storage/storage.js';
 import { NodeStorage } from '../storage/nodeStorage.js';
-import { KegStorage } from '../kegStorage.js';
 import { Loader, Backend } from '../backend.js';
 import { WebStorage } from '../storage/webStorage.js';
 
@@ -69,8 +67,7 @@ const testBrowserBackend: () => Future<Backend> = async () => {
 
 	const loader: Loader = async (uri: string) => {
 		const storage = WebStorage.create('knut-kegs').child(uri);
-		const kegStorage = KegStorage.fromStorage(storage);
-		return kegStorage;
+		return storage;
 	};
 	const backend = {
 		config,
@@ -107,7 +104,7 @@ const testEmptyNodeBackend: () => Future<Backend> = async () => {
 	const variable = root.child('local/share/knut');
 
 	const loader: Loader = async (uri) => {
-		return pipe(root.child(uri), KegStorage.fromStorage);
+		return root.child(uri);
 	};
 
 	return {
@@ -130,7 +127,7 @@ const testNodeBackend: () => Future<Backend> = async () => {
 	await overwrite(fixtureStorage, root);
 
 	const loader: Loader = async (uri) => {
-		return pipe(root.child(uri), KegStorage.fromStorage);
+		return root.child(uri);
 	};
 
 	return {
