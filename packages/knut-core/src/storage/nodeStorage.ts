@@ -103,10 +103,8 @@ export class NodeStorage extends GenericStorage {
 		const fullpath = this.getFullPath(path);
 		try {
 			const s = await FS.stat(fullpath);
-			const atime =
-				stats.atime !== undefined ? stringify(stats.atime) : s.atime;
-			const mtime =
-				stats.mtime !== undefined ? stringify(stats.mtime) : s.mtime;
+			const atime = stats.atime !== undefined ? stats.atime : s.atime;
+			const mtime = stats.mtime !== undefined ? stats.mtime : s.mtime;
 			await FS.utimes(fullpath, atime, mtime);
 			return true;
 		} catch (e) {

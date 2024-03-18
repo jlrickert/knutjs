@@ -1,16 +1,14 @@
 import * as Path from 'path';
 import invariant from 'tiny-invariant';
 import { mkdtemp, rm } from 'fs/promises';
-import { pipe } from 'fp-ts/lib/function.js';
 import { tmpdir } from 'os';
 import { afterEach } from 'vitest';
 import { optional } from './optional.js';
 import { Future } from './future.js';
+import { Loader, Backend } from '../backend.js';
 import { overwrite } from '../storage/storageUtils.js';
 import { GenericStorage } from '../storage/storage.js';
 import { NodeStorage } from '../storage/nodeStorage.js';
-import { KegStorage } from '../kegStorage.js';
-import { Loader, Backend } from '../backend.js';
 import { WebStorage } from '../storage/webStorage.js';
 
 export type Kegpath = 'samplekeg1' | 'samplekeg2' | 'samplekeg3';
@@ -52,7 +50,7 @@ const tempNodeStorage: () => Future<GenericStorage> = async () => {
 	return storage;
 };
 
-const testBrowserBackend: () => Future<Backend> = async () => {
+const testBrowserBackend = async (): Future<Backend> => {
 	const fixture = fixtureStorage;
 
 	const storage = WebStorage.create('knut');
@@ -67,11 +65,12 @@ const testBrowserBackend: () => Future<Backend> = async () => {
 	// resolves to the correct location
 	const config = storage.child('config/knut');
 
+	const kegStorage = WebStorage.create('knut-kegs');
 	const loader: Loader = async (uri: string) => {
-		const storage = WebStorage.create('knut-kegs').child(uri);
-		const kegStorage = KegStorage.fromStorage(storage);
-		return kegStorage;
+		const storage = kegStorage.child(uri);
+		return storage;
 	};
+
 	const backend = {
 		config,
 		variable,
@@ -99,7 +98,7 @@ const testBrowserBackend: () => Future<Backend> = async () => {
 	return backend;
 };
 
-const testEmptyNodeBackend: () => Future<Backend> = async () => {
+const testEmptyNodeBackend = async (): Future<Backend> => {
 	const root = await tempNodeStorage();
 
 	const cache = root.child('cache/knut');
@@ -107,7 +106,7 @@ const testEmptyNodeBackend: () => Future<Backend> = async () => {
 	const variable = root.child('local/share/knut');
 
 	const loader: Loader = async (uri) => {
-		return pipe(root.child(uri), KegStorage.fromStorage);
+		return root.child(uri);
 	};
 
 	return {
@@ -121,7 +120,7 @@ const testEmptyNodeBackend: () => Future<Backend> = async () => {
 /**
  * Returns a platform with full fixtures
  **/
-const testNodeBackend: () => Future<Backend> = async () => {
+const testNodeBackend = async (): Future<Backend> => {
 	const root = await tempNodeStorage();
 
 	const cache = root.child('cache/knut');
@@ -130,7 +129,7 @@ const testNodeBackend: () => Future<Backend> = async () => {
 	await overwrite(fixtureStorage, root);
 
 	const loader: Loader = async (uri) => {
-		return pipe(root.child(uri), KegStorage.fromStorage);
+		return root.child(uri);
 	};
 
 	return {

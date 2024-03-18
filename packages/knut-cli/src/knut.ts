@@ -1,10 +1,9 @@
 import { Command, Option } from 'commander';
-import { version } from '../internal/packageJSON.cjs';
 
-export type KegPathOption = { kegpath?: string[] };
-export const kegpathOption = new Option(
-	'-kp, --kegpath <kegpath...>',
-	'Keg to use',
+export type KegAliasOption = { aliases?: string[] };
+export const kegaliasOption = new Option(
+	'-a, --alias <alias...>',
+	'Kegs to use',
 );
 
 export const parseKegPath = (value: string): string[] => {
@@ -32,16 +31,9 @@ export const rawOption = new Option(
 	'outputs minified json to be piped in jq',
 ).implies({ json: true });
 
-export const knutCli = new Command('knut')
-	.enablePositionalOptions(true)
-	.version(version);
-
 /**
  * Create a keg command. This add
  */
 export const KnutCommand = (name: string): Command => {
-	return new Command(name)
-		.passThroughOptions(true)
-		.addOption(configOption)
-		.addOption(kegpathOption);
+	return new Command(name).addOption(kegaliasOption).addOption(configOption);
 };

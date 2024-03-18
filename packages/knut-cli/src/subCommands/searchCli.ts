@@ -1,17 +1,9 @@
-import { Command } from 'commander';
+import { pipe } from 'fp-ts/lib/function.js';
 import { Knut, SearchStrategy } from '@jlrickert/knutjs-core/knut';
-import {
-	JSONOption,
-	KegPathOption,
-	KnutCommand,
-	RawOption,
-	YAMLOption,
-	jsonOption,
-	rawOption,
-	yamlOption,
-} from './knutCli.js';
+import { jsonOption, rawOption, yamlOption } from '../knut.js';
 import { terminal } from '../terminal.js';
 import { Backend } from '../backend.js';
+import { Action, Cmd, cmd } from '../command.js';
 
 type SearchOptions = {
 	pager?: boolean;
@@ -24,11 +16,11 @@ type SearchOptions = {
 	limit?: number;
 };
 
-export const search =
-	(query: string, options: SearchOptions) => async (backend: Backend) => {
-		const knut = await Knut.fromBackend(backend);
+export const search: Backend<Action<string, SearchOptions>> = cmd.action(
+	(query, options) => async (ctx) => {
+		const knut = await Knut.fromBackend(ctx);
 		const results = await knut.search({
-			limit: options.limit,
+			limit: options.limit ?? 10,
 			filter: {
 				$text: { $search: query },
 				content: { $query: query },
@@ -41,35 +33,18 @@ export const search =
 		});
 
 		terminal.fmtLn(options.raw ? JSON.stringify(results) : results)(
-			backend.terminal,
+			ctx.terminal,
 		);
-	};
+	},
+);
 
-export const searchCli = (backend: Backend) =>
-	KnutCommand('search')
-		.argument('[query]')
-		.option('-t, --tag <tag...>', 'comma separated list of tags')
-		.option('-l, --limit <limit>', 'limit of search results')
-		.addOption(jsonOption)
-		.addOption(rawOption)
-		.addOption(yamlOption)
-		.action(
-			async (
-				query: string,
-				options: YAMLOption &
-					JSONOption &
-					KegPathOption &
-					RawOption & { tag?: string[]; limit?: string },
-				command: Command,
-			) => {
-				await search(query ?? '', {
-					tags: options.tag,
-					json: options.json,
-					yaml: options.yaml,
-					pager: false,
-					kegpaths: options.kegpath ?? [],
-					raw: options.raw,
-					limit: options.limit ? parseInt(options.limit) : 10,
-				})(backend);
-			},
-		);
+export const searchCli: Cmd = pipe(
+	cmd.make('search'),
+	cmd.argument('[query]', 'Queary all kegs'),
+	cmd.option('-t, --tag <tag...>', 'comma separated list of tags'),
+	cmd.parseOption('-l, --limit <limit>', 'limit of search results', Number),
+	cmd.addOption(jsonOption),
+	cmd.addOption(rawOption),
+	cmd.addOption(yamlOption),
+	cmd.addAction(search),
+);

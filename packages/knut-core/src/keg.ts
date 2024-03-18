@@ -1,13 +1,16 @@
 import { pipe } from 'fp-ts/lib/function.js';
-import { Dex } from './dex.js';
 import { Optional, optional } from './internal/optional.js';
 import { Future, future } from './internal/future.js';
-import { KegFile } from './kegFile.js';
-import { KegStorage } from './kegStorage.js';
-import { KegNode, NodeId } from './node.js';
-import { collectAsync, stringify } from './utils.js';
 import { optionalT } from './internal/optionalT.js';
+import { GenericStorage } from './storage/storage.js';
+import { KegFile } from './kegFile.js';
+import { Dex } from './dex.js';
+import { KegStorage } from './kegStorage.js';
+import { KegNode, NodeId, NodeOptions } from './node.js';
+import { collectAsync, stringify } from './utils.js';
 import { detectBackend } from './backend.js';
+
+const T = optionalT(future.Monad);
 
 export type CreateNodeOptions = {
 	content: string;
@@ -27,46 +30,43 @@ export class Keg {
 		return Keg.fromStorage(storage);
 	}
 
-	static async fromStorage(storage: KegStorage): Future<Optional<Keg>> {
+	static async fromStorage(storage: GenericStorage): Future<Optional<Keg>> {
 		const kegFile = await KegFile.fromStorage(storage);
 		const dex = await Dex.fromStorage(storage);
 		if (!kegFile || !dex) {
 			return optional.none;
 		}
-		const keg = new Keg(kegFile, dex, storage);
+		const keg = new Keg(kegFile, dex, KegStorage.fromStorage(storage));
 		return keg;
 	}
 
-	static async create(storage: KegStorage): Future<Optional<Keg>> {
-		const T = optionalT(future.Monad);
+	static async create(storage: GenericStorage): Future<Optional<Keg>> {
 		const keg = await pipe(
 			T.Do,
 			T.bind('kegFile', () => KegFile.fromStorage(storage)),
 			T.bind('dex', () => Dex.fromStorage(storage)),
-			T.map(({ kegFile, dex }) => new Keg(kegFile, dex, storage)),
+			T.map(
+				({ kegFile, dex }) =>
+					new Keg(kegFile, dex, KegStorage.fromStorage(storage)),
+			),
 		);
 		return keg;
 	}
 
 	/**
-	 * create a new keg if it doesn't exist
+	 * Create a new keg if it doesn't exist
 	 **/
-	static async init(storage: KegStorage): Future<Optional<Keg>> {
-		const T = optionalT(future.Monad);
-		const kegFile = await pipe(
-			KegFile.fromStorage(storage),
-			T.alt(async () => {
-				const kegFile = KegFile.default();
-				await storage.write('keg', kegFile);
-				return kegFile;
-			}),
-		);
-		if (optional.isNone(kegFile)) {
+	static async init(storage: GenericStorage): Future<Optional<Keg>> {
+		if (await KegStorage.kegExists(storage)) {
 			return optional.none;
 		}
+		const kegFile = KegFile.default();
+		await kegFile.toStorage(storage);
 
-		const dex = (await Dex.fromStorage(storage)) ?? new Dex();
-		const keg = new Keg(kegFile, dex, storage);
+		const dex = new Dex();
+		await dex.toStorage(storage);
+
+		const keg = new Keg(kegFile, dex, KegStorage.fromStorage(storage));
 		await pipe(
 			keg.createNode(),
 			T.chain(async (nodeId) => {
@@ -93,19 +93,14 @@ export class Keg {
 	}
 
 	async createNode(): Future<Optional<NodeId>> {
-		const T = optionalT(future.Monad);
 		const nodeId = await pipe(
 			this.last(),
 			T.map((a) => a.next()),
-			T.getOrElse(() => future.of(new NodeId(0))),
+			T.alt(() => future.of(new NodeId(0))),
 			T.chain(async (nodeId) => {
-				return pipe(
-					this.storage.stats(stringify(nodeId)),
-					T.match(
-						() => optional.some(nodeId),
-						() => optional.none,
-					),
-				);
+				const node = await KegNode.fromContent({ content: '' });
+				await this.writeNode(nodeId, node);
+				return nodeId;
 			}),
 		);
 
@@ -118,7 +113,29 @@ export class Keg {
 	}
 
 	async writeNode(nodeId: NodeId, node: KegNode): Future<boolean> {
-		return node.toStorage(nodeId, this.storage);
+		const ok = await node.toStorage(nodeId, this.storage);
+		return ok;
+	}
+
+	async writeNodeContent(
+		nodeId: NodeId,
+		{ content, updated, meta }: Partial<NodeOptions>,
+	): Future<boolean> {
+		const node = await this.getNode(nodeId);
+		if (optional.isNone(node)) {
+			return false;
+		}
+
+		if (optional.isSome(content)) {
+			await node.updateContent(content);
+		}
+		if (optional.isSome(meta)) {
+			node.updateMeta(meta);
+		}
+		if (optional.isSome(updated)) {
+			node.updated = updated;
+		}
+		return await node.toStorage(nodeId, this.storage);
 	}
 
 	async deleteNode(nodeId: NodeId): Future<boolean> {

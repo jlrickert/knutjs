@@ -8,12 +8,17 @@
 		"version": {
 			"type": "string",
 			"description": "knut config file version",
-			"enum": ["draft-0.1"]
+			"enum": [
+				"draft-0.1"
+			]
 		},
 		"format": {
 			"type": "string",
 			"description": "prefered format to use",
-			"enum": ["yaml", "json"]
+			"enum": [
+				"yaml",
+				"json"
+			]
 		},
 		"kegs": {
 			"type": "array",
@@ -21,6 +26,10 @@
 			"items": {
 				"type": "object",
 				"properties": {
+					"enabled": {
+						"description": "If is to be included in operations",
+						"type": "boolean"
+					},
 					"alias": {
 						"description": "Shorthand alias to reference the keg",
 						"type": "string"

@@ -1,4 +1,4 @@
-import { KnutCommand } from './knutCli.js';
+import { KnutCommand } from '../knut.js';
 
 export const configCli = KnutCommand('config').option(
 	'--setKeg <kegalias> <key> <value>',

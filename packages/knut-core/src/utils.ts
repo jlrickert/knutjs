@@ -90,7 +90,7 @@ export const stringify = (value: number | Date | Stringer): string => {
 	return absurd(value);
 };
 
-export const deepCopy = <T extends undefined | Date | MY_JSON>(obj: T): T => {
+export const deepCopy = <T>(obj: T): T => {
 	// Handle the 3 simple types, and null or undefined
 	if (
 		obj === null ||
@@ -123,7 +123,7 @@ export const deepCopy = <T extends undefined | Date | MY_JSON>(obj: T): T => {
 		const copy: JSONObject = {};
 		for (const attr in obj) {
 			if (obj.hasOwnProperty(attr)) {
-				copy[attr as any] = deepCopy(obj[attr]);
+				copy[attr] = deepCopy((obj as any)[attr]);
 			}
 		}
 		return copy as T;

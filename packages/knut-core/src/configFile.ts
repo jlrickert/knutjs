@@ -2,7 +2,7 @@ import * as Path from 'path';
 import * as YAML from 'yaml';
 import { homedir } from 'os';
 import { absurd, pipe } from 'fp-ts/lib/function.js';
-import { deepCopy, stringify } from './utils.js';
+import { deepCopy } from './utils.js';
 import { KegVersion } from './kegFile.js';
 import { GenericStorage } from './storage/storage.js';
 import { Optional, optional } from './internal/optional.js';
@@ -10,6 +10,7 @@ import { optionalT } from './internal/optionalT.js';
 import { Future, future } from './internal/future.js';
 
 export type KegConfigDefinition = {
+	enabled: boolean;
 	alias: string;
 	url: string;
 	kegv?: KegVersion;
@@ -59,9 +60,16 @@ export class KnutConfigFile {
 		json: string,
 		root?: string,
 	): Future<Optional<KnutConfigFile>> {
-		const value = JSON.parse(json) as ConfigDefinition;
-		const config = new KnutConfigFile(optional.fromNullable(root), value);
-		return config;
+		try {
+			const value = JSON.parse(json) as ConfigDefinition;
+			const config = new KnutConfigFile(
+				optional.fromNullable(root),
+				value,
+			);
+			return config;
+		} catch (e) {
+			return optional.none;
+		}
 	}
 
 	static async fromYAML(
@@ -88,11 +96,21 @@ export class KnutConfigFile {
 		return this._root;
 	}
 
-	async writeTo(storage: GenericStorage): Future<boolean> {
-		const filename =
-			this.data.format === 'yaml' ? 'config.yaml' : 'config.json';
-		const ok = await storage.write(filename, stringify(this));
-		return ok;
+	async toStorage(storage: GenericStorage): Future<boolean> {
+		switch (this.format) {
+			case 'yaml': {
+				const ok = await storage.write('config.yaml', this.toYAML());
+				return ok;
+			}
+			case 'json': {
+				const ok = await storage.write('config.json', this.toYAML());
+				return ok;
+			}
+
+			default: {
+				return absurd(this.format);
+			}
+		}
 	}
 
 	/**
@@ -170,7 +188,12 @@ export class KnutConfigFile {
 			return null;
 		}
 
-		return { alias: data.alias, url: data.url, kegv: data.kegv };
+		return {
+			enabled: data.enabled,
+			alias: data.alias,
+			url: data.url,
+			kegv: data.kegv,
+		};
 	}
 
 	deleteKeg(kegalias: string) {
@@ -199,13 +222,16 @@ export class KnutConfigFile {
 	}
 
 	stringify() {
-		switch (this.data.format) {
-			case 'yaml':
+		switch (this.format) {
+			case 'yaml': {
 				return this.toYAML();
-			case 'json':
+			}
+			case 'json': {
 				return this.toJSON();
-			default:
-				return this.toYAML();
+			}
+			default: {
+				return absurd(this.format);
+			}
 		}
 	}
 }

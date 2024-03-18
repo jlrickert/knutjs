@@ -21,8 +21,24 @@ export const loadKegStorage = (url: string) => {
 	return kegStorage;
 };
 
+/**
+ * KegStorage wraps a generic storage to add additional operations on top of a
+ * `GenericStorage`.
+ */
 export class KegStorage extends GenericStorage {
+	static async kegExists(storage: GenericStorage): Future<boolean> {
+		const items = await storage.readdir('');
+		return (
+			optional.isSome(items) &&
+			items.includes('dex') &&
+			items.includes('keg')
+		);
+	}
+
 	static fromStorage(storage: GenericStorage): KegStorage {
+		if (storage instanceof KegStorage) {
+			return storage;
+		}
 		return new KegStorage(storage);
 	}
 
