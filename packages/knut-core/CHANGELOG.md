@@ -1,5 +1,13 @@
 # @jlrickert/knutjs-core
 
+## 0.4.0
+
+### Minor Changes
+
+- eb9b205: Add CRUD operations to Keg nodes for a keg
+- cd3ca58: Add `knut keg init` to cli interface
+- cd3ca58: Add `knut keg directory` to cli interface
+
 ## 0.3.1
 
 ### Patch Changes

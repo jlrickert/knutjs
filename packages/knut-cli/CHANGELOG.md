@@ -1,5 +1,19 @@
 # @jlrickert/knutjs-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- cd3ca58: Add `knut keg init` to cli interface
+- cd3ca58: Add `knut keg directory` to cli interface
+
+### Patch Changes
+
+- Updated dependencies [eb9b205]
+- Updated dependencies [cd3ca58]
+- Updated dependencies [cd3ca58]
+  - @jlrickert/knutjs-core@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes
