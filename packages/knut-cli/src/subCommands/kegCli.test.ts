@@ -38,7 +38,7 @@ describe('`knut keg create` interface', () => {
 				'long',
 			],
 			output: (n: string) =>
-				expect.stringMatching(RegExp(`^\/var\/folder.*${n}`)),
+				expect.stringMatching(RegExp(`^(\/var\/folder|\/tmp).*${n}`)),
 		},
 	] as const;
 
