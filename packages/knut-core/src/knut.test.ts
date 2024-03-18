@@ -1,5 +1,5 @@
 import { pipe } from 'fp-ts/lib/function.js';
-import { test, describe, expect, afterEach } from 'vitest';
+import { test, describe, expect, afterEach, vi } from 'vitest';
 import { NodeId } from './node.js';
 import { testUtils } from './internal/testUtils.js';
 import { optionalT } from './internal/optionalT.js';
@@ -10,6 +10,9 @@ import { KnutConfigFile } from './configFile.js';
 import { NodeContent } from './nodeContent.js';
 
 for await (const { name, getBackend } of testUtils.backends) {
+	afterEach(() => {
+		global.localStorage.clear();
+	});
 	describe(`${name} backend - common programming patterns`, async () => {
 		afterEach(() => {
 			global.localStorage.clear();
@@ -42,6 +45,20 @@ for await (const { name, getBackend } of testUtils.backends) {
 				NodeContent.filePath(nodeId),
 			);
 			expect(node!.content).toEqual(nodeContent);
+		});
+
+		test('should be able to create a node on a specific keg', async () => {
+			const now = new Date();
+			vi.useFakeTimers({ now });
+
+			const backend = await getBackend();
+			const knut = await Knut.fromBackend(backend);
+
+			const keg = knut.getKeg('sample1');
+			const nodeId = await keg?.createNode();
+			const node = await keg?.getNode(nodeId!);
+			expect(node?.title).toEqual('');
+			expect(node?.updated).toStrictEqual(now);
 		});
 
 		test('should be able to search through nodes', async () => {

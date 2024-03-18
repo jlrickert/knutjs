@@ -22,8 +22,8 @@ const _pipe: () => [Readable, Writable] = () => {
 	});
 	const writer = new Writable({
 		write(chunk, encoding, callback) {
-			buffer.push(chunk);
-			// reader.push(chunk);
+			reader.push(chunk);
+			callback();
 		},
 	});
 	return [reader, writer] as const;

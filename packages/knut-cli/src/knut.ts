@@ -35,8 +35,5 @@ export const rawOption = new Option(
  * Create a keg command. This add
  */
 export const KnutCommand = (name: string): Command => {
-	return new Command(name)
-		.enablePositionalOptions(true)
-		.addOption(kegaliasOption)
-		.addOption(configOption);
+	return new Command(name).addOption(kegaliasOption).addOption(configOption);
 };

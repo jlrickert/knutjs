@@ -3,6 +3,7 @@ import { pipe } from 'fp-ts/lib/function.js';
 import { testUtils } from '@jlrickert/knutjs-core/internal/testUtils';
 import { future } from '@jlrickert/knutjs-core/internal/future';
 import { optionalT } from '@jlrickert/knutjs-core/internal/optionalT';
+import { stringify } from '@jlrickert/knutjs-core/utils';
 import { Knut } from '@jlrickert/knutjs-core/knut';
 import { KnutConfigFile } from '@jlrickert/knutjs-core/configFile';
 import { terminal } from '../terminal.js';
@@ -11,10 +12,71 @@ import { rootCli } from '../root.js';
 
 const T = optionalT(future.Monad);
 
-describe('kegCli', () => {
+describe('`knut keg create` interface', () => {
 	const argvTable = [
-		['node', 'knut', 'keg', 'init', '-k', 'sample', 'kegs/sample'],
-		['node', 'knut', 'keg', 'init', 'kegs/sample', '-k', 'sample'],
+		{
+			input: ['node', 'knut', 'keg', 'create', '--keg', 'sample1'],
+			output: (n: string) => n,
+		},
+		{
+			input: ['node', 'knut', 'keg', '--keg', 'sample1', 'create'],
+			output: (n: string) => n,
+		},
+		{
+			input: ['node', 'knut', 'keg', '--keg', 'sample1', 'c'],
+			output: (n: string) => n,
+		},
+		{
+			input: [
+				'node',
+				'knut',
+				'keg',
+				'--keg',
+				'sample1',
+				'c',
+				'--format',
+				'long',
+			],
+			output: (n: string) =>
+				expect.stringMatching(RegExp(`^\/var\/folder.*${n}`)),
+		},
+	] as const;
+
+	for (const { input, output } of argvTable) {
+		const cmd = input.slice(2).join(' ');
+		const msg = `should be able to initiate a new keg with \`${cmd}\``;
+		it(msg, async () => {
+			const [stdout, stdin] = terminal.pipe();
+			const context = cliBackend(
+				await testUtils.testNodeBackend(),
+				terminal.make({ input: stdin, output: stdout }),
+			);
+
+			const c = await rootCli(context);
+			await c.parseAsync(input);
+
+			const data = await terminal.readAll(context.terminal);
+			const nodeId = await pipe(
+				Knut.fromBackend(context),
+				future.map((a) => a.getKeg('sample1')),
+				T.chain((a) => a.last()),
+			);
+			expect(data).toEqual(output(stringify(nodeId!)));
+			expect(
+				await pipe(
+					context.loader('samplekeg1'),
+					T.chain((store) => store.read('13/README.md')),
+				),
+			).toStrictEqual('');
+		});
+	}
+});
+
+describe('`knut keg init` interface', () => {
+	const argvTable = [
+		['node', 'knut', 'keg', '--keg', 'sample', 'init', 'kegs/sample'],
+		['node', 'knut', 'keg', 'init', '--keg', 'sample', 'kegs/sample'],
+		['node', 'knut', 'keg', 'init', 'kegs/sample', '--keg', 'sample'],
 	];
 	for (const argv of argvTable) {
 		it(`should be able to initiate a new keg with \`${argv
