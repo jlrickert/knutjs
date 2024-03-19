@@ -32,9 +32,11 @@ export const search: Backend<Action<string, SearchOptions>> = cmd.action(
 			return b.rank - a.rank;
 		});
 
-		terminal.fmtLn(options.raw ? JSON.stringify(results) : results)(
-			ctx.terminal,
-		);
+		await terminal.fmtLn(
+			options.raw
+				? JSON.stringify(results)
+				: JSON.stringify(results, undefined, 4),
+		)(ctx.terminal);
 	},
 );
 
