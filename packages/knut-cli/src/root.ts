@@ -15,6 +15,7 @@ export const rootCli: Cmd = pipe(
 	cmd.map((c) => c.version(version)),
 	cmd.addCommand(searchCli),
 	cmd.addCommand(kegCli),
+	cmd.addCommand(updateCli),
 	// command.map((c) => c.addCommand(shareCli)),
 	// command.map((c) => c.addCommand(configCli)),
 	// command.map((c) => c.addCommand(updateCli)),

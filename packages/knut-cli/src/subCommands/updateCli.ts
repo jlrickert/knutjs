@@ -1,12 +1,13 @@
+import { pipe } from 'fp-ts/lib/function.js';
 import { Knut } from '@jlrickert/knutjs-core/knut';
-import { KnutCommand } from '../knut.js';
-import invariant from 'tiny-invariant';
-import { optional } from '@jlrickert/knutjs-core/internal/optional';
+import { Action, Cmd, cmd } from '../command.js';
+import { Backend } from '../backend.js';
 
-export const updateCli = KnutCommand('update').action(
-	async (nodeId, options) => {
-		const knut = await Knut.create();
-		invariant(optional.isSome(knut), 'Current platform not detected');
+export const update: Backend<Action<void, { alias: string[] }>> = cmd.action(
+	(_, __) => async (ctx) => {
+		const knut = await Knut.fromBackend(ctx);
 		await knut.update();
 	},
 );
+
+export const updateCli: Cmd = pipe(cmd.make('update'), cmd.addAction(update));
