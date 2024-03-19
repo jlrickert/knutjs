@@ -1,5 +1,12 @@
 # @jlrickert/knutjs-cli
 
+## 0.4.1
+
+### Patch Changes
+
+- 9306119: Fix search output to display content rather than [Object object]
+- 9306119: Fix missing update cli command
+
 ## 0.4.0
 
 ### Minor Changes
