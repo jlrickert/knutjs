@@ -29,5 +29,14 @@
 		"eslint": "^8.57.0",
 		"prettier": "^3.0.3",
 		"turbo": "^1.12.4"
+	},
+	"pnpm": {
+		"peerDependencyRules": {
+			"ignoreMissing": [
+				"@babel/*",
+				"expo-modules-*",
+				"typescript"
+			]
+		}
 	}
 }

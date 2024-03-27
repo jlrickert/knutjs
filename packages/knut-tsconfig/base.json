@@ -3,7 +3,9 @@
 	"display": "Default",
 	"compilerOptions": {
 		"composite": false,
-		"customConditions": ["development"],
+		"customConditions": [
+			"development"
+		],
 		"declaration": true,
 		"declarationMap": true,
 		"forceConsistentCasingInFileNames": true,
@@ -18,5 +20,7 @@
 		"skipLibCheck": true,
 		"strict": true
 	},
-	"exclude": ["node_modules"]
+	"exclude": [
+		"node_modules"
+	]
 }

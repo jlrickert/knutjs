@@ -1,0 +1,34 @@
+{
+	"$schema": "https://json.schemastore.org/expo-46.0.0.json",
+	"expo": {
+		"name": "knut-mobile",
+		"slug": "knut-mobile",
+		"version": "0.1.0",
+		"orientation": "portrait",
+		"icon": "./assets/icon.png",
+		"githubUrl": "https://github.com/jlrickert/knutjs",
+		"userInterfaceStyle": "automatic",
+		"splash": {
+			"image": "./assets/splash.png",
+			"resizeMode": "contain",
+			"backgroundColor": "#ffffff"
+		},
+		"updates": {
+			"fallbackToCacheTimeout": 0
+		},
+		"assetBundlePatterns": ["**/*"],
+		"ios": {
+			"supportsTablet": true
+		},
+		"android": {
+			"package": "me.jlrickert.knut",
+			"adaptiveIcon": {
+				"foregroundImage": "./assets/adaptive-icon.png",
+				"backgroundColor": "#ffffff"
+			}
+		},
+		"web": {
+			"favicon": "./assets/favicon.png"
+		}
+	}
+}
