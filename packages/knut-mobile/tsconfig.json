@@ -6,5 +6,8 @@
 		"module": "Preserve",
 		"moduleResolution": "Bundler"
 	},
-	"exclude": ["./metro.config.cjs"]
+	"include": ["./setup-jest.ts"],
+	"exclude": [
+		"metro.config.js" // Types are a disaster here. Ignoring because I can.
+	]
 }

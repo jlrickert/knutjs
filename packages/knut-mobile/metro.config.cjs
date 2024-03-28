@@ -6,12 +6,13 @@ const path = require('path');
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 
+/** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(projectRoot);
 
 // #1 - Watch all files in the monorepo
 config.watchFolders = [workspaceRoot];
 
-// TODO(jared): Research why they had this option
+// TODO(jared): Research why they had this option and why it didn't work for me
 // An example had this included.  Not sure if there is any advantages
 //
 // #3 - Force resolving nested modules to the folders below

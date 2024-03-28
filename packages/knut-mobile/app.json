@@ -1,6 +1,7 @@
 {
 	"$schema": "https://json.schemastore.org/expo-46.0.0.json",
 	"expo": {
+		"scheme": "knut",
 		"name": "knut-mobile",
 		"slug": "knut-mobile",
 		"version": "0.1.0",
@@ -16,7 +17,9 @@
 		"updates": {
 			"fallbackToCacheTimeout": 0
 		},
-		"assetBundlePatterns": ["**/*"],
+		"assetBundlePatterns": [
+			"**/*"
+		],
 		"ios": {
 			"supportsTablet": true
 		},
@@ -29,6 +32,9 @@
 		},
 		"web": {
 			"favicon": "./assets/favicon.png"
-		}
+		},
+		"plugins": [
+			"expo-router"
+		]
 	}
 }
