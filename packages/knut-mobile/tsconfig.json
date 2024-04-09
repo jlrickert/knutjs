@@ -1,13 +1,29 @@
 {
 	"$schema": "https://json.schemastore.org/tsconfig",
-	"extends": ["expo/tsconfig.base", "@jlrickert/knutjs-tsconfig/base.json"],
+	"extends": [
+		"expo/tsconfig.base",
+		"@jlrickert/knutjs-tsconfig/base.json"
+	],
 	"compilerOptions": {
-		"jsx": "react-jsx",
-		"module": "Preserve",
-		"moduleResolution": "Bundler"
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true
+		// "module": "ESNext"
+		// "typeRoots": [
+		// 	"./node_modules/@types",
+		// 	"./node_modules/@testing-library/react-native/extend-expect.d.ts"
+		// ],
+		// "types": [
+		// 	"./node_modules/@testing-library/react-native/extend-expect.d.ts"
+		// ]
 	},
-	"include": ["./setup-jest.ts"],
+	"include": [
+		"./src/**.tsx?",
+		"./setup-jest.ts",
+		".expo/types/**/*.ts",
+		"expo-env.d.ts"
+	],
 	"exclude": [
-		"metro.config.js" // Types are a disaster here. Ignoring because I can.
+		"babel.config.cjs",
+		"metro.config.cjs"
 	]
 }

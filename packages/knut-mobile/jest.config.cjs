@@ -1,6 +1,7 @@
 /** @type {import('jest').Config} */
 const config = {
 	preset: 'jest-expo',
+	displayName: 'knut',
 	setupFilesAfterEnv: ['./setup-jest.ts'],
 	collectCoverage: false,
 	collectCoverageFrom: [
@@ -10,8 +11,11 @@ const config = {
 		'!**/babel.config.js',
 		'!**/jest.setup.js',
 	],
+	transform: {
+		'^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react' } }],
+	},
 	transformIgnorePatterns: [
-		'node_modules/(?!(?:.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|expo-router/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg))',
+		'node_modules/(?!(?:.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg))',
 	],
 };
 

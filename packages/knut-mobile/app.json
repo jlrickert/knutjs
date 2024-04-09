@@ -31,10 +31,15 @@
 			}
 		},
 		"web": {
+			"bundler": "metro",
 			"favicon": "./assets/favicon.png"
 		},
+		"experiments": {
+			"typedRoutes": true
+		},
 		"plugins": [
-			"expo-router"
+			"expo-router",
+			"expo-build-properties"
 		]
 	}
 }
