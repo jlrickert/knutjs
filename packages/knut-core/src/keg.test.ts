@@ -8,6 +8,7 @@ import { optionalT } from './internal/optionalT.js';
 import { Keg } from './keg.js';
 import { stringify } from './utils.js';
 import { KegNode, NodeId } from './node.js';
+import { DexEntry } from './dex.js';
 
 const T = optionalT(future.Monad);
 
@@ -83,6 +84,61 @@ for await (const { name, getBackend } of testUtils.backends) {
 					})),
 				),
 			).toStrictEqual({ content: '# Sample node\n', updated: now });
+		});
+	});
+
+	describe(`${name} - keg indexing`, async () => {
+		afterEach(() => {
+			global.localStorage.clear();
+			vi.resetAllMocks();
+		});
+
+		it('should be able to rebuild the index', async () => {
+			const backend = await getBackend();
+			const storage = await backend.loader('testkeg');
+			invariant(
+				optional.isSome(storage),
+				'Expect test backend to load as expected',
+			);
+
+			const now = new Date('2023-03-23');
+			vi.useFakeTimers();
+			vi.setSystemTime(now);
+
+			const keg = await Keg.init(storage);
+			invariant(optional.isSome(keg));
+
+			const zeroNode = await KegNode.zeroNode();
+			expect(keg.dex.entries).toHaveLength(1);
+			expect(keg.dex.entries).toStrictEqual([
+				expect.objectContaining<Partial<DexEntry>>({
+					title: zeroNode.title,
+					updated: now,
+				}),
+			]);
+			const nodeId = await keg.createNode();
+			invariant(optional.isSome(nodeId));
+
+			const later = new Date(new Date(now).setMinutes(30));
+			vi.setSystemTime(later);
+
+			const content = '# New node\nExample summary';
+			await keg.writeNodeContent(nodeId, {
+				content,
+			});
+
+			expect(keg.dex.entries).toStrictEqual([
+				expect.objectContaining({
+					title: zeroNode.title,
+					updated: now,
+				}),
+				expect.objectContaining({
+					title: 'New node',
+					updated: later,
+				}),
+			]);
+
+			expect(await storage.read('dex/nodes.tsv')).matchSnapshot();
 		});
 	});
 }

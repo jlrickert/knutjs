@@ -26,7 +26,8 @@ export type IndexEntryData = {
 	 * name of the indexer to use
 	 **/
 	name: string;
-	[keg: string]: MY_JSON;
+
+	args?: MY_JSON;
 };
 
 /**

@@ -89,6 +89,11 @@ export class MetaFile {
 		this.data[key] = value;
 	}
 
+	get<T = unknown>(key: string, _default?: T): T {
+		const value = this.data[key];
+		return (value ?? _default) as T;
+	}
+
 	addDate(datetime: string): void {
 		this.add('date', datetime);
 	}

@@ -1,4 +1,5 @@
 import { Monad1 } from 'fp-ts/lib/Monad.js';
+import { Predicate } from 'fp-ts/lib/Predicate.js';
 import { Refinement } from 'fp-ts/lib/Refinement.js';
 import { PipeableTraverse1 } from 'fp-ts/lib/Traversable.js';
 import { identity, pipe } from 'fp-ts/lib/function.js';
@@ -40,6 +41,28 @@ const fromPredicate: <A, B extends A>(
 	return refinement(a) ? some(a as any) : none;
 };
 
+const refine: <A, B extends A>(
+	refinement: Refinement<A, B>,
+) => (ma: Optional<A>) => Optional<B> = (refinement) => (ma) => {
+	return pipe(
+		ma,
+		optional.chain((a) => {
+			return refinement(a) ? optional.some(a as any) : optional.none;
+		}),
+	);
+};
+
+const filter: <A>(
+	predicate: Predicate<A>,
+) => (ma: Optional<A>) => Optional<A> = (predicate) => (ma) => {
+	return pipe(
+		ma,
+		optional.chain((a) => {
+			return predicate(a) ? optional.some(a as any) : optional.none;
+		}),
+	);
+};
+
 const getOrElse: <A, B>(onNone: () => B) => (ma: Optional<A>) => A | B =
 	(onNone) => (ma) => (isSome(ma) ? (ma as any) : onNone());
 
@@ -77,7 +100,7 @@ const bind: <N extends string, A, B>(
 	name: Exclude<N, keyof A>,
 	f: (a: A) => Optional<B>,
 ) => (ma: Optional<A>) => Optional<{
-	readonly [K in keyof A | N]: K extends keyof A ? A[K] : B;
+	[K in keyof A | N]: K extends keyof A ? A[K] : B;
 }> = (name, f) => (ma) => {
 	return pipe(
 		ma,
@@ -92,13 +115,12 @@ const bind: <N extends string, A, B>(
 
 const bindTo: <N extends string>(
 	name: N,
-) => <A>(ma: Optional<A>) => Optional<{ readonly [K in N]: A }> =
-	(name) => (ma) => {
-		return pipe(
-			Do,
-			bind(name, () => ma),
-		);
-	};
+) => <A>(ma: Optional<A>) => Optional<{ [K in N]: A }> = (name) => (ma) => {
+	return pipe(
+		Do,
+		bind(name, () => ma),
+	);
+};
 
 const Monad: Monad1<URI> = {
 	URI,
@@ -118,6 +140,8 @@ export const optional = {
 	fromPredicate,
 	getOrElse,
 	flap,
+	filter,
+	refine,
 	ap,
 	match,
 	flatten,

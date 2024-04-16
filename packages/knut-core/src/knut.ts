@@ -153,7 +153,10 @@ export class Knut {
 	): Future<Optional<Keg>> {
 		const T = optionalT(future.Monad);
 
-		const keg = await pipe(this.backend.loader(uri), T.chain(Keg.init));
+		const keg = await pipe(
+			this.backend.loader(uri),
+			T.chain((store) => Keg.init(store)),
+		);
 
 		if (optional.isNone(keg)) {
 			return optional.none;
@@ -210,6 +213,9 @@ export class Knut {
 	}
 
 	async update(): Future<void> {
+		for (const [, keg] of this.kegMap) {
+			await keg.update();
+		}
 		this.backend.cache.rm('fuse-data.json');
 		this.backend.cache.rm('fuse-index.json');
 	}

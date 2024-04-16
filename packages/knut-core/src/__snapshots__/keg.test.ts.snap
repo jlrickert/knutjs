@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Browser - keg indexing > should be able to rebuild the index 1`] = `
+"0	2023-03-23T00:00:00.000Z	Sorry, planned but not yet available
+1	2023-03-23T00:30:00.000Z	New node"
+`;
+
+exports[`Node - keg indexing > should be able to rebuild the index 1`] = `
+"0	2023-03-23T00:00:00.000Z	Sorry, planned but not yet available
+1	2023-03-23T00:30:00.000Z	New node"
+`;

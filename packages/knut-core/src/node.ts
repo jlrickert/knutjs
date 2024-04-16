@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events';
 import { pipe } from 'fp-ts/lib/function.js';
 import { MetaFile, Tag } from './metaFile.js';
 import { stringify } from './utils.js';
@@ -45,6 +44,10 @@ export class NodeId {
 		return this.id === other.id;
 	}
 
+	neq(other: NodeId): boolean {
+		return this.id !== other.id;
+	}
+
 	getMetaPath(): string {
 		return `${this.id}/meta.yaml`;
 	}
@@ -74,7 +77,7 @@ export type NodeOptions = {
  * Node represents an in memory object containing all data
  * to be consisdered a keg node
  **/
-export class KegNode extends EventEmitter {
+export class KegNode {
 	static isNode(obj: any): obj is KegNode {
 		return obj instanceof KegNode;
 	}
@@ -142,9 +145,7 @@ This is a filler until I can provide someone better for the link that brought yo
 		return new KegNode({ content, meta, updated: now });
 	}
 
-	private constructor(private data: NodeData) {
-		super();
-	}
+	private constructor(private data: NodeData) {}
 
 	get title(): string {
 		return this.data.content.title ?? '';
