@@ -2,7 +2,7 @@ import * as Path from 'path';
 import invariant from 'tiny-invariant';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
-import { afterEach } from 'vitest';
+import { afterEach, describe } from 'vitest';
 import { optional } from './optional.js';
 import { Future } from './future.js';
 import { Loader, Backend } from '../backend.js';
@@ -159,3 +159,60 @@ export const testUtils = {
 	fixtureStorage,
 	backends,
 };
+
+/**
+ * TestUtils is a namespace for utilities to make testing much easier
+ */
+export class TestUtils {
+	static readonly backends = [
+		{
+			name: 'Node',
+			loadBackend: testNodeBackend,
+		},
+		{
+			name: 'Browser',
+			loadBackend: testBrowserBackend,
+		},
+	];
+
+	/**
+	 * fixtureStorage is the raw data for fixtures.
+	 * DO NOT WRITE ANYTHING HERE!!!
+	 **/
+	static readonly fixtureStorage = fixtureStorage;
+
+	/**
+	 * makeNodeBackend creates a temporary directory loaded with fixtures.
+	 * This is intened for testing when a node environment is available.
+	 */
+	static readonly makeNodeBackend = testNodeBackend;
+
+	/**
+	 * makeEmptyNodeBackend creates a temporary directory loaded with fixtures.
+	 * This is intened for testing when a node environment is available.
+	 */
+	static readonly makeEmptyNodeBackend = testEmptyNodeBackend;
+
+	/**
+	 * makeBrowserBackend creates backend for testing storage on a browser.
+	 */
+	static readonly makeBrowserBackend = testBrowserBackend;
+
+	/**
+	 * makeTempstorage creates a temporary storage in memory.
+	 *
+	 * On mac I think this creates a new direcory on a ram disk
+	 */
+	static readonly makeTempStorage = tempNodeStorage;
+
+	static readonly describeEachBackend = async (
+		desc: string,
+		factory: (f: (typeof TestUtils)['backends'][number]) => Future<void>,
+	) => {
+		for await (const { name, loadBackend } of TestUtils.backends) {
+			describe(`${desc} (${name})`, async () => {
+				factory({ name, loadBackend });
+			});
+		}
+	};
+}
