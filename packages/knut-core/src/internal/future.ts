@@ -14,19 +14,19 @@ declare module 'fp-ts/HKT' {
 	}
 }
 
-const of: <A>(a: A) => Future<A> = (a) => Promise.resolve(a);
+export const of: <A>(a: A) => Future<A> = (a) => Promise.resolve(a);
 
-const map: <A, B>(f: (a: A) => B) => (ma: Future<A>) => Future<B> =
+export const map: <A, B>(f: (a: A) => B) => (ma: Future<A>) => Future<B> =
 	(f) => (ma) => {
 		return ma.then(f);
 	};
 
-const chain: <A, B>(f: (a: A) => Future<B>) => (ma: Future<A>) => Future<B> =
+export const chain: <A, B>(f: (a: A) => Future<B>) => (ma: Future<A>) => Future<B> =
 	(f) => (ma) => {
 		return ma.then(f);
 	};
 
-const apSeq: <A>(fa: Future<A>) => <B>(fab: Future<(a: A) => B>) => Future<B> =
+export const apSeq: <A>(fa: Future<A>) => <B>(fab: Future<(a: A) => B>) => Future<B> =
 	(fa) => (fab) => {
 		return pipe(
 			fab,
@@ -34,17 +34,17 @@ const apSeq: <A>(fa: Future<A>) => <B>(fab: Future<(a: A) => B>) => Future<B> =
 		);
 	};
 
-const apPar: <A>(fa: Future<A>) => <B>(fab: Future<(a: A) => B>) => Future<B> =
+export const apPar: <A>(fa: Future<A>) => <B>(fab: Future<(a: A) => B>) => Future<B> =
 	(fa) => (fab) => {
 		return Promise.all([fab, fa]).then(([f, a]) => f(a));
 	};
 
-const ap: <A>(fa: Future<A>) => <B>(fab: Future<(a: A) => B>) => Future<B> =
+export const ap: <A>(fa: Future<A>) => <B>(fab: Future<(a: A) => B>) => Future<B> =
 	(fa) => (fab) => {
 		return pipe(fab, apPar(fa));
 	};
 
-const tap: <A>(f: (a: A) => void) => (ma: Future<A>) => Future<A> =
+export const tap: <A>(f: (a: A) => void) => (ma: Future<A>) => Future<A> =
 	(f) => (ma) => {
 		return pipe(
 			ma,
@@ -55,13 +55,13 @@ const tap: <A>(f: (a: A) => void) => (ma: Future<A>) => Future<A> =
 		);
 	};
 
-const flatten: <A>(ma: Future<Future<A>>) => Future<A> = (ma) => {
+export const flatten: <A>(ma: Future<Future<A>>) => Future<A> = (ma) => {
 	return pipe(ma, chain(identity));
 };
 
-const Do: Future<{}> = of({});
+export const Do: Future<{}> = of({});
 
-const assign: <N extends string, A, B>(
+export const assign: <N extends string, A, B>(
 	name: Exclude<N, keyof A>,
 	f: (a: A) => B,
 ) => (ma: Future<A>) => Future<{
@@ -71,7 +71,7 @@ const assign: <N extends string, A, B>(
 	return Object.assign({}, await ma, { [name]: value }) as any;
 };
 
-const bind: <N extends string, A, B>(
+export const bind: <N extends string, A, B>(
 	name: Exclude<N, keyof A>,
 	f: (a: A) => Future<B>,
 ) => (ma: Future<A>) => Future<{
@@ -81,7 +81,7 @@ const bind: <N extends string, A, B>(
 	return Object.assign({}, await ma, { [name]: value }) as any;
 };
 
-const bindTo: <N extends string>(
+export const bindTo: <N extends string>(
 	name: N,
 ) => <A>(ma: Future<A>) => Future<{ readonly [K in N]: A }> =
 	(name) => (ma) => {
@@ -91,7 +91,7 @@ const bindTo: <N extends string>(
 		) as any;
 	};
 
-const Monad: Monad1<URI> = {
+export const Monad: Monad1<URI> = {
 	URI: URI,
 	of,
 	chain: (ma, fab) => chain(fab)(ma),

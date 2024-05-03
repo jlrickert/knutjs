@@ -5,15 +5,15 @@ import { Refinement } from 'fp-ts/lib/Refinement.js';
 import { Optional, optional } from './optional.js';
 import { Predicate } from 'fp-ts/lib/Predicate.js';
 
-const some: <M extends URIS>(
+export const some: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A>(a: NonNullable<A>) => Kind<M, Optional<A>> = (M) => (a) =>
 	pipe(a, optional.some, M.of);
 
-const none: <M extends URIS>(M: Monad1<M>) => Kind<M, Optional<never>> = (M) =>
+export const none: <M extends URIS>(M: Monad1<M>) => Kind<M, Optional<never>> = (M) =>
 	M.of(optional.none as Optional<never>);
 
-const alt: <M extends URIS>(
+export const alt: <M extends URIS>(
 	M: Monad1<M>,
 ) => <B>(
 	second: () => Kind<M, Optional<B>>,
@@ -22,18 +22,18 @@ const alt: <M extends URIS>(
 		return M.chain(first, optional.match(second, some(M)) as any);
 	};
 
-const zero: <M extends URIS>(M: Monad1<M>) => <A>() => Kind<M, Optional<A>> =
+export const zero: <M extends URIS>(M: Monad1<M>) => <A>() => Kind<M, Optional<A>> =
 	(M) => () => {
 		return M.of(optional.none as any);
 	};
 
-const fromNullable: <M extends URIS>(
+export const fromNullable: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A>(a: A) => Kind<M, Optional<NonNullable<A>>> = (M) => (a) => {
 	return pipe(a, optional.fromNullable, M.of);
 };
 
-const refine: <M extends URIS>(
+export const refine: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A, B extends A>(
 	refinement: Refinement<A, B>,
@@ -47,7 +47,7 @@ const refine: <M extends URIS>(
 		);
 	};
 
-const filter: <M extends URIS>(
+export const filter: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A>(
 	predicate: Predicate<A>,
@@ -61,7 +61,7 @@ const filter: <M extends URIS>(
 		);
 	};
 
-const match: <M extends URIS>(
+export const match: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A, B, C>(
 	onNone: () => C,
@@ -71,7 +71,7 @@ const match: <M extends URIS>(
 		return M.map(ma, optional.match(onNone, onSome));
 	};
 
-const map: <M extends URIS>(
+export const map: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A, B>(
 	f: (a: A) => B,
@@ -80,7 +80,7 @@ const map: <M extends URIS>(
 		return M.map(ma, optional.map(f));
 	};
 
-const chain: <M extends URIS>(
+export const chain: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A, B>(
 	f: (a: A) => Kind<M, Optional<B>>,
@@ -92,7 +92,7 @@ const chain: <M extends URIS>(
 		);
 	};
 
-const ap: <M extends URIS>(
+export const ap: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A>(
 	ma: Kind<M, Optional<A>>,
@@ -105,7 +105,7 @@ const ap: <M extends URIS>(
 		return x;
 	};
 
-const getOrElse: <M extends URIS>(
+export const getOrElse: <M extends URIS>(
 	M: Monad1<M>,
 ) => <A>(
 	onNone: () => Kind<M, A>,
@@ -113,10 +113,10 @@ const getOrElse: <M extends URIS>(
 	return M.chain(ma, optional.match(onNone, M.of));
 };
 
-const Do: <M extends URIS>(M: Monad1<M>) => Kind<M, Optional<{}>> = (M) =>
+export const Do: <M extends URIS>(M: Monad1<M>) => Kind<M, Optional<{}>> = (M) =>
 	some(M)({});
 
-const bind: <M extends URIS>(
+export const bind: <M extends URIS>(
 	M: Monad1<M>,
 ) => <N extends string, A, B>(
 	name: Exclude<N, keyof A>,
@@ -144,7 +144,7 @@ const bind: <M extends URIS>(
 	);
 };
 
-const bindTo: <M extends URIS>(
+export const bindTo: <M extends URIS>(
 	M: Monad1<M>,
 ) => <N extends string>(
 	name: N,

@@ -4,9 +4,8 @@ import { expect, it } from 'vitest';
 import { TestUtils, testUtils } from './testUtils.js';
 import { Knut } from '../knut.js';
 import { Keg } from '../keg.js';
-import { optional } from './optional.js';
 import { optionalT } from './optionalT.js';
-import { future } from './future.js';
+import { Optional, Future } from './index.js';
 
 TestUtils.describeEachBackend('Test utils', async ({ loadBackend }) => {
 	it('should have a filesystem with expected fixtures', async () => {
@@ -34,7 +33,7 @@ TestUtils.describeEachBackend('Test utils', async ({ loadBackend }) => {
 			(ks) => ks?.read('keg'),
 		);
 		expect(fixtureData?.length).toBeGreaterThan(0);
-		invariant(optional.isSome(fixtureData));
+		invariant(Optional.isSome(fixtureData));
 		expect(fixtureData).toStrictEqual(data);
 	});
 
@@ -43,27 +42,26 @@ TestUtils.describeEachBackend('Test utils', async ({ loadBackend }) => {
 		const knut = await Knut.fromBackend(backend);
 
 		const load = async (kegalias: string) => {
-			const T = optionalT(future.Monad);
-			const keg = pipe(
+			const T = optionalT(Future.Monad);
+			return pipe(
 				backend.loader(kegalias),
 				T.chain(Keg.fromStorage),
-				T.map((a) => a.config.data),
+				T.map((a) => a.config.current.data),
 			);
-			return keg;
 		};
 
 		const testTable = [
 			{
 				l: await load('samplekeg1'),
-				r: knut.getKeg('sample1')?.config.data,
+				r: knut.getKeg('sample1')?.config.current.data,
 			},
 			{
 				l: await load('samplekeg2'),
-				r: knut.getKeg('sample2')?.config.data,
+				r: knut.getKeg('sample2')?.config.current.data,
 			},
 			{
 				l: await load('samplekeg3'),
-				r: knut.getKeg('sample3')?.config.data,
+				r: knut.getKeg('sample3')?.config.current.data,
 			},
 		];
 
