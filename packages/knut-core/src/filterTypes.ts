@@ -40,7 +40,7 @@ export type FilterOperators<TValue> = {
 	$options?: TValue extends string ? string : never;
 	// Array
 	$all?: ReadonlyArray<any>;
-	$elemMatch?: Document;
+	// $elemMatch?: Document;
 	$size?: TValue extends ReadonlyArray<any> ? number : never;
 	// Searching
 	$query?: string;
@@ -57,5 +57,5 @@ export type RootFilterOperators<TSchema> = {
 		$diacriticSensitive?: boolean;
 	};
 	$where?: string | ((this: TSchema) => boolean);
-	$comment?: string | Document;
+	// $comment?: string | Document;
 };
