@@ -7,13 +7,16 @@
 	"module": "./dist/index.js",
 	"type": "module",
 	"exports": {
-		"./*": {
-			"types": "./dist/*.d.ts",
-			"import": "./dist/*.js"
-		}
+		".": "./src/index.ts",
+		"./Knut": "./src/knut.ts",
+		"./Keg": "./src/keg.ts",
+		"./KegNode": "./src/node.ts",
+		"./Utils": "./src/Utils/index.ts"
 	},
+	"main": "./src/index.ts",
 	"files": [
 		"dist",
+		"src",
 		"kegSchema.json",
 		"knutSchema.json",
 		"package.json"
@@ -28,8 +31,7 @@
 		"clean:tsup": "rimraf dist",
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint ./src",
-		"test": "vitest --dom",
-		"prepare": "pnpm run build"
+		"test": "vitest --dom"
 	},
 	"private": false,
 	"publishConfig": {
