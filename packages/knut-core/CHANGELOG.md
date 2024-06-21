@@ -1,5 +1,11 @@
 # @jlrickert/knutjs-core
 
+## 0.5.4
+
+### Patch Changes
+
+- 5d8692a: attempt to fix types for deno
+
 ## 0.5.3
 
 ### Patch Changes
