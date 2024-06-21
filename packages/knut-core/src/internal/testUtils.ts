@@ -3,40 +3,46 @@ import invariant from 'tiny-invariant';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { afterEach, describe } from 'vitest';
-import { optional } from './optional.js';
 import { Future } from './future.js';
-import { Backend, Loader } from '../backend.js';
+import { TBackend, Loader } from '../Backend.js';
 import { overwrite } from '../storage/storageUtils.js';
-import { GenericStorage } from '../storage/storage.js';
-import { NodeStorage } from '../storage/nodeStorage.js';
+import { TStorage } from '../storage/Storage.js';
+import { NodeStorage } from '../storage/NodeStorage.js';
 import { WebStorage } from '../storage/webStorage.js';
+import { Optional } from './index.js';
 
 export type Kegpath = 'samplekeg1' | 'samplekeg2' | 'samplekeg3';
 
-const fixturePath = Path.resolve(__dirname, '..', '..', 'testdata');
+const FIXTURE_PATH = Path.resolve(__dirname, '..', '..', 'testdata');
+
+const FIXTURE_KEGS_PATH = Path.resolve(FIXTURE_PATH, 'kegs');
 
 /**
  * Path to sample keg fixture
  **/
-const fixtureKegpath = (Kegpath: Kegpath) => Path.resolve(fixturePath, Kegpath);
+const fixtureKegpath = (Kegpath: Kegpath) =>
+	Path.resolve(FIXTURE_KEGS_PATH, Kegpath);
 
 /**
  * Config path to the config test fixtures
  **/
-const FIXTURE_CONFIG_PATH = Path.resolve(fixturePath, 'config/knut');
+const FIXTURE_CONFIG_PATH = Path.resolve(FIXTURE_PATH, 'config/knut');
 
 /**
  * Variable path to fixtures
  **/
-const FIXTURE_VAR_PATH = Path.resolve(fixturePath, 'local/share/knut');
+const FIXTURE_VAR_PATH = Path.resolve(FIXTURE_PATH, 'local/share/knut');
 
 /**
  * Path to cache fixture
  **/
-const FIXTURE_CACHE_PATH = Path.resolve(fixturePath, 'cache/knut');
+const FIXTURE_CACHE_PATH = Path.resolve(FIXTURE_PATH, 'cache/knut');
 
-const fixtureStorage = new NodeStorage(fixturePath);
+const fixtureStorage = new NodeStorage(FIXTURE_PATH);
 
+/**
+ * Creates a new empty node storage
+ */
 const tempNodeStorage: () => Future<GenericStorage> = async () => {
 	const rootPath = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
 	const storage = new NodeStorage(rootPath);
@@ -44,14 +50,13 @@ const tempNodeStorage: () => Future<GenericStorage> = async () => {
 	afterEach(async () => {
 		try {
 			await rm(storage.root, { recursive: true });
-		} catch (e) {
-		}
+		} catch (e) { }
 	});
 
 	return storage;
 };
 
-const testBrowserBackend = async (): Future<Backend> => {
+const testBrowserBackend = async (): Future<TBackend> => {
 	const fixture = fixtureStorage;
 
 	const storage = WebStorage.create('knut');
@@ -71,12 +76,12 @@ const testBrowserBackend = async (): Future<Backend> => {
 		return kegStorage.child(uri);
 	};
 
-	const backend = {
+	const backend: TBackend = {
 		config,
 		variable,
 		cache,
 		loader,
-	} satisfies Backend;
+	};
 
 	for (const kegalias of [
 		'samplekeg1',
@@ -86,19 +91,20 @@ const testBrowserBackend = async (): Future<Backend> => {
 		const storage = await backend.loader(kegalias);
 		const path = fixtureKegpath(kegalias);
 		invariant(
-			optional.isSome(storage),
+			Optional.isSome(storage),
 			`Expect fixture to load keg storage`,
 		);
 		await overwrite(fixture.child(path), storage);
 	}
 
+	await overwrite(fixture.child(FIXTURE_KEGS_PATH), kegStorage);
 	await overwrite(fixture.child(FIXTURE_CONFIG_PATH), backend.config);
 	await overwrite(fixture.child(FIXTURE_VAR_PATH), backend.variable);
 	await overwrite(fixture.child(FIXTURE_CACHE_PATH), backend.cache);
 	return backend;
 };
 
-const testEmptyNodeBackend = async (): Future<Backend> => {
+const testEmptyNodeBackend = async (): Future<TBackend> => {
 	const root = await tempNodeStorage();
 
 	const cache = root.child('cache/knut');
@@ -118,18 +124,23 @@ const testEmptyNodeBackend = async (): Future<Backend> => {
 };
 
 /**
- * Returns a platform with full fixtures
- **/
-const testNodeBackend = async (): Future<Backend> => {
+ * Returns a platform with full fixtures. Fixtures kegs may be loaded from the
+ * following places in:
+ *
+ * - samplekeg1
+ *  -
+ */
+const testNodeBackend = async (): Future<TBackend> => {
 	const root = await tempNodeStorage();
 
 	const cache = root.child('cache/knut');
 	const config = root.child('config/knut');
 	const variable = root.child('local/share/knut');
+	const kegStorage = root.child('kegs');
 	await overwrite(fixtureStorage, root);
 
 	const loader: Loader = async (uri) => {
-		return root.child(uri);
+		return kegStorage.child(uri);
 	};
 
 	return {
@@ -140,25 +151,25 @@ const testNodeBackend = async (): Future<Backend> => {
 	};
 };
 
-const backends = [
-	{
-		name: 'Node',
-		getBackend: testNodeBackend,
-	},
-	{
-		name: 'Browser',
-		getBackend: testBrowserBackend,
-	},
-] as const;
+// const backends = [
+// 	{
+// 		name: 'Node',
+// 		getBackend: testNodeBackend,
+// 	},
+// 	{
+// 		name: 'Browser',
+// 		getBackend: testBrowserBackend,
+// 	},
+// ] as const;
 
-export const testUtils = {
-	tempNodeStorage,
-	testNodeBackend,
-	testEmptyNodeBackend,
-	testBrowserBackend,
-	fixtureStorage,
-	backends,
-};
+// export const testUtils = {
+// 	tempNodeStorage,
+// 	testNodeBackend,
+// 	testEmptyNodeBackend,
+// 	testBrowserBackend,
+// 	fixtureStorage,
+// 	backends,
+// };
 
 /**
  * TestUtils is a namespace for utilities to make testing much easier
@@ -211,8 +222,12 @@ export class TestUtils {
 	) {
 		for (const { name, loadBackend } of TestUtils.backends) {
 			describe(`${desc} (${name})`, async () => {
-				await factory({ name, loadBackend });
+				await factory({
+					name,
+
+					loadBackend,
+				});
 			});
 		}
-	};
+	}
 }

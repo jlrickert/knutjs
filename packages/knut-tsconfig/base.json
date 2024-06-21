@@ -3,20 +3,29 @@
 	"display": "Default",
 	"compilerOptions": {
 		"composite": false,
-		"customConditions": ["development"],
+		"customConditions": [
+			"development"
+		],
 		"declaration": true,
 		"declarationMap": true,
+		"exactOptionalPropertyTypes": true,
 		"forceConsistentCasingInFileNames": true,
 		"checkJs": true,
 		"inlineSources": false,
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"moduleResolution": "node",
+		"noImplicitAny": true,
+		"noImplicitThis": true,
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
+		"noFallthroughCasesInSwitch": true,
 		"preserveWatchOutput": true,
 		"skipLibCheck": true,
+		"noImplicitReturns": false,
 		"strict": true
 	},
-	"exclude": ["node_modules"]
+	"exclude": [
+		"node_modules"
+	]
 }

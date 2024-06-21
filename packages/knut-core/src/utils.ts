@@ -1,28 +1,69 @@
+import { Array, String, absurd } from 'effect';
 import { randomInt } from 'crypto';
-import { absurd } from 'fp-ts/lib/function.js';
+import invariant from 'tiny-invariant';
 
-export type JSONObject = { [key: string]: MY_JSON };
-export type JSONArray = MY_JSON[];
-export type JSONBoolean = boolean;
-export type JSONNumber = number;
-export type JSONNull = null;
-export type JSONString = string;
+export type JsonObject = { [key: string]: Json };
+export type JsonArray = Json[];
+export type JsonBoolean = boolean;
+export type JsonNumber = number;
+export type JsonNull = null;
+export type JsonString = string;
 
-export type MY_JSON =
-	| JSONNull
-	| JSONNumber
-	| JSONString
-	| JSONArray
-	| JSONObject;
+export type Json =
+	| JsonNull
+	| JsonNumber
+	| JsonString
+	| JsonArray
+	| JsonBoolean
+	| JsonObject;
 
-export let _nowHack = () => new Date().toISOString();
-
-export const currentDate = () => {
-	return _nowHack();
+export const toJson = (obj: Object): Json => {
+	invariant(typeof obj !== 'function', 'Your a dummy');
+	const o = {};
+	for (const key in obj) {
+		if (obj.hasOwnProperty(key)) {
+			// @ts-ignore
+			const value = obj[key as any];
+			if (
+				value === null ||
+				Array.isArray(value) ||
+				['number', 'string', 'boolean'].includes(typeof value)
+			) {
+				o[key] = obj;
+			}
+		}
+	}
+	return o;
 };
 
 export const unsafeCoerce = <T>(value: any): value is T => {
 	return true;
+};
+
+export const isJson = (value: unknown): value is Json => {
+	if (typeof value === 'function' || typeof value === 'undefined') {
+		return false;
+	}
+	if (['number', 'string', 'boolean'].includes(typeof value)) {
+		return true;
+	}
+	if (Array.isArray(value) && Array.every(value, String.isString)) {
+		return true;
+	}
+	for (const key in value) {
+		if (value.hasOwnProperty(key)) {
+			const element = value[key as any];
+			if (isJson(element)) {
+			}
+		}
+	}
+};
+
+export const isJsonObject = (value: Json): value is JsonObject => {
+	if (Array.isArray(value) || value === null) {
+		return false;
+	}
+	return typeof value === 'object';
 };
 
 export const createId = (options: {
@@ -120,7 +161,7 @@ export const deepCopy = <T>(obj: T): T => {
 
 	// Handle Object
 	if (obj instanceof Object) {
-		const copy: JSONObject = {};
+		const copy: JsonObject = {};
 		for (const attr in obj) {
 			if (obj.hasOwnProperty(attr)) {
 				copy[attr] = deepCopy((obj as any)[attr]);
@@ -145,7 +186,7 @@ export const collectAsync = async <T, TReturn = any, TNext = undefined>(
 	}
 };
 
-export const collect = async <T, TReturn = any, TNext = undefined>(
+export const collect = <T, TReturn = any, TNext = undefined>(
 	iterator: Iterator<T, TReturn, TNext>,
 ) => {
 	const results: T[] = [];
@@ -156,4 +197,9 @@ export const collect = async <T, TReturn = any, TNext = undefined>(
 		}
 		results.push(item.value);
 	}
+};
+
+export type Writeable<T> = { -readonly [P in keyof T]: T[P] };
+export type DeepWriteable<T> = {
+	-readonly [P in keyof T]: DeepWriteable<T[P]>;
 };

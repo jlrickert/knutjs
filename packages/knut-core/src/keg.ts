@@ -1,238 +1,227 @@
-import { pipe } from 'fp-ts/lib/function.js';
-import { Optional, optional } from './internal/optional.js';
-import { Future, future } from './internal/future.js';
+import { pipe } from 'effect';
 import { optionalT } from './internal/optionalT.js';
-import { GenericStorage } from './storage/storage.js';
-import { KegFile } from './kegFile.js';
-import { Dex } from './dex.js';
+import { KegConfig } from './KegConfig.js';
+import { Dex } from './Dex.js';
 import { KegStorage } from './kegStorage.js';
-import { KegNode, NodeId, NodeOptions } from './node.js';
+import { KegNode, NodeOptions } from './KegNode.js';
 import { collectAsync, stringify } from './utils.js';
-import { detectBackend } from './backend.js';
-import { KegPlugin } from './kegPlugin/kegPlugin.js';
-import { DateKegPlugin } from './kegPlugin/datePugin.js';
+import { TBackend, detectBackend } from './Backend.js';
+import { Future, Optional } from './internal/index.js';
+import { KegPluginLoader, PluginRecord } from './KegPluginLoader.js';
 
-const T = optionalT(future.Monad);
-
-export type CreateNodeOptions = {
-	content: string;
-	tags?: string;
-};
-
-export type Subscription = {
-	unsub: () => void;
-};
-
-export type KegEventMap = {
-	addPlugin: {};
-	update: {};
-	createNode: { nodeId: NodeId };
-	readNode: { nodeId: NodeId };
-	updateNode: { nodeId: NodeId; node: KegNode };
-	removeNode: { nodeId: NodeId };
-};
-
-export type KegEventHandler<E extends keyof KegEventMap> = (
-	data: KegEventMap[E],
-) => Future<void>;
+const T = optionalT(Future.Monad);
 
 export class Keg {
-	static async fromUri(uri: string): Future<Optional<Keg>> {
-		const platform = await detectBackend();
-		if (optional.isNone(platform)) {
-			return optional.none;
+	static async fromBackend(opts: {
+		uri: string;
+		backend?: TBackend;
+		plugins?: PluginRecord;
+		/**
+		 * create missing config or dex instead of failing
+		 */
+		createIfMissing?: boolean;
+	}): Future.Future<Optional.TOptional<Keg>> {
+		const {
+			uri,
+			backend = await detectBackend(),
+			plugins = {},
+			createIfMissing = true,
+		} = opts;
+		if (Optional.isNone(backend)) {
+			return Optional.none;
 		}
-		const storage = await platform.loader(uri);
-		if (optional.isNone(storage)) {
-			return optional.none;
+		const storage = await backend.loader(uri);
+		if (
+			Optional.isNone(storage) ||
+			!(await KegStorage.kegExists(storage))
+		) {
+			return Optional.none;
 		}
-		const keg = await Keg.fromStorage(storage);
-		return keg;
-	}
+		const config = await pipe(
+			KegConfig.fromStorage(storage),
+			T.alt(async () => {
+				if (createIfMissing) {
+					return T.none;
+				}
+				const config = KegConfig.default();
+				config.toStorage(storage);
+				return config;
+			}),
+		);
+		const dex = await pipe(
+			Dex.fromStorage(storage),
+			T.alt(async () => {
+				if (!createIfMissing) {
+					return T.none;
+				}
+				const dex = new Dex();
+				await dex.toStorage(storage);
+				return dex;
+			}),
+		);
 
-	static async fromStorage(storage: GenericStorage): Future<Optional<Keg>> {
-		const kegFile = await KegFile.fromStorage(storage);
-		const dex = await Dex.fromStorage(storage);
-		if (!kegFile || !dex) {
-			return optional.none;
+		if (Optional.isNone(dex) || Optional.isNone(config)) {
+			return Optional.none;
 		}
-		const keg = new Keg(kegFile, dex, KegStorage.fromStorage(storage));
+		const keg = new Keg({
+			uri,
+			backend,
+			storage: KegStorage.fromStorage(storage),
+			config,
+			dex,
+			plugins,
+		});
 		await keg.init();
 		return keg;
 	}
 
 	/**
 	 * Create a new keg if it doesn't exist
-	 **/
-	static async init(storage: GenericStorage): Future<Optional<Keg>> {
-		if (await KegStorage.kegExists(storage)) {
-			return optional.none;
+	 */
+	static createNew = async (args: {
+		uri: string;
+		backend: TBackend;
+		config?: KegConfig;
+		plugins?: PluginRecord;
+	}): Future.Future<Optional.TOptional<Keg>> => {
+		const {
+			uri,
+			backend,
+			config = KegConfig.default(),
+			plugins = {},
+		} = args;
+		const storage = await backend.loader(uri);
+		if (Optional.isNone(storage) || (await KegStorage.kegExists(storage))) {
+			return Optional.none;
 		}
-		const kegFile = KegFile.default();
-		await kegFile.toStorage(storage);
-
+		await config.toStorage(storage);
 		const dex = new Dex();
-		const keg = new Keg(kegFile, dex, KegStorage.fromStorage(storage));
-		await keg.init();
-		await pipe(
-			keg.createNode(),
-			T.chain(async (nodeId) => {
-				const node = await KegNode.zeroNode();
-				await node.toStorage(nodeId, keg.storage);
-				return nodeId;
-			}),
-		);
-		await keg.update();
-		return keg;
-	}
-
-	private constructor(
-		public readonly kegFile: KegFile,
-		public readonly dex: Dex,
-		public readonly storage: KegStorage,
-	) {}
-
-	private async init() {
-		this.on('update', async () => {
-			this.dex.clear();
-			for await (const nodeId of this.storage.listNodes()) {
-				const node = await this.getNode(nodeId);
-				if (optional.isNone(node)) {
-					continue;
-				}
-				this.dex.addNode(nodeId, node);
-			}
-			await this.dex.toStorage(this.storage);
+		const keg = new Keg({
+			uri,
+			backend,
+			storage: KegStorage.fromStorage(storage),
+			plugins,
+			dex,
+			config,
 		});
 
-		const addNodeToDex = async (nodeId: NodeId) => {
-			const node = await this.getNode(nodeId);
-			if (optional.isNone(node)) {
-				this.dex.removeNode(nodeId);
-				return;
-			}
-			this.dex.addNode(nodeId, node);
-			await this.dex.toStorage(this.storage);
-		};
-		this.on('createNode', async ({ nodeId }) => addNodeToDex(nodeId));
-		this.on('updateNode', async ({ nodeId }) => addNodeToDex(nodeId));
-		this.on('removeNode', async ({ nodeId }) =>
-			this.dex.removeNode(nodeId),
-		);
+		await keg.pluginLoader.newKeg(keg, async () => {
+			await pipe(
+				keg.createNode(),
+				T.chain(async (nodeId) => {
+					const node = await KegNode.zeroNode();
+					await node.toStorage(storage);
+					return nodeId;
+				}),
+			);
+			await keg.update();
+			await keg.init();
+		});
 
-		for (const plugin of Keg.pluginList) {
-			await plugin.init(this);
-		}
-	}
-
-	public static pluginList: KegPlugin[] = [];
-	static addPlugin(plugin: KegPlugin) {
-		Keg.pluginList.push(plugin);
-	}
-
-	private listenerMap: {
-		[E in keyof KegEventMap]: KegEventHandler<E>[];
-	} = {
-		update: [],
-		addPlugin: [],
-		createNode: [],
-		readNode: [],
-		updateNode: [],
-		removeNode: [],
+		return keg;
 	};
 
-	on<E extends keyof KegEventMap>(
-		event: E,
-		f: (data: KegEventMap[E]) => Future<void>,
-	) {
-		const list = this.listenerMap[event];
-		list.push(f);
-		return {
-			unsub: () => {
-				const index = list.findIndex((a) => a === f);
-				if (index < 0) {
-					throw new Error(
-						'Programmer error: unsub from an alread unsubscribed object',
-					);
-				}
-				delete list[index];
-			},
-		};
+	public readonly uri: string;
+	public readonly backend: TBackend;
+	public readonly storage: KegStorage;
+	public readonly config: KegConfig;
+	public readonly dex: Dex;
+	private readonly pluginLoader: KegPluginLoader;
+	private constructor(args: {
+		uri: string;
+		backend: TBackend;
+		storage: KegStorage;
+		config: KegConfig;
+		dex: Dex;
+		plugins: PluginRecord;
+	}) {
+		this.backend = args.backend;
+		this.config = args.config;
+		this.dex = args.dex;
+		this.pluginLoader = KegPluginLoader.fromRecord(args.plugins);
 	}
 
-	private async emit<E extends keyof KegEventMap>(
-		event: E,
-		data: KegEventMap[E],
-	): Future<void> {
-		for (const f of this.listenerMap[event]) {
-			await f(data);
-		}
+	/**
+	 * Reloads the configuration
+	 *
+	 * @param config
+	 */
+	async reloadConfig(config: KegConfig) {
+		await this.pluginLoader.reloadConfig(async () => {
+			this.config.mergeData(config);
+		});
 	}
 
-	async last(): Future<Optional<NodeId>> {
-		const nodeList = await collectAsync(this.storage.listNodes());
-		nodeList.sort((a, b) => (a.lt(b) ? 1 : -1));
-		const nodeId =
-			nodeList.length > 0 ? optional.some(nodeList[0]) : optional.none;
-		return nodeId;
+	private init = async (f?: () => Future.Future<void>) => {
+		const next = f ? f : async () => { };
+		this.pluginLoader.init(this, next);
+	};
+
+	async last(): Future.Future<Optional.TOptional<NodeId>> {
+		const list = await collectAsync(this.storage.listNodes());
+		list.sort((a, b) => (a.lt(b) ? 1 : -1));
+		return list.length > 0 ? T.some(list[0]) : T.none;
 	}
 
-	async createNode(): Future<Optional<NodeId>> {
+	async createNode(): Future.Future<Optional.TOptional<NodeId>> {
 		const nodeId = await pipe(
 			this.last(),
 			T.map((a) => a.next()),
-			T.alt(() => future.of(new NodeId(0))),
+			T.alt(() => Future.of(new NodeId(0))),
 			T.chain(async (nodeId) => {
 				const node = await KegNode.fromContent({ content: '' });
 				await this.writeNode(nodeId, node);
 				return nodeId;
 			}),
 		);
-		if (optional.isSome(nodeId)) {
-			await this.emit('createNode', { nodeId });
+		if (Optional.isNone(nodeId)) {
+			return Optional.none;
 		}
+		let called = false;
+		const next = () => {
+			const node = this.dex.addNode(nodeId);
+			this.storage.write();
+			called = true;
+		};
+		await this.pluginLoader.createNode(nodeId, next);
 
 		return nodeId;
 	}
 
-	async getNode(nodeId: NodeId): Future<Optional<KegNode>> {
-		const node = await KegNode.fromStorage(nodeId, this.storage);
-		await this.emit('readNode', { nodeId });
-		return node;
+	async getNode(nodeId: NodeId): Future.Future<Optional.TOptional<KegNode>> {
+		const node = this.pluginLoader.readNode(nodeId);
+		return await KegNode.fromStorage(nodeId, this.storage);
 	}
 
-	async writeNode(nodeId: NodeId, node: KegNode): Future<boolean> {
-		const ok = await node.toStorage(nodeId, this.storage);
-		await this.emit('updateNode', { nodeId, node });
-		return ok;
+	async writeNode(nodeId: NodeId, node: KegNode): Future.Future<boolean> {
+		this.dex.addNode(nodeId, node);
+		await this.dex.toStorage(this.storage);
+		return await node.toStorage(nodeId, this.storage);
 	}
 
 	async writeNodeContent(
 		nodeId: NodeId,
 		{ content, updated, meta }: Partial<NodeOptions>,
-	): Future<boolean> {
+	): Future.Future<boolean> {
 		const node = await this.getNode(nodeId);
-		if (optional.isNone(node)) {
+		if (Optional.isNone(node)) {
 			return false;
 		}
 
-		if (optional.isSome(content)) {
+		if (Optional.isSome(content)) {
 			await node.updateContent(content);
 		}
-		if (optional.isSome(meta)) {
-			node.updateMeta(meta);
+		if (Optional.isSome(meta)) {
+			node.meta.data = { ...node.meta.data, ...meta };
 		}
-		if (optional.isSome(updated)) {
+		if (Optional.isSome(updated)) {
 			node.updated = updated;
 		}
-		const ok = await this.writeNode(nodeId, node);
-		return ok;
+		return this.writeNode(nodeId, node);
 	}
 
-	async deleteNode(nodeId: NodeId): Future<boolean> {
-		const ok = this.storage.rm(stringify(nodeId));
-		await this.emit('removeNode', { nodeId });
-		return ok;
+	async deleteNode(nodeId: NodeId): Future.Future<boolean> {
+		return this.storage.rm(stringify(nodeId));
 	}
 
 	async *getNodeList(): AsyncGenerator<
@@ -248,11 +237,27 @@ export class Keg {
 		}
 	}
 
-	async update(): Future<void> {
-		await this.emit('update', {});
-		this.kegFile.data.updated = stringify(new Date());
-		await this.kegFile.toStorage(this.storage);
+	async update(): Future.Future<void> {
+		this.config.data.updated = new Date();
+		await this.rebuildDex();
+		await this.config.toStorage(this.storage);
+		for (const plugin of this.services.pluginList) {
+			await plugin.update();
+		}
+	}
+
+	/**
+	 * Rebuilds the dex and saves it
+	 */
+	private async rebuildDex(): Future.Future<void> {
+		this.dex.clear();
+		for await (const nodeId of this.storage.listNodes()) {
+			const node = await this.getNode(nodeId);
+			if (Optional.isNone(node)) {
+				continue;
+			}
+			this.dex.addNode(nodeId, node);
+		}
+		await this.dex.toStorage(this.storage);
 	}
 }
-
-Keg.addPlugin(DateKegPlugin);

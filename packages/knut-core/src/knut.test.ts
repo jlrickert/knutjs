@@ -8,6 +8,8 @@ import { Knut } from './knut.js';
 import { collectAsync } from './utils.js';
 import { KnutConfigFile } from './configFile.js';
 import { NodeContent } from './nodeContent.js';
+import invariant from 'tiny-invariant';
+import { Optional } from "./internal"
 
 for await (const { name, getBackend } of testUtils.backends) {
 	afterEach(() => {
@@ -21,7 +23,8 @@ for await (const { name, getBackend } of testUtils.backends) {
 			const backend = await getBackend();
 			const knut = await Knut.fromBackend(backend);
 			const keg = knut.getKeg('sample1');
-			expect(keg!.kegFile?.getAuthor()).toEqual(
+			invariant(Optional.isSome(keg));
+			expect(keg.config.getAuthor()).toEqual(
 				'git@github.com:YOU/YOU.git',
 			);
 		});

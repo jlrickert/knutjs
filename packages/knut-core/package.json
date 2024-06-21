@@ -7,15 +7,17 @@
 	"module": "./dist/index.js",
 	"type": "module",
 	"exports": {
-		"./*": {
-			"types": "./dist/*.d.ts",
-			"import": "./dist/*.js"
+		".": {
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
 		}
 	},
 	"files": [
 		"dist",
+		"src",
 		"kegSchema.json",
 		"knutSchema.json",
+		"import_map.json",
 		"package.json"
 	],
 	"sideEffects": false,
@@ -29,7 +31,7 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint ./src",
 		"test": "vitest --dom",
-		"prepare": "pnpm run build"
+		"prepublish": "pnpm run build"
 	},
 	"private": false,
 	"publishConfig": {
@@ -49,6 +51,7 @@
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.474.0",
 		"@types/mdast": "^4.0.3",
+		"effect": "^3.0.7",
 		"fp-ts": "^2.16.2",
 		"fuse.js": "^7.0.0",
 		"mdast-util-from-markdown": "^2.0.0",

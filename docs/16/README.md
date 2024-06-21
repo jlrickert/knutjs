@@ -1,4 +1,4 @@
-# Configuration management for knut
+# Configuration management for Knut
 
 The configuration strategy that will be employed is to have 4 separate places to keep configuration. This includes:
 

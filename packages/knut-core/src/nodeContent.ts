@@ -1,6 +1,6 @@
 import { Root, RootContent } from 'mdast';
 import { MarkdownAST } from './markdown.js';
-import { NodeId } from './node.js';
+import { NodeId } from './KegNode.js';
 import { Future } from './internal/future.js';
 import { Optional } from './internal/optional.js';
 

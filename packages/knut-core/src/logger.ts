@@ -1,12 +1,12 @@
 import invariant from 'tiny-invariant';
-import { type JSONObject } from './utils.js';
+import { type JsonObject } from './utils.js';
 
 export type Logger = {
 	setLevel: (level: LogLevel) => void;
-	debug: (message: string, obj: JSONObject) => void;
-	info: (message: string, obj: JSONObject) => void;
-	warn: (message: string, obj: JSONObject) => void;
-	error: (message: string, obj: JSONObject) => void;
+	debug: (message: string, obj: JsonObject) => void;
+	info: (message: string, obj: JsonObject) => void;
+	warn: (message: string, obj: JsonObject) => void;
+	error: (message: string, obj: JsonObject) => void;
 };
 
 const levels = [
@@ -22,7 +22,7 @@ export const createLogger = (level: LogLevel = 'off'): Logger => {
 	let currentLogLevel = levels.indexOf(level);
 	const log = (level: LogLevel) => {
 		const logLevel = levels.indexOf(level);
-		return (message: string, obj: JSONObject) => {
+		return (message: string, obj: JsonObject) => {
 			if (currentLogLevel < logLevel) {
 				return;
 			}

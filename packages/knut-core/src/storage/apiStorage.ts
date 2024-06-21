@@ -1,59 +1,30 @@
-import { Stringer } from '../utils.js';
-import {
-	GenericStorage,
-	StorageNodeStats,
-	StorageNodeTime,
-} from './storage.js';
+import * as Path from 'path';
+import { Stringer, stringify } from '../utils.js';
+import { StorageTrait, createStorage } from './StorageTypes.js';
+import { pipe } from 'effect';
 
-export class ApiStorage extends GenericStorage {
-	constructor(private url: string) {
-		super(url);
-	}
-
-	async relative(path: string): Promise<string> {
+export const ApiStorage = (url: string) => {
+	const notImplemented = async () => {
 		throw new Error('Method not implemented.');
-	}
-
-	async resolve(path: string): Promise<string> {
-		throw new Error('Method not implemented.');
-	}
-
-	async read(filepath: Stringer): Promise<string | null> {
-		throw new Error('Method not implemented.');
-	}
-
-	async write(filepath: Stringer, contents: Stringer): Promise<boolean> {
-		throw new Error('Method not implemented.');
-	}
-
-	async rm(filepath: Stringer): Promise<boolean> {
-		throw new Error('Method not implemented.');
-	}
-
-	async readdir(dirpath: Stringer): Promise<string[] | null> {
-		throw new Error('Method not implemented.');
-	}
-
-	async rmdir(
-		filepath: Stringer,
-		options?: { recursive?: boolean | undefined } | undefined,
-	): Promise<boolean> {
-		throw new Error('Method not implemented.');
-	}
-
-	async utime(path: string, stats: StorageNodeTime): Promise<boolean> {
-		throw new Error('Method not implemented.');
-	}
-
-	async mkdir(dirpath: Stringer): Promise<boolean> {
-		throw new Error('Method not implemented.');
-	}
-
-	async stats(filepath: Stringer): Promise<StorageNodeStats | null> {
-		throw new Error('Method not implemented.');
-	}
-
-	child(subpath: Stringer): ApiStorage {
-		throw new Error('Method not implemented.');
-	}
-}
+	};
+	return createStorage('api', {
+		root: url,
+		read: notImplemented,
+		readdir: notImplemented,
+		write: notImplemented,
+		rm: notImplemented,
+		rmdir: notImplemented,
+		utime: notImplemented,
+		mkdir: notImplemented,
+		stats: notImplemented,
+		child: (subpath: Stringer) => {
+			const storage = pipe(
+				stringify(subpath),
+				(p) => Path.join(url, p),
+				(p) => Path.normalize(p),
+				(p) => ApiStorage(p),
+			);
+			return storage;
+		},
+	});
+};

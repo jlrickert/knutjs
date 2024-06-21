@@ -1,40 +1,41 @@
 import { pipe } from 'fp-ts/lib/function.js';
 import { sequenceS } from 'fp-ts/lib/Apply.js';
-import { Optional, optional } from './internal/optional.js';
-import { Future } from './internal/future.js';
 import {
 	getUserCacheDir,
 	getUserConfigDir,
 	getUserVarDir,
 } from './internal/systemUtils.js';
 import { currentPlatform } from './utils.js';
-import { GenericStorage } from './storage/storage.js';
-import { NodeStorage } from './storage/nodeStorage.js';
-import { WebStorage } from './storage/webStorage.js';
-import { MemoryStorage } from './storage/memoryStorage.js';
-import { ApiStorage } from './storage/apiStorage.js';
+import { StorageTrait } from './storage/index.js';
+import { NodeStorage } from './storage/NodeStorage.js';
+import { WebStorage } from './storage/WebStorage.js';
+import { MemoryStorage } from './storage/MemoryStorage.js';
+import { ApiStorage } from './storage/ApiStorage.js';
 import { KegStorage } from './kegStorage.js';
+import { Future, Optional } from './internal/index.js';
 
-export type Loader = (uri: string) => Future<Optional<GenericStorage>>;
+export type Loader = (
+	uri: string,
+) => Future.Future<Optional.Optional<TStorage>>;
 
 /**
  * Environment that knut is running in.
  **/
-export type Backend = {
+export type TBackend = {
 	/**
 	 * Cache file system
 	 **/
 
-	cache: GenericStorage;
+	cache: StorageTrait;
 	/**
 	 * Variable file system
 	 **/
 
-	variable: GenericStorage;
+	variable: StorageTrait;
 	/**
 	 * Configuration file system
 	 **/
-	config: GenericStorage;
+	config: StorageTrait;
 
 	/**
 	 * Loads file system for a keg
@@ -45,7 +46,9 @@ export type Backend = {
 /**
  * Node environment. This typically will be running on a workstation or server
  **/
-export const nodeBackend: () => Future<Optional<Backend>> = async () => {
+export const nodeBackend: () => Future.Future<
+	Optional.Optional<TBackend>
+> = async () => {
 	const cache = new NodeStorage(await getUserCacheDir()).child('knut');
 	const variable = new NodeStorage(await getUserVarDir()).child('knut');
 	const config = new NodeStorage(await getUserConfigDir()).child('knut');
@@ -56,7 +59,7 @@ export const nodeBackend: () => Future<Optional<Backend>> = async () => {
 	const backend = pipe(
 		sequenceS(optional.Monad)({ cache, config, variable }),
 		optional.map(
-			({ variable, config, cache }): Backend => ({
+			({ variable, config, cache }): TBackend => ({
 				cache,
 				config,
 				variable,
@@ -67,7 +70,10 @@ export const nodeBackend: () => Future<Optional<Backend>> = async () => {
 	return backend;
 };
 
-export const browserBackend: () => Future<Backend> = async () => {
+/**
+ *  dom environment
+ */
+export const domBackend: () => Future<TBackend> = async () => {
 	const storage = WebStorage.create('knut');
 	const cache = storage.child('cache');
 	const variable = storage.child('variables');
@@ -79,7 +85,7 @@ export const browserBackend: () => Future<Backend> = async () => {
 	return { loader, variable, config, cache };
 };
 
-export const memoryBackend: () => Future<Backend> = async () => {
+export const memoryBackend: () => Future<TBackend> = async () => {
 	const storage = MemoryStorage.create();
 	const cache = storage.child('cache');
 	const variable = storage.child('variables');
@@ -91,7 +97,7 @@ export const memoryBackend: () => Future<Backend> = async () => {
 	return { storage, cache, config, variable, loader };
 };
 
-export const apiBackend: (uri: string) => Future<Optional<Backend>> = async (
+export const apiBackend: (uri: string) => Future<Optional<TBackend>> = async (
 	rootUri,
 ) => {
 	const storage = new ApiStorage(rootUri);
@@ -116,10 +122,10 @@ export const apiBackend: (uri: string) => Future<Optional<Backend>> = async (
  * Load a default backend. This could either be the browser or node. If wanting
  * to use an api as the backend see apiPlatform as an example.
  **/
-export const detectBackend: () => Future<Optional<Backend>> = async () => {
+export const detectBackend: () => Future<Optional<TBackend>> = async () => {
 	switch (currentPlatform) {
 		case 'dom': {
-			return pipe(await browserBackend(), optional.some);
+			return pipe(await domBackend(), optional.some);
 		}
 		case 'node': {
 			return nodeBackend();
@@ -133,8 +139,15 @@ export const detectBackend: () => Future<Optional<Backend>> = async () => {
 
 export const backend = {
 	nodeBackend,
-	browserBackend,
+	browserBackend: domBackend,
 	memoryBackend,
 	detectBackend,
 	apiBackend,
 };
+
+export class Backend {
+	static readonly nodeBackend = nodeBackend;
+	static readonly domBackend = domBackend;
+	static readonly memoryBackend = memoryBackend;
+	static readonly apiBackend = apiBackend;
+}

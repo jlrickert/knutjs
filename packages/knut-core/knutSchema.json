@@ -16,9 +16,27 @@
 			"type": "string",
 			"description": "prefered format to use",
 			"enum": [
+				"kdl",
 				"yaml",
 				"json"
 			]
+		},
+		"plugins": {
+			"type": "object",
+			"description": "",
+			"items": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"description": "name of plugin",
+						"type": "boolean"
+					},
+					"enabled": {
+						"description": "plugin is enabled",
+						"type": "boolean"
+					}
+				}
+			}
 		},
 		"kegs": {
 			"type": "array",
@@ -26,17 +44,31 @@
 			"items": {
 				"type": "object",
 				"properties": {
+					"alias": {
+						"description": "Shorthand alias to reference the keg",
+						"type": "string",
+						"required": true
+					},
+					"url": {
+						"description": "URL pointing to the keg. This could be a file path or an http url to a valid keg",
+						"type": "string",
+						"required": true
+					},
 					"enabled": {
 						"description": "If is to be included in operations",
 						"type": "boolean"
 					},
-					"alias": {
-						"description": "Shorthand alias to reference the keg",
-						"type": "string"
+					"readable": {
+						"description": "Able to read",
+						"type": "boolean"
 					},
-					"url": {
-						"description": "URL pointing to the keg. This could be a file path or an http url to a valid keg",
-						"type": "string"
+					"writable": {
+						"description": "Able to write to keg",
+						"type": "boolean"
+					},
+					"executable": {
+						"description": "Able to execute scripts",
+						"type": "boolean"
 					}
 				}
 			}

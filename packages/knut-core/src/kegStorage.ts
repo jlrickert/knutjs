@@ -1,14 +1,14 @@
 import * as Path from 'path';
-import { NodeId } from './node.js';
+import { NodeId } from './KegNode.js';
 import {
-	GenericStorage,
+	TStorage,
 	StorageNodeStats,
 	StorageNodeTime,
-} from './storage/storage.js';
+} from './storage/Storage.js';
 import { loadStorage } from './storage/storageUtils.js';
-import { Optional, optional } from './internal/optional.js';
 import { Stringer } from './utils.js';
 import { Future } from './internal/future.js';
+import { Optional } from './internal/index.js';
 
 export const loadKegStorage = (url: string) => {
 	if (Path.isAbsolute(url)) {
@@ -25,28 +25,28 @@ export const loadKegStorage = (url: string) => {
  * KegStorage wraps a generic storage to add additional operations on top of a
  * `GenericStorage`.
  */
-export class KegStorage extends GenericStorage {
-	static async kegExists(storage: GenericStorage): Future<boolean> {
+export class KegStorage extends TStorage {
+	static async kegExists(storage: TStorage): Future<boolean> {
 		const items = await storage.readdir('');
 		return (
-			optional.isSome(items) &&
+			Optional.isSome(items) &&
 			items.includes('dex') &&
 			items.includes('keg')
 		);
 	}
 
-	static fromStorage(storage: GenericStorage): KegStorage {
+	static fromStorage(storage: TStorage): KegStorage {
 		if (storage instanceof KegStorage) {
 			return storage;
 		}
 		return new KegStorage(storage);
 	}
 
-	private constructor(private fs: GenericStorage) {
+	private constructor(private fs: TStorage) {
 		super(fs.root);
 	}
 
-	read(path: Stringer): Future<Optional<string>> {
+	read(path: Stringer): Future<Optional.Optional<string>> {
 		return this.fs.read(path);
 	}
 
@@ -58,14 +58,11 @@ export class KegStorage extends GenericStorage {
 		return this.fs.rm(path);
 	}
 
-	readdir(path: Stringer): Future<Optional<string[]>> {
+	readdir(path: Stringer): Future<Optional.Optional<string[]>> {
 		return this.fs.readdir(path);
 	}
 
-	rmdir(
-		path: Stringer,
-		options?: { recursive?: boolean | undefined } | undefined,
-	): Future<boolean> {
+	rmdir(path: Stringer, options?: { recursive?: boolean }): Future<boolean> {
 		return this.fs.rmdir(path, options);
 	}
 
@@ -77,13 +74,13 @@ export class KegStorage extends GenericStorage {
 		return this.fs.mkdir(path);
 	}
 
-	stats(path: Stringer): Future<Optional<StorageNodeStats>> {
+	stats(path: Stringer): Future<Optional.Optional<StorageNodeStats>> {
 		return this.fs.stats(path);
 	}
 
 	async *listNodes() {
 		const dirList = await this.fs.readdir('');
-		if (optional.isNone(dirList)) {
+		if (Optional.isNone(dirList)) {
 			return;
 		}
 		for (const dir of dirList) {
@@ -98,6 +95,6 @@ export class KegStorage extends GenericStorage {
 	}
 
 	child(subpath: string): KegStorage {
-		return new KegStorage(this.fs.child(subpath));
+		return this;
 	}
 }

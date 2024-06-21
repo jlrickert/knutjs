@@ -1,14 +1,10 @@
 import * as Path from 'path';
 import invariant from 'tiny-invariant';
 import { Stringer, stringify } from '../utils.js';
-import {
-	GenericStorage,
-	StorageNodeStats,
-	StorageNodeTime,
-} from './storage.js';
+import { TStorage, StorageNodeStats, StorageNodeTime } from './Storage.js';
 import { overwrite } from './storageUtils.js';
 import { Future } from '../internal/future.js';
-import { Optional, optional } from '../internal/optional.js';
+import { TOptional, optional } from '../internal/optional.js';
 
 type FsNodeTimestamps = {
 	mtime: string;
@@ -61,8 +57,8 @@ type Fs = {
 	index: { [filepath: string]: number };
 };
 
-export class MemoryStorage extends GenericStorage {
-	static parse(content: string): Optional<MemoryStorage> {
+export class MemoryStorage extends TStorage {
+	static parse(content: string): TOptional<MemoryStorage> {
 		const fs = JSON.parse(content) as Fs;
 		switch (fs.version) {
 			case '0.1': {
@@ -74,7 +70,7 @@ export class MemoryStorage extends GenericStorage {
 		}
 	}
 
-	static async fromStorage(storage: GenericStorage): Future<MemoryStorage> {
+	static async fromStorage(storage: TStorage): Future<MemoryStorage> {
 		const store = MemoryStorage.create();
 		await overwrite(storage, store);
 		return store;
@@ -107,7 +103,7 @@ export class MemoryStorage extends GenericStorage {
 	}
 
 	private constructor(
-		root: string,
+		public readonly root: string,
 		private fs: Fs,
 	) {
 		super(root);
@@ -126,7 +122,7 @@ export class MemoryStorage extends GenericStorage {
 		return fullpath;
 	}
 
-	private getDirpath(fullpath: string): Optional<string> {
+	private getDirpath(fullpath: string): TOptional<string> {
 		if (fullpath === '/') {
 			return null;
 		}
@@ -137,7 +133,7 @@ export class MemoryStorage extends GenericStorage {
 		return dir;
 	}
 
-	private getNode(fullpath: string): Optional<FsNode> {
+	private getNode(fullpath: string): TOptional<FsNode> {
 		const index = this.fs.index[fullpath];
 		const node = index !== undefined ? this.fs.nodes[index] : null;
 		return node;
@@ -151,7 +147,7 @@ export class MemoryStorage extends GenericStorage {
 		}
 	}
 
-	async read(path: Stringer): Future<Optional<string>> {
+	async read(path: Stringer): Future<TOptional<string>> {
 		const fullpath = this.getFullPath(path);
 		const currentTime = stringify(new Date());
 		const node = this.getNode(fullpath);
@@ -242,7 +238,7 @@ export class MemoryStorage extends GenericStorage {
 	/**
 	 * Reading a directory updates the atime for both itself and the parent if available
 	 **/
-	async readdir(path: Stringer): Future<Optional<string[]>> {
+	async readdir(path: Stringer): Future<TOptional<string[]>> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (node?.type !== 'directory') {
@@ -376,7 +372,7 @@ export class MemoryStorage extends GenericStorage {
 		return true;
 	}
 
-	async stats(path: Stringer): Future<Optional<StorageNodeStats>> {
+	async stats(path: Stringer): Future<TOptional<StorageNodeStats>> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (optional.isNone(node)) {

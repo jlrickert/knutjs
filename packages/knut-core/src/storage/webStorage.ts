@@ -1,15 +1,11 @@
 import { pipe } from 'fp-ts/lib/function.js';
-import { Optional, optional } from '../internal/optional.js';
 import { Future, future } from '../internal/future.js';
 import { Stringer, currentPlatform } from '../utils.js';
 import { MemoryStorage } from './memoryStorage.js';
-import {
-	GenericStorage,
-	StorageNodeStats,
-	StorageNodeTime,
-} from './storage.js';
+import { Optional } from '../internal/index.js';
+import { TStorage } from './Storage.js';
 
-export class WebStorage extends GenericStorage {
+export class WebStorage extends TStorage {
 	private prefix: string;
 	private storage: MemoryStorage;
 
@@ -19,9 +15,9 @@ export class WebStorage extends GenericStorage {
 		}
 		const storage = pipe(
 			window.localStorage.getItem(prefix),
-			optional.fromNullable,
-			optional.chain(MemoryStorage.parse),
-			optional.getOrElse(() => MemoryStorage.create()),
+			Optional.fromNullable,
+			Optional.chain(MemoryStorage.parse),
+			Optional.getOrElse(() => MemoryStorage.create()),
 		);
 		return new WebStorage(storage, prefix);
 	}
@@ -64,7 +60,7 @@ export class WebStorage extends GenericStorage {
 
 	async rmdir(
 		filepath: Stringer,
-		options?: { recursive?: boolean | undefined } | undefined,
+		options?: { recursive?: boolean },
 	): Future<boolean> {
 		const result = await this.storage.rmdir(filepath, options);
 		await this.save();

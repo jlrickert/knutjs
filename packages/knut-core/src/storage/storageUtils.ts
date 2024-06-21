@@ -1,10 +1,10 @@
 import { Predicate } from 'fp-ts/lib/Predicate.js';
 import { absurd } from 'fp-ts/lib/function.js';
 import invariant from 'tiny-invariant';
-import { GenericStorage } from './storage.js';
+import { TStorage } from './Storage.js';
 import { ApiStorage } from './apiStorage.js';
 import { MemoryStorage } from './memoryStorage.js';
-import { NodeStorage } from './nodeStorage.js';
+import { NodeStorage } from './NodeStorage.js';
 import { currentPlatform } from '../utils.js';
 import { WebStorage } from './webStorage.js';
 import { Optional, optional } from '../internal/optional.js';
@@ -43,7 +43,7 @@ const isFile: Predicate<string> = (uri) => uri.startsWith('file://');
 // 	}
 // };
 //
-export const loadStorage = (path: string): GenericStorage => {
+export const loadStorage = (path: string): TStorage => {
 	if (path.match(/^https?/)) {
 		const storage = new ApiStorage(path);
 		return storage;
@@ -65,7 +65,7 @@ export const loadStorage = (path: string): GenericStorage => {
 };
 
 export const walk = async (
-	storage: GenericStorage,
+	storage: TStorage,
 	f: (dirs: string[], files: string[]) => void,
 ): Future<void> => {
 	const item = storage.readdir('/');
@@ -75,8 +75,8 @@ export const walk = async (
  * copy over all contents from the source to the destination.
  */
 export const overwrite = async (
-	src: GenericStorage,
-	dest: GenericStorage,
+	src: TStorage,
+	dest: TStorage,
 ): Future<void> => {
 	const pathList = await src.readdir('');
 	if (optional.isNone(pathList)) {
@@ -101,4 +101,4 @@ export const overwrite = async (
 /**
  * Makes the destination look like the source
  */
-export const archive = async (src: GenericStorage, dest: GenericStorage) => {};
+export const archive = async (src: TStorage, dest: TStorage) => { };

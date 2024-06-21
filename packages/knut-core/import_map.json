@@ -1,0 +1,5 @@
+{
+	"imports": {
+		"npm:@jlrickert/knut-core": "./dist/index.js"
+	}
+}

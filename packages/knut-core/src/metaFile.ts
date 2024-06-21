@@ -1,9 +1,10 @@
+import { Array } from 'effect';
 import * as YAML from 'yaml';
 import invariant from 'tiny-invariant';
-import { JSONObject, MY_JSON, unsafeCoerce } from './utils.js';
-import { NodeId } from './node.js';
+import { JsonObject, Json, unsafeCoerce } from './utils.js';
+import { NodeId } from './KegNode.js';
 
-export type MetaData = JSONObject & {
+export type MetaData = JsonObject & {
 	tags?: Tag[];
 };
 
@@ -23,11 +24,17 @@ export class MetaFile {
 		return meta;
 	}
 
+	static fromJSON(json: string): MetaFile {
+		const data = JSON.parse(json);
+		const meta = new MetaFile(data);
+		return meta;
+	}
+
 	static filePath(nodeId: NodeId): string {
 		return `${nodeId.stringify()}/meta.yaml`;
 	}
 
-	private data: MetaData;
+	public data: MetaData;
 
 	constructor(data?: MetaData) {
 		this.data = data ?? {};
@@ -37,10 +44,21 @@ export class MetaFile {
 		}
 	}
 
+	concat = (other: MetaFile) => {
+		return new MetaFile({
+			...this.data,
+			...other.data,
+			tags: Array.dedupeWith(
+				[...this.getTags(), ...other.getTags()],
+				(a, b) => a === b,
+			),
+		});
+	};
+
 	/**
 	 * Add tag to the propery tag. This will add a #
 	 **/
-	addTag(tag: Tag) {
+	addTag = (tag: Tag) => {
 		// FIXM(jared): undefined behavior if tags is not a list of strings
 		if (!Array.isArray(this.data.tags)) {
 			this.data['tags'] = [];
@@ -54,9 +72,9 @@ export class MetaFile {
 			return;
 		}
 		this.data.tags.push(tag);
-	}
+	};
 
-	removeTag(tag: Tag) {
+	removeTag = (tag: Tag) => {
 		if (!this.data.tags) {
 			return;
 		}
@@ -65,13 +83,13 @@ export class MetaFile {
 			'Expect to be a list of strings',
 		);
 		this.data.tags = this.data.tags.filter((a) => a !== tag);
-	}
+	};
 
-	getTags(): readonly Tag[] {
+	getTags = (): readonly Tag[] => {
 		return this.data.tags ?? [];
-	}
+	};
 
-	add(key: string, value: MY_JSON) {
+	add = (key: string, value: Json) => {
 		if (key === 'tags') {
 			if (!Array.isArray(value)) {
 				this.data['tags'] = [];
@@ -87,26 +105,22 @@ export class MetaFile {
 		}
 
 		this.data[key] = value;
-	}
+	};
 
-	get<T = unknown>(key: string, _default?: T): T {
+	get = <T = unknown>(key: string, _default?: T): T => {
 		const value = this.data[key];
 		return (value ?? _default) as T;
-	}
+	};
 
-	addDate(datetime: string): void {
+	addDate = (datetime: string): void => {
 		this.add('date', datetime);
-	}
+	};
 
-	remove(key: string) {
+	remove = (key: string) => {
 		delete this.data[key];
-	}
+	};
 
-	export(): MY_JSON {
-		return { ...this.data };
-	}
-
-	stringify() {
-		return YAML.stringify(this.data);
-	}
+	toJSON = (): string => JSON.stringify(this.data);
+	toYAML = (): string => YAML.stringify(this.data);
+	stringify = () => this.toYAML();
 }

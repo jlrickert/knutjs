@@ -5,7 +5,19 @@ exports[`Browser - keg indexing > should be able to rebuild the index 1`] = `
 1	2023-03-23T00:30:00.000Z	New node"
 `;
 
+exports[`Browser - keg indexing > should create a daily.md with valid date plugin config 1`] = `null`;
+
+exports[`Keg (Browser) > Browser - keg indexing > should be able to rebuild the dex index 1`] = `"0	2023-03-23T00:00:00.000Z	Sorry, planned but not yet available"`;
+
+exports[`Keg (Browser) > Browser - keg indexing > should create a daily.md with valid date plugin config 1`] = `null`;
+
+exports[`Keg (Node) > Node - keg indexing > should be able to rebuild the dex index 1`] = `"0	2023-03-23T00:00:00.000Z	Sorry, planned but not yet available"`;
+
+exports[`Keg (Node) > Node - keg indexing > should create a daily.md with valid date plugin config 1`] = `null`;
+
 exports[`Node - keg indexing > should be able to rebuild the index 1`] = `
 "0	2023-03-23T00:00:00.000Z	Sorry, planned but not yet available
 1	2023-03-23T00:30:00.000Z	New node"
 `;
+
+exports[`Node - keg indexing > should create a daily.md with valid date plugin config 1`] = `null`;

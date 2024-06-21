@@ -7,12 +7,14 @@
 	"properties": {
 		"updated": {
 			"type": "string",
-			"description": "last time updated in "
+			"description": "last time updated"
 		},
 		"kegv": {
 			"type": "string",
 			"description": "Version of keg schema to use",
-			"enum": ["2023-01"]
+			"enum": [
+				"2023-01"
+			]
 		},
 		"title": {
 			"type": "string",
@@ -30,14 +32,45 @@
 			"type": "string",
 			"description": "URL for the creator of the keg"
 		},
+		"timezone": {
+			"type": "string",
+			"description": "timezone that time stamps will be referring too"
+		},
 		"state": {
 			"type": "string",
 			"description": "Too lazy to look up what this is",
-			"enum": ["living"]
+			"enum": [
+				"living"
+			]
 		},
 		"summary": {
 			"type": "string",
 			"description": "Summary of the keg"
+		},
+		"format": {
+			"type": "string",
+			"description": "prefered format to use",
+			"enum": [
+				"yaml",
+				"json"
+			]
+		},
+		"plugins": {
+			"type": "array",
+			"description": "List of plugins",
+			"items": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "Name of the plugin"
+					},
+					"enabled": {
+						"type": "boolean",
+						"description": "Is the plugin enabled"
+					}
+				}
+			}
 		},
 		"indexes": {
 			"type": "array",
@@ -52,11 +85,20 @@
 					"summary": {
 						"type": "string",
 						"description": "Summary for the index"
+					},
+					"plugin": {
+						"type": "string",
+						"description": "Name of the plugin to use"
 					}
 				},
-				"required": ["file", "summary"]
+				"required": [
+					"file",
+					"summary"
+				]
 			}
 		}
 	},
-	"required": ["kegv"]
+	"required": [
+		"kegv"
+	]
 }

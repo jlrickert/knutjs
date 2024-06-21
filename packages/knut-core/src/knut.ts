@@ -3,15 +3,15 @@ import Fuse, { FuseIndex, FuseOptionKey, FuseSearchOptions } from 'fuse.js';
 import { KnutConfigFile } from './configFile.js';
 import { Filter } from './filterTypes.js';
 import { MetaFile, MetaData } from './metaFile.js';
-import { NodeId } from './node.js';
-import { MY_JSON, stringify } from './utils.js';
+import { NodeId } from './KegNode.js';
+import { Json, stringify } from './utils.js';
 import { Keg } from './keg.js';
 import invariant from 'tiny-invariant';
 import { Future, future } from './internal/future.js';
 import { Optional, optional } from './internal/optional.js';
 import { optionalT } from './internal/optionalT.js';
-import { Backend, backend as backendM } from './backend.js';
-import { GenericStorage } from './storage/storage.js';
+import { TBackend, backend as backendM } from './Backend.js';
+import { TStorage } from './storage/Storage.js';
 
 export type NodeCreateOptions = {
 	kegalias: string;
@@ -63,7 +63,7 @@ export type SearchResult = {
 	rank: number;
 	tags: string[];
 	author: string | null;
-	meta: MY_JSON;
+	meta: Json;
 };
 
 export type ShareOptions = {
@@ -85,8 +85,8 @@ export type KnutOptions = {};
 export class Knut {
 	private kegMap = new Map<string, Keg>();
 
-	static async fromBackend(backend: Backend): Future<Knut> {
-		const load = async (storage: GenericStorage) => {
+	static async fromBackend(backend: TBackend): Future<Knut> {
+		const load = async (storage: TStorage) => {
 			const config =
 				(await KnutConfigFile.fromStorage(storage)) ??
 				KnutConfigFile.create(storage.root);
@@ -102,7 +102,7 @@ export class Knut {
 
 	static async fromConfig(
 		config: KnutConfigFile,
-		backend: Backend,
+		backend: TBackend,
 	): Future<Knut> {
 		const knut = new Knut(backend);
 		await knut.loadConfig(config);
@@ -118,7 +118,7 @@ export class Knut {
 		return knut;
 	}
 
-	private constructor(public readonly backend: Backend) {}
+	private constructor(public readonly backend: TBackend) {}
 
 	async reset() {
 		// TODO(Jared): deactive keg plugins before clearing
@@ -138,7 +138,7 @@ export class Knut {
 	/**
 	 * Loads required data for a keg
 	 */
-	async loadKeg(kegalias: string, storage: GenericStorage): Future<void> {
+	async loadKeg(kegalias: string, storage: TStorage): Future<void> {
 		const keg = await Keg.fromStorage(storage);
 		if (optional.isNone(keg)) {
 			return;
@@ -155,7 +155,7 @@ export class Knut {
 
 		const keg = await pipe(
 			this.backend.loader(uri),
-			T.chain((store) => Keg.init(store)),
+			T.chain((store) => Keg.createNew(store)),
 		);
 
 		if (optional.isNone(keg)) {
@@ -230,7 +230,7 @@ export class Knut {
 			author: string | null;
 			tags: string[];
 			updated: string;
-			meta: MY_JSON;
+			meta: Json;
 		};
 		const rawData = await this.backend.cache.read('fuse-data.json');
 		let data = rawData ? (JSON.parse(rawData) as Data[]) : optional.none;
@@ -243,9 +243,9 @@ export class Knut {
 					keg,
 					'Expect to get the keg that the node belongs to',
 				);
-				const author = keg.kegFile.getAuthor();
+				const author = keg.config.getAuthor();
 				const content = node?.content;
-				const tags = node?.getTags() ?? [];
+				const tags = node.meta?.getTags() ?? [];
 				// Only include if node has the expected tag
 				if (Array.isArray(filter?.tags)) {
 					if (
@@ -268,7 +268,7 @@ export class Knut {
 					),
 					tags: [...tags],
 					updated: stringify(node.updated),
-					meta: node?.meta.export() ?? null,
+					meta: node?.meta.data ?? null,
 				});
 			}
 		}

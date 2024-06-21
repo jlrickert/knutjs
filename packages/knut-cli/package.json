@@ -33,7 +33,7 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint src/",
 		"test": "vitest",
-		"prepare": "pnpm run build"
+		"prepublish": "pnpm run build"
 	},
 	"devDependencies": {
 		"@jlrickert/knutjs-tsconfig": "workspace:*",
