@@ -10,16 +10,15 @@ const commonConfig: Options = {
 	},
 	sourcemap: isProduction,
 	format: ['cjs', 'esm'],
-	bundle: isProduction,
 	minify: isProduction,
 	dts: true,
-	treeshake: true,
 	external: ['react'],
-	splitting: true,
-	target: 'es2020',
+	target: 'es2022',
 	outDir: 'dist',
-	tsconfig: path.resolve(__dirname, './tsconfig.json'),
+	tsconfig: path.resolve(__dirname, './tsconfig.build.json'),
 	skipNodeModulesBundle: true,
+	clean: isProduction,
+	platform: 'neutral',
 };
 
 export default defineConfig(() => {
@@ -31,14 +30,13 @@ export default defineConfig(() => {
 				options.outbase = 'src';
 			},
 			// the index doesn't need to be bundled
-			bundle: false,
 		},
-		{
-			entry: ['./src/**/!(index).ts'],
-			...commonConfig,
-			esbuildOptions: (options) => {
-				options.outbase = 'src';
-			},
-		},
+		// {
+		// 	entry: ['./src/**/!(index).ts'],
+		// 	...commonConfig,
+		// 	esbuildOptions: (options) => {
+		// 		options.outbase = 'src';
+		// 	},
+		// },
 	];
 });
