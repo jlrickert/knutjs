@@ -1,5 +1,11 @@
 # @jlrickert/knutjs-core
 
+## 0.5.3
+
+### Patch Changes
+
+- 9fca4b0: attempt to make deno work
+
 ## 0.5.2
 
 ### Patch Changes
