@@ -1,5 +1,11 @@
 # @jlrickert/knutjs-core
 
+## 0.5.0
+
+### Minor Changes
+
+- f0c4d86: Change how packages are exported
+
 ## 0.4.0
 
 ### Minor Changes
