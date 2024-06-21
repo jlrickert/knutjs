@@ -1,5 +1,12 @@
 # @jlrickert/knutjs-cli
 
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [b861068]
+  - @jlrickert/knutjs-core@0.5.1
+
 ## 0.4.2
 
 ### Patch Changes

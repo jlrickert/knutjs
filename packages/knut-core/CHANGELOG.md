@@ -1,5 +1,11 @@
 # @jlrickert/knutjs-core
 
+## 0.5.1
+
+### Patch Changes
+
+- b861068: Attempt fix for deno compatible exports
+
 ## 0.5.0
 
 ### Minor Changes
