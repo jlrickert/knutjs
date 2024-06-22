@@ -2,12 +2,9 @@ import * as Path from 'path';
 import * as YAML from 'yaml';
 import { homedir } from 'os';
 import { absurd, pipe } from 'fp-ts/lib/function.js';
-import { deepCopy } from './utils.js';
 import { KegVersion } from './kegFile.js';
-import { GenericStorage } from './storage/storage.js';
-import { Optional, optional } from './internal/optional.js';
-import { optionalT } from './internal/optionalT.js';
-import { Future, future } from './internal/future.js';
+import { Storage } from './Storage/index.js';
+import { deepCopy, Future, Optional, optionalT } from './Utils/index.js';
 
 export type KegConfigDefinition = {
 	enabled: boolean;
@@ -34,21 +31,21 @@ export type ConfigDefinition = {
  */
 export class KnutConfigFile {
 	static async fromStorage(
-		storage: GenericStorage,
-	): Future<Optional<KnutConfigFile>> {
-		const t = optionalT(future.Monad);
+		storage: Storage.GenericStorage,
+	): Future.OptionalFuture<KnutConfigFile> {
+		const t = optionalT(Future.Monad);
 		const config = await pipe(
 			// Try reading config.yaml
 			storage.read('config.yaml'),
-			t.chain((data) => KnutConfigFile.fromYAML(data, storage.root)),
+			t.chain((data) => KnutConfigFile.fromYAML(data, storage.uri)),
 
 			// Try reading config.json
 			t.alt(() => {
 				return pipe(
 					storage.read('config.json'),
-					t.chain((data) =>
-						KnutConfigFile.fromJSON(data, storage.root),
-					),
+					t.chain((data) => {
+						return KnutConfigFile.fromJSON(data, storage.uri);
+					}),
 				);
 			}),
 		);
@@ -59,36 +56,36 @@ export class KnutConfigFile {
 	static async fromJSON(
 		json: string,
 		root?: string,
-	): Future<Optional<KnutConfigFile>> {
+	): Future.OptionalFuture<KnutConfigFile> {
 		try {
 			const value = JSON.parse(json) as ConfigDefinition;
 			const config = new KnutConfigFile(
-				optional.fromNullable(root),
+				Optional.fromNullable(root),
 				value,
 			);
 			return config;
 		} catch (e) {
-			return optional.none;
+			return Optional.none;
 		}
 	}
 
 	static async fromYAML(
 		yaml: string,
 		root?: string,
-	): Future<Optional<KnutConfigFile>> {
+	): Future.OptionalFuture<KnutConfigFile> {
 		const data = YAML.parse(yaml) as ConfigDefinition;
-		return new KnutConfigFile(optional.fromNullable(root), data);
+		return new KnutConfigFile(Optional.fromNullable(root), data);
 	}
 
 	static create(root?: string): KnutConfigFile {
-		return new KnutConfigFile(optional.fromNullable(root), {
+		return new KnutConfigFile(Optional.fromNullable(root), {
 			version: 'draft-0.1',
 			kegs: [],
 		});
 	}
 
 	constructor(
-		private _root: Optional<string>,
+		private _root: Optional.Optional<string>,
 		private _data: ConfigDefinition,
 	) {}
 
@@ -96,7 +93,7 @@ export class KnutConfigFile {
 		return this._root;
 	}
 
-	async toStorage(storage: GenericStorage): Future<boolean> {
+	async toStorage(storage: Storage.GenericStorage): Future.Future<boolean> {
 		switch (this.format) {
 			case 'yaml': {
 				const ok = await storage.write('config.yaml', this.toYAML());
@@ -123,8 +120,8 @@ export class KnutConfigFile {
 			const url = keg.url.replace(/^~/, home);
 			keg.url = pipe(
 				this.root,
-				optional.map((root) => Path.resolve(root, url)),
-				optional.getOrElse(() => url),
+				Optional.map((root) => Path.resolve(root, url)),
+				Optional.getOrElse(() => url),
 			);
 			keg.url = this.root ? Path.resolve(this.root, url) : url;
 		}
@@ -182,7 +179,7 @@ export class KnutConfigFile {
 		return this._data;
 	}
 
-	getKeg(kegalias: string): Optional<KegConfigDefinition> {
+	getKeg(kegalias: string): Optional.Optional<KegConfigDefinition> {
 		const data = this.data.kegs.find((a) => a.alias === kegalias);
 		if (!data) {
 			return null;

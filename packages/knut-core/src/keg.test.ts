@@ -2,14 +2,11 @@ import { pipe } from 'fp-ts/lib/function.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import invariant from 'tiny-invariant';
 import { testUtils } from './internal/testUtils.js';
-import { optional } from './internal/optional.js';
-import { future } from './internal/future.js';
-import { optionalT } from './internal/optionalT.js';
 import { Keg } from './keg.js';
-import { stringify } from './utils.js';
 import { KegNode, NodeId } from './node.js';
+import { Future, Optional, optionalT, stringify } from './Utils/index.js';
 
-const T = optionalT(future.Monad);
+const T = optionalT(Future.Monad);
 
 for await (const { name, getBackend } of testUtils.backends) {
 	describe(`${name} - keg`, async () => {
@@ -22,11 +19,11 @@ for await (const { name, getBackend } of testUtils.backends) {
 			const backend = await getBackend();
 			const storage = await backend.loader('testkeg');
 			invariant(
-				optional.isSome(storage),
+				Optional.isSome(storage),
 				'Expect test backend to load as expected',
 			);
 			const keg = await Keg.init(storage);
-			invariant(optional.isSome(keg));
+			invariant(Optional.isSome(keg));
 
 			const kegFileContent = await storage.read('keg');
 			expect(kegFileContent).toEqual(stringify(keg?.kegFile));
@@ -40,15 +37,15 @@ for await (const { name, getBackend } of testUtils.backends) {
 			const backend = await getBackend();
 			const storage = await backend.loader('testkeg');
 			invariant(
-				optional.isSome(storage),
+				Optional.isSome(storage),
 				'Expect test backend to load as expected',
 			);
 			const keg = await Keg.init(storage);
-			invariant(optional.isSome(keg));
+			invariant(Optional.isSome(keg));
 
 			const nodeId = await keg.createNode();
 			const node = await pipe(
-				future.of(nodeId),
+				Future.of(nodeId),
 				T.chain((id) => keg.getNode(id)),
 			);
 
@@ -63,15 +60,15 @@ for await (const { name, getBackend } of testUtils.backends) {
 			const backend = await getBackend();
 			const storage = await backend.loader('testkeg2');
 			invariant(
-				optional.isSome(storage),
+				Optional.isSome(storage),
 				'Expect test backend to load as expected',
 			);
 			const keg = await Keg.init(storage);
-			invariant(optional.isSome(keg));
+			invariant(Optional.isSome(keg));
 			const id = 2;
 			await pipe(
 				KegNode.fromContent({ content: '# Sample node', updated: now }),
-				future.chain((node) => keg.writeNode(new NodeId(id), node)),
+				Future.chain((node) => keg.writeNode(new NodeId(id), node)),
 			);
 
 			expect(

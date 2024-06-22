@@ -1,9 +1,9 @@
 import * as YAML from 'yaml';
 import invariant from 'tiny-invariant';
-import { JSONObject, MY_JSON, unsafeCoerce } from './utils.js';
 import { NodeId } from './node.js';
+import { Json, unsafeCoerce } from './Utils/index.js';
 
-export type MetaData = JSONObject & {
+export type MetaData = Json.JsonObject & {
 	tags?: Tag[];
 };
 
@@ -71,7 +71,7 @@ export class MetaFile {
 		return this.data.tags ?? [];
 	}
 
-	add(key: string, value: MY_JSON) {
+	add(key: string, value: Json.Json) {
 		if (key === 'tags') {
 			if (!Array.isArray(value)) {
 				this.data['tags'] = [];
@@ -97,7 +97,7 @@ export class MetaFile {
 		delete this.data[key];
 	}
 
-	export(): MY_JSON {
+	export(): Json.Json {
 		return { ...this.data };
 	}
 

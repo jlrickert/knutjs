@@ -1,14 +1,11 @@
-import { EventEmitter } from 'events';
 import { pipe } from 'fp-ts/lib/function.js';
 import { MetaFile, Tag } from './metaFile.js';
-import { stringify } from './utils.js';
 import { NodeContent } from './nodeContent.js';
-import { GenericStorage } from './storage/storage.js';
-import { Future } from './internal/future.js';
-import { Optional, optional } from './internal/optional.js';
+import { Storage } from './Storage/index.js';
+import { Future, Optional, stringify } from './Utils/index.js';
 
 export class NodeId {
-	static parsePath(path: string): Optional<NodeId> {
+	static parsePath(path: string): Optional.Optional<NodeId> {
 		const parts = path.split('/');
 		for (const part of parts) {
 			const id = Number(part);
@@ -74,28 +71,28 @@ export type NodeOptions = {
  * Node represents an in memory object containing all data
  * to be consisdered a keg node
  **/
-export class KegNode extends EventEmitter {
+export class KegNode {
 	static isNode(obj: any): obj is KegNode {
 		return obj instanceof KegNode;
 	}
 
 	static async fromStorage(
 		nodeId: NodeId,
-		storage: GenericStorage,
-	): Future<Optional<KegNode>> {
+		storage: Storage.GenericStorage,
+	): Future.OptionalFuture<KegNode> {
 		const nodePath = NodeContent.filePath(nodeId);
 		const metaPath = MetaFile.filePath(nodeId);
 		const rawContent = await storage.read(nodePath);
-		if (optional.isNone(rawContent)) {
-			return optional.none;
+		if (Optional.isNone(rawContent)) {
+			return Optional.none;
 		}
 		const yamlData = await storage.read(metaPath);
 		const metaData = yamlData
 			? MetaFile.fromYAML(yamlData)
 			: new MetaFile();
 		const stats = await storage.stats(nodePath);
-		if (optional.isNone(rawContent) && optional.isNone(stats)) {
-			return optional.none;
+		if (Optional.isNone(rawContent) && Optional.isNone(stats)) {
+			return Optional.none;
 		}
 		const content = await NodeContent.fromMarkdown(rawContent);
 		const node = new KegNode({
@@ -106,7 +103,7 @@ export class KegNode extends EventEmitter {
 		return node;
 	}
 
-	static parseNodeId(filepath: string): Optional<string> {
+	static parseNodeId(filepath: string): Optional.Optional<string> {
 		const parts = filepath.split('/');
 		parts.pop();
 		const nodeId = parts.pop();
@@ -117,19 +114,19 @@ export class KegNode extends EventEmitter {
 		return `${nodeId}/meta.yaml`;
 	}
 
-	static async fromContent(options: NodeOptions): Future<KegNode> {
+	static async fromContent(options: NodeOptions): Future.Future<KegNode> {
 		const content = await NodeContent.fromMarkdown(options.content);
 		return new KegNode({
 			content,
 			meta: options.meta ?? new MetaFile(),
 			updated: pipe(
 				options.updated,
-				optional.getOrElse(() => new Date()),
+				Optional.getOrElse(() => new Date()),
 			),
 		});
 	}
 
-	static async zeroNode(): Future<KegNode> {
+	static async zeroNode(): Future.Future<KegNode> {
 		const content = await NodeContent.fromMarkdown(
 			`
 # Sorry, planned but not yet available
@@ -142,9 +139,7 @@ This is a filler until I can provide someone better for the link that brought yo
 		return new KegNode({ content, meta, updated: now });
 	}
 
-	private constructor(private data: NodeData) {
-		super();
-	}
+	private constructor(private data: NodeData) {}
 
 	get title(): string {
 		return this.data.content.title ?? '';
@@ -170,12 +165,15 @@ This is a filler until I can provide someone better for the link that brought yo
 		this.data.updated = date;
 	}
 
-	async updateContent(content: string, now?: Date): Future<void> {
+	async updateContent(content: string, now?: Date): Future.Future<void> {
 		this.data.content = await NodeContent.fromMarkdown(content);
 		this.updated = now ?? new Date();
 	}
 
-	async toStorage(nodeId: NodeId, storage: GenericStorage): Future<boolean> {
+	async toStorage(
+		nodeId: NodeId,
+		storage: Storage.GenericStorage,
+	): Future.Future<boolean> {
 		const ok = [
 			await storage.write(nodeId.getReadmePath(), this.content),
 			await storage.utime(nodeId.getReadmePath(), {

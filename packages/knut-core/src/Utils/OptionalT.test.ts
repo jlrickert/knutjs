@@ -1,9 +1,9 @@
 import { pipe } from 'fp-ts/lib/function.js';
 import { describe, expect, test } from 'vitest';
-import { Optional, Future, OptionalT } from './index.js';
+import { Optional, Future, optionalT } from './index.js';
 
 describe.concurrent('OptionalT', () => {
-	const T = OptionalT.optionalT(Future.Monad);
+	const T = optionalT(Future.Monad);
 	test('map', async () => {
 		const greeting = T.some('Welcome');
 		const excitingGreeting = await pipe(

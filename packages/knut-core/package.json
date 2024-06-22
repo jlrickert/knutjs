@@ -12,6 +12,21 @@
 			"import": "./dist/index.js",
 			"require": "./dist/index.cjs",
 			"types": "./dist/index.d.ts"
+		},
+		"./Backend": {
+			"import": "./dist/Backend/index.js",
+			"require": "./dist/Backend/index.cjs",
+			"types": "./dist/Backend/index.d.ts"
+		},
+		"./Storage": {
+			"import": "./dist/Storage/index.js",
+			"require": "./dist/Storage/index.cjs",
+			"types": "./dist/Storage/index.d.ts"
+		},
+		"./Utils": {
+			"import": "./dist/Utils//index.js",
+			"require": "./dist/Utils/index.cjs",
+			"types": "./dist/Utils/index.d.ts"
 		}
 	},
 	"files": [

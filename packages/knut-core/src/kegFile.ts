@@ -1,10 +1,8 @@
 import * as YAML from 'yaml';
-import { MY_JSON, currentDate, stringify } from './utils.js';
 import { NodeId } from './node.js';
-import { Future } from './internal/future.js';
-import { Optional, optional } from './internal/optional.js';
 import { pipe } from 'fp-ts/lib/function.js';
-import { GenericStorage } from './storage/storage.js';
+import { Storage } from './Storage/index.js';
+import { currentDate, Future, Json, Optional, stringify } from './Utils/index.js';
 
 export type KegVersion = '2023-01';
 
@@ -26,7 +24,7 @@ export type IndexEntryData = {
 	 * name of the indexer to use
 	 **/
 	name: string;
-	[keg: string]: MY_JSON;
+	[keg: string]: Json.Json;
 };
 
 /**
@@ -53,11 +51,11 @@ export class KegFile {
 	 * Load a keg file for the given path
 	 */
 	static async fromStorage(
-		storage: GenericStorage,
-	): Future<Optional<KegFile>> {
+		storage: Storage.GenericStorage,
+	): Future.OptionalFuture<KegFile> {
 		const kegdata = pipe(
 			await storage.read('keg'),
-			optional.map(KegFile.fromYAML),
+			Optional.map(KegFile.fromYAML),
 		);
 		return kegdata;
 	}
@@ -88,7 +86,7 @@ export class KegFile {
 		return entries;
 	}
 
-	async toStorage(storage: GenericStorage): Future<boolean> {
+	async toStorage(storage: Storage.GenericStorage): Future.Future<boolean> {
 		return await storage.write('keg', stringify(this));
 	}
 
@@ -96,11 +94,11 @@ export class KegFile {
 		f(this.data);
 	}
 
-	getAuthor(): Optional<string> {
+	getAuthor(): Optional.Optional<string> {
 		return this.data.creator ?? null;
 	}
 
-	getLink(nodeId: NodeId): Optional<string> {
+	getLink(nodeId: NodeId): Optional.Optional<string> {
 		const linkfmt = this.data.linkfmt;
 		return linkfmt ? linkfmt.replace('{{id}}', nodeId.stringify()) : null;
 	}

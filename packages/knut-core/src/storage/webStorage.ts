@@ -1,62 +1,70 @@
 import { pipe } from 'fp-ts/lib/function.js';
-import { Optional, optional } from '../internal/optional.js';
-import { Future, future } from '../internal/future.js';
-import { Stringer, currentPlatform } from '../utils.js';
-import { MemoryStorage } from './memoryStorage.js';
+import { MemoryStorage } from './MemoryStorage.js';
 import {
-	GenericStorage,
+	BaseStorage,
 	StorageNodeStats,
 	StorageNodeTime,
-} from './storage.js';
+} from './BaseStorage.js';
+import { currentPlatform, Future, Optional, Stringer } from '../Utils/index.js';
 
-export class WebStorage extends GenericStorage {
+const getWindow = () => {
+	if (currentPlatform !== 'dom') {
+		throw new Error('WebStorage not supported');
+	}
+	// @ts-ignore
+	return window;
+};
+
+export class WebStorage extends BaseStorage {
 	private prefix: string;
 	private storage: MemoryStorage;
 
 	static create(prefix = 'kegfs'): WebStorage {
-		if (currentPlatform !== 'dom') {
-			throw new Error('WebStorage not supported');
-		}
+		const window = getWindow();
 		const storage = pipe(
 			window.localStorage.getItem(prefix),
-			optional.fromNullable,
-			optional.chain(MemoryStorage.parse),
-			optional.getOrElse(() => MemoryStorage.create()),
+			Optional.fromNullable,
+			Optional.chain(MemoryStorage.parse),
+			Optional.getOrElse(() => MemoryStorage.create()),
 		);
 		return new WebStorage(storage, prefix);
 	}
 
 	private constructor(storage: MemoryStorage, prefix: string) {
-		super(storage.root);
+		super(storage.uri);
 		this.prefix = prefix;
 		this.storage = storage;
 	}
 
-	private async save(): Future<void> {
+	private async save(): Future.Future<void> {
 		const data = this.storage.toJSON();
+		const window = getWindow();
 		window.localStorage.setItem(this.prefix, data);
-		return future.of(void {});
+		return Future.of(void {});
 	}
 
-	async read(filepath: Stringer): Future<Optional<string>> {
+	async read(filepath: Stringer): Future.OptionalFuture<string> {
 		const content = await this.storage.read(filepath);
 		await this.save();
 		return content;
 	}
 
-	async write(filepath: Stringer, contents: Stringer): Future<boolean> {
+	async write(
+		filepath: Stringer,
+		contents: Stringer,
+	): Future.Future<boolean> {
 		const result = await this.storage.write(filepath, contents);
 		await this.save();
 		return result;
 	}
 
-	async rm(filepath: Stringer): Future<boolean> {
+	async rm(filepath: Stringer): Future.Future<boolean> {
 		const result = await this.storage.rm(filepath);
 		await this.save();
 		return result;
 	}
 
-	async readdir(dirpath: Stringer): Future<Optional<string[]>> {
+	async readdir(dirpath: Stringer): Future.OptionalFuture<string[]> {
 		const result = await this.storage.readdir(dirpath);
 		await this.save();
 		return result;
@@ -65,25 +73,25 @@ export class WebStorage extends GenericStorage {
 	async rmdir(
 		filepath: Stringer,
 		options?: { recursive?: boolean | undefined } | undefined,
-	): Future<boolean> {
+	): Future.Future<boolean> {
 		const result = await this.storage.rmdir(filepath, options);
 		await this.save();
 		return result;
 	}
 
-	async utime(path: string, stats: StorageNodeTime): Future<boolean> {
+	async utime(path: string, stats: StorageNodeTime): Future.Future<boolean> {
 		const result = await this.storage.utime(path, stats);
 		await this.save();
 		return result;
 	}
 
-	async mkdir(dirpath: Stringer): Future<boolean> {
+	async mkdir(dirpath: Stringer): Future.Future<boolean> {
 		const result = await this.storage.mkdir(dirpath);
 		await this.save();
 		return result;
 	}
 
-	async stats(filepath: Stringer): Future<Optional<StorageNodeStats>> {
+	async stats(filepath: Stringer): Future.OptionalFuture<StorageNodeStats> {
 		const result = await this.storage.stats(filepath);
 		await this.save();
 		return result;

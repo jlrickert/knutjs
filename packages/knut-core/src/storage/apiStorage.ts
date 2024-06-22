@@ -1,11 +1,11 @@
-import { Stringer } from '../utils.js';
+import { Stringer } from '../Utils/index.js';
 import {
-	GenericStorage,
+	BaseStorage,
 	StorageNodeStats,
 	StorageNodeTime,
-} from './storage.js';
+} from './BaseStorage.js';
 
-export class ApiStorage extends GenericStorage {
+export class ApiStorage extends BaseStorage {
 	constructor(private url: string) {
 		super(url);
 	}

@@ -1,7 +1,7 @@
 import * as Path from 'path';
 import { describe, expect, test } from 'vitest';
-import { MemoryStorage } from './memoryStorage.js';
-import { GenericStorage } from './storage.js';
+import { MemoryStorage } from './MemoryStorage.js';
+import { BaseStorage } from './BaseStorage.js';
 import { testUtils } from '../internal/testUtils.js';
 
 test('path library exploration', () => {
@@ -26,9 +26,9 @@ describe('file system storage', () => {
 	test('should mirror the behavior of memory storage', async () => {
 		const storage = await testUtils.tempNodeStorage();
 		const memory = MemoryStorage.create();
-		const check = async <K extends keyof Omit<GenericStorage, 'root'>>(
+		const check = async <K extends keyof Omit<BaseStorage, 'uri'>>(
 			key: K,
-			...args: Parameters<GenericStorage[K]>
+			...args: Parameters<BaseStorage[K]>
 		) => {
 			const a = await (storage[key] as any)(...args);
 			const b = await (memory[key] as any)(...args);

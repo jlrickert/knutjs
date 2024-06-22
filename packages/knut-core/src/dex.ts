@@ -1,9 +1,7 @@
 import { pipe } from 'fp-ts/lib/function.js';
 import { KegNode, NodeId } from './node.js';
-import { Optional, optional } from './internal/optional.js';
-import { Future } from './internal/future.js';
-import { stringify } from './utils.js';
-import { GenericStorage } from './storage/storage.js';
+import { Storage } from './Storage/index.js';
+import { Future, Optional, stringify } from './Utils/index.js';
 
 export type DexEntry = {
 	nodeId: NodeId;
@@ -18,9 +16,9 @@ export type DexEntry = {
 export class Dex {
 	private entryList: DexEntry[] = [];
 
-	static async fromStorage(storage: GenericStorage): Future<Optional<Dex>> {
+	static async fromStorage(storage: Storage.GenericStorage): Future.OptionalFuture<Dex> {
 		const content = await storage.read('dex/nodes.tsv');
-		if (optional.isNone(content)) {
+		if (Optional.isNone(content)) {
 			return content;
 		}
 		const lines = content.split('\n');
@@ -33,7 +31,7 @@ export class Dex {
 			const [id, updated, title] = line.split('\t');
 			const entry = pipe(
 				NodeId.parsePath(id),
-				optional.map(
+				Optional.map(
 					(nodeId): DexEntry => ({
 						title,
 						nodeId,
@@ -41,14 +39,14 @@ export class Dex {
 					}),
 				),
 			);
-			if (optional.isSome(entry)) {
+			if (Optional.isSome(entry)) {
 				dex.addEntry(entry);
 			}
 		}
 		return dex;
 	}
 
-	async toStorage(storage: GenericStorage): Future<boolean> {
+	async toStorage(storage: Storage.GenericStorage): Future.Future<boolean> {
 		const data = this.entries
 			.map(({ nodeId, updated, title }) =>
 				[nodeId, updated, title].map(stringify).join('\t'),

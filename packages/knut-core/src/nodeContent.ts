@@ -1,8 +1,7 @@
 import { Root, RootContent } from 'mdast';
 import { MarkdownAST } from './markdown.js';
 import { NodeId } from './node.js';
-import { Future } from './internal/future.js';
-import { Optional } from './internal/optional.js';
+import { Future, Optional } from './Utils/index.js';
 
 export class NodeContent {
 	static filePath(nodeId: NodeId) {
@@ -13,14 +12,14 @@ export class NodeContent {
 		return `${nodeId.stringify()}/README.md`;
 	}
 
-	static async fromMarkdown(markdown: string): Future<NodeContent> {
+	static async fromMarkdown(markdown: string): Future.Future<NodeContent> {
 		const root = MarkdownAST.from(markdown);
 		return new NodeContent(root);
 	}
 
 	private constructor(private root: Root) {}
 
-	get title(): Optional<string> {
+	get title(): Optional.Optional<string> {
 		for (const child of this.root.children) {
 			if (MarkdownAST.isTitleToken(child)) {
 				const markdown = MarkdownAST.to({

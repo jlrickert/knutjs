@@ -2,15 +2,14 @@ import { test, describe, expect } from 'vitest';
 import { pipe } from 'fp-ts/lib/function.js';
 import { KnutConfigFile } from './configFile.js';
 import { testUtils } from './internal/testUtils.js';
-import { optionalT } from './internal/optionalT.js';
-import { future } from './internal/future.js';
+import { Future, optionalT } from './Utils/index.js';
 
 for await (const { name, getBackend } of testUtils.backends) {
 	describe(`knutConfigFile - ${name} backend`, async () => {
 		test('should be able load config files from storage', async () => {
 			const backend = await getBackend();
 			const original = await KnutConfigFile.fromStorage(backend.config);
-			const T = optionalT(future.Monad);
+			const T = optionalT(Future.Monad);
 			const data = pipe(
 				testUtils.fixtureStorage.read('config/knut/config.yaml'),
 				T.map(KnutConfigFile.fromYAML),
@@ -27,7 +26,7 @@ for await (const { name, getBackend } of testUtils.backends) {
 			expect(config?.resolve().getKeg('sample1')?.url).toEqual(
 				await pipe(
 					backend.loader('samplekeg1'),
-					future.map((a) => a?.root),
+					Future.map((a) => a?.uri),
 				),
 			);
 		});

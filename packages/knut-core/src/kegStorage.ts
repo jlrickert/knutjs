@@ -1,22 +1,15 @@
 import * as Path from 'path';
 import { NodeId } from './node.js';
-import {
-	GenericStorage,
-	StorageNodeStats,
-	StorageNodeTime,
-} from './storage/storage.js';
-import { loadStorage } from './storage/storageUtils.js';
-import { Optional, optional } from './internal/optional.js';
-import { Stringer } from './utils.js';
-import { Future } from './internal/future.js';
+import { Storage } from './Storage/index.js';
+import { Future, Optional, Stringer } from './Utils/index.js';
 
 export const loadKegStorage = (url: string) => {
 	if (Path.isAbsolute(url)) {
-		const storage = loadStorage(url);
+		const storage = Storage.loadStorage(url);
 		const kegStorage = KegStorage.fromStorage(storage);
 		return kegStorage;
 	}
-	const storage = loadStorage(url);
+	const storage = Storage.loadStorage(url);
 	const kegStorage = KegStorage.fromStorage(storage);
 	return kegStorage;
 };
@@ -25,65 +18,67 @@ export const loadKegStorage = (url: string) => {
  * KegStorage wraps a generic storage to add additional operations on top of a
  * `GenericStorage`.
  */
-export class KegStorage extends GenericStorage {
-	static async kegExists(storage: GenericStorage): Future<boolean> {
+export class KegStorage extends Storage.BaseStorage {
+	static async kegExists(
+		storage: Storage.GenericStorage,
+	): Future.Future<boolean> {
 		const items = await storage.readdir('');
 		return (
-			optional.isSome(items) &&
+			Optional.isSome(items) &&
 			items.includes('dex') &&
 			items.includes('keg')
 		);
 	}
 
-	static fromStorage(storage: GenericStorage): KegStorage {
+	static fromStorage(storage: Storage.GenericStorage): KegStorage {
 		if (storage instanceof KegStorage) {
 			return storage;
 		}
 		return new KegStorage(storage);
 	}
 
-	private constructor(private fs: GenericStorage) {
-		super(fs.root);
+	private constructor(private fs: Storage.GenericStorage) {
+		super(fs.uri);
 	}
 
-	read(path: Stringer): Future<Optional<string>> {
+	read(path: Stringer): Future.OptionalFuture<string> {
 		return this.fs.read(path);
 	}
 
-	write(path: Stringer, contents: Stringer): Future<boolean> {
+	write(path: Stringer, contents: Stringer): Future.Future<boolean> {
 		return this.fs.write(path, contents);
 	}
 
-	rm(path: Stringer): Future<boolean> {
+	rm(path: Stringer): Future.Future<boolean> {
 		return this.fs.rm(path);
 	}
 
-	readdir(path: Stringer): Future<Optional<string[]>> {
+	readdir(path: Stringer): Future.OptionalFuture<string[]> {
 		return this.fs.readdir(path);
 	}
 
 	rmdir(
 		path: Stringer,
 		options?: { recursive?: boolean | undefined } | undefined,
-	): Future<boolean> {
+	): Future.Future<boolean> {
 		return this.fs.rmdir(path, options);
 	}
 
-	utime(path: string, stats: StorageNodeTime): Future<boolean> {
+	utime(path: string, stats: Storage.StorageNodeTime): Future.Future<boolean> {
 		return this.fs.utime(path, stats);
 	}
 
-	mkdir(path: Stringer): Future<boolean> {
+	mkdir(path: Stringer): Future.Future<boolean> {
 		return this.fs.mkdir(path);
 	}
 
-	stats(path: Stringer): Future<Optional<StorageNodeStats>> {
+	stats(path: Stringer): Future.OptionalFuture<Storage.StorageNodeStats> {
 		return this.fs.stats(path);
 	}
 
 	async *listNodes() {
 		const dirList = await this.fs.readdir('');
-		if (optional.isNone(dirList)) {
+		if (Optional.isNone(dirList)) {
 			return;
 		}
 		for (const dir of dirList) {

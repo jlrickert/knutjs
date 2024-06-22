@@ -24,12 +24,16 @@ const commonConfig: Options = {
 export default defineConfig(() => {
 	return [
 		{
-			entry: ['./src/index.ts'],
+			entry: [
+				'./src/index.ts',
+				'./src/Storage/index.ts',
+				'./src/Backend/index.ts',
+				'./src/Utils/index.ts',
+			],
 			...commonConfig,
 			esbuildOptions: (options) => {
 				options.outbase = 'src';
 			},
-			// the index doesn't need to be bundled
 		},
 		// {
 		// 	entry: ['./src/**/!(index).ts'],

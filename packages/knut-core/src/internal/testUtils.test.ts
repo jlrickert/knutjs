@@ -4,9 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { testUtils } from './testUtils.js';
 import { Knut } from '../knut.js';
 import { Keg } from '../keg.js';
-import { optional } from './optional.js';
-import { optionalT } from './optionalT.js';
-import { future } from './future.js';
+import { Future, Optional, optionalT } from '../Utils/index.js';
 
 for await (const { name, getBackend } of testUtils.backends) {
 	describe(`${name} backend`, async () => {
@@ -35,7 +33,7 @@ for await (const { name, getBackend } of testUtils.backends) {
 				(ks) => ks?.read('keg'),
 			);
 			expect(fixtureData?.length).toBeGreaterThan(0);
-			invariant(optional.isSome(fixtureData));
+			invariant(Optional.isSome(fixtureData));
 			expect(fixtureData).toStrictEqual(data);
 		});
 
@@ -44,7 +42,7 @@ for await (const { name, getBackend } of testUtils.backends) {
 			const knut = await Knut.fromBackend(backend);
 
 			const load = async (kegalias: string) => {
-				const T = optionalT(future.Monad);
+				const T = optionalT(Future.Monad);
 				const keg = pipe(
 					backend.loader(kegalias),
 					T.chain(Keg.fromStorage),

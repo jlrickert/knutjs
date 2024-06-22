@@ -1,13 +1,11 @@
 import * as Path from 'path';
 import { homedir } from 'os';
 import * as FS from 'fs/promises';
-import { Stringer, stringify } from '../utils.js';
 import { NodeId } from '../node.js';
-import { Optional, optional } from '../internal/optional.js';
-import { Future } from '../internal/future.js';
-import { GenericStorage, StorageNodeStats } from './storage.js';
+import { BaseStorage, StorageNodeStats } from './BaseStorage.js';
+import { Future, Optional, Stringer, stringify } from '../Utils/index.js';
 
-export class NodeStorage extends GenericStorage {
+export class NodeStorage extends BaseStorage {
 	private static parsePath(path: Stringer): string {
 		return stringify(path).replace(/^~/, homedir());
 	}
@@ -19,9 +17,9 @@ export class NodeStorage extends GenericStorage {
 	private getFullPath(path: Stringer): string {
 		const filepath = NodeStorage.parsePath(path);
 		if (Path.isAbsolute(filepath)) {
-			return Path.join(this.root, filepath);
+			return Path.join(this.uri, filepath);
 		}
-		const fullpath = Path.resolve(this.root, filepath);
+		const fullpath = Path.resolve(this.uri, filepath);
 		return fullpath;
 	}
 
@@ -30,10 +28,10 @@ export class NodeStorage extends GenericStorage {
 	}
 
 	getRoot() {
-		return this.root;
+		return this.uri;
 	}
 
-	async read(filepath: Stringer): Future<Optional<string>> {
+	async read(filepath: Stringer): Future.OptionalFuture<string> {
 		const fullpath = this.getFullPath(NodeStorage.parsePath(filepath));
 		try {
 			const content = await FS.readFile(fullpath, { encoding: 'utf-8' });
@@ -43,7 +41,7 @@ export class NodeStorage extends GenericStorage {
 		}
 	}
 
-	async write(filepath: Stringer, contents: Stringer): Future<boolean> {
+	async write(filepath: Stringer, contents: Stringer): Future.Future<boolean> {
 		const fullpath = this.getFullPath(filepath);
 		const content = stringify(contents);
 		try {
@@ -56,7 +54,7 @@ export class NodeStorage extends GenericStorage {
 		}
 	}
 
-	async rm(filepath: Stringer): Future<boolean> {
+	async rm(filepath: Stringer): Future.Future<boolean> {
 		try {
 			await FS.rm(this.getFullPath(filepath), { recursive: true });
 			return true;
@@ -65,13 +63,13 @@ export class NodeStorage extends GenericStorage {
 		}
 	}
 
-	async readdir(dirpath: Stringer): Future<Optional<string[]>> {
+	async readdir(dirpath: Stringer): Future.OptionalFuture<string[]> {
 		const fullPath = this.getFullPath(dirpath);
 		try {
 			const children = await FS.readdir(fullPath);
 			return children
 				.map((child) => {
-					return Path.relative(this.root, Path.join(fullPath, child));
+					return Path.relative(this.uri, Path.join(fullPath, child));
 				})
 				.sort((a, b) => {
 					const idA = NodeId.parsePath(a);
@@ -82,14 +80,14 @@ export class NodeStorage extends GenericStorage {
 					return a < b ? -1 : 1;
 				});
 		} catch {
-			return optional.none;
+			return Optional.none;
 		}
 	}
 
 	async rmdir(
 		filepath: Stringer,
 		options?: { recursive?: boolean | undefined } | undefined,
-	): Future<boolean> {
+	): Future.Future<boolean> {
 		const fullPath = this.getFullPath(filepath);
 		try {
 			await FS.rmdir(fullPath, { recursive: options?.recursive });
@@ -99,7 +97,7 @@ export class NodeStorage extends GenericStorage {
 		}
 	}
 
-	async utime(path: string, stats: StorageNodeStats): Future<boolean> {
+	async utime(path: string, stats: StorageNodeStats): Future.Future<boolean> {
 		const fullpath = this.getFullPath(path);
 		try {
 			const s = await FS.stat(fullpath);
@@ -112,7 +110,7 @@ export class NodeStorage extends GenericStorage {
 		}
 	}
 
-	async mkdir(dirpath: Stringer): Future<boolean> {
+	async mkdir(dirpath: Stringer): Future.Future<boolean> {
 		const fullpath = this.getFullPath(dirpath);
 		try {
 			await FS.mkdir(fullpath, {
@@ -124,7 +122,7 @@ export class NodeStorage extends GenericStorage {
 		}
 	}
 
-	async stats(filepath: Stringer): Future<Optional<StorageNodeStats>> {
+	async stats(filepath: Stringer): Future.OptionalFuture<StorageNodeStats> {
 		const fullpath = this.getFullPath(filepath);
 		try {
 			const stats = await FS.stat(fullpath);
@@ -140,7 +138,7 @@ export class NodeStorage extends GenericStorage {
 				},
 			};
 		} catch (e) {
-			return optional.none;
+			return Optional.none;
 		}
 	}
 

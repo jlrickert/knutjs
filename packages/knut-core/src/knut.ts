@@ -1,17 +1,13 @@
-import { pipe } from 'fp-ts/lib/function.js';
+import invariant from 'tiny-invariant';
 import Fuse, { FuseIndex, FuseOptionKey, FuseSearchOptions } from 'fuse.js';
 import { KnutConfigFile } from './configFile.js';
 import { Filter } from './filterTypes.js';
 import { MetaFile, MetaData } from './metaFile.js';
 import { NodeId } from './node.js';
-import { MY_JSON, stringify } from './utils.js';
 import { Keg } from './keg.js';
-import invariant from 'tiny-invariant';
-import { Future, future } from './internal/future.js';
-import { Optional, optional } from './internal/optional.js';
-import { optionalT } from './internal/optionalT.js';
-import { Backend, backend as backendM } from './backend.js';
-import { GenericStorage } from './storage/storage.js';
+import { Backend } from './Backend/index.js';
+import { Storage } from './Storage/index.js';
+import { Future, Json, Optional, optionalT, pipe, stringify } from './Utils/index.js';
 
 export type NodeCreateOptions = {
 	kegalias: string;
@@ -63,7 +59,7 @@ export type SearchResult = {
 	rank: number;
 	tags: string[];
 	author: string | null;
-	meta: MY_JSON;
+	meta: Json.Json;
 };
 
 export type ShareOptions = {
@@ -85,11 +81,11 @@ export type KnutOptions = {};
 export class Knut {
 	private kegMap = new Map<string, Keg>();
 
-	static async fromBackend(backend: Backend): Future<Knut> {
-		const load = async (storage: GenericStorage) => {
+	static async fromBackend(backend: Backend.Backend): Future.Future<Knut> {
+		const load = async (storage: Storage.GenericStorage) => {
 			const config =
 				(await KnutConfigFile.fromStorage(storage)) ??
-				KnutConfigFile.create(storage.root);
+				KnutConfigFile.create(storage.uri);
 			return config;
 		};
 		const varConfig = await load(backend.variable);
@@ -102,23 +98,23 @@ export class Knut {
 
 	static async fromConfig(
 		config: KnutConfigFile,
-		backend: Backend,
-	): Future<Knut> {
+		backend: Backend.Backend,
+	): Future.Future<Knut> {
 		const knut = new Knut(backend);
 		await knut.loadConfig(config);
 		return knut;
 	}
 
-	static async create(): Future<Optional<Knut>> {
-		const T = optionalT(future.Monad);
+	static async create(): Future.OptionalFuture<Knut> {
+		const T = optionalT(Future.Monad);
 		const knut = await pipe(
-			backendM.detectBackend(),
+			Backend.detectBackend(),
 			T.chain(Knut.fromBackend),
 		);
 		return knut;
 	}
 
-	private constructor(public readonly backend: Backend) {}
+	private constructor(public readonly backend: Backend.Backend) {}
 
 	async reset() {
 		// TODO(Jared): deactive keg plugins before clearing
@@ -128,19 +124,22 @@ export class Knut {
 	async loadConfig(config: KnutConfigFile) {
 		for (const keg of config.resolve().data.kegs) {
 			const storage = await this.backend.loader(keg.url);
-			if (optional.isSome(storage)) {
+			if (Optional.isSome(storage)) {
 				await this.loadKeg(keg.alias, storage);
 			}
 		}
-		return future.of<void>(void {});
+		return Future.of<void>(void {});
 	}
 
 	/**
 	 * Loads required data for a keg
 	 */
-	async loadKeg(kegalias: string, storage: GenericStorage): Future<void> {
+	async loadKeg(
+		kegalias: string,
+		storage: Storage.GenericStorage,
+	): Future.Future<void> {
 		const keg = await Keg.fromStorage(storage);
-		if (optional.isNone(keg)) {
+		if (Optional.isNone(keg)) {
 			return;
 		}
 		this.kegMap.set(kegalias, keg);
@@ -150,13 +149,13 @@ export class Knut {
 		alias: string,
 		uri: string,
 		options?: { enabled: boolean },
-	): Future<Optional<Keg>> {
-		const T = optionalT(future.Monad);
+	): Future.OptionalFuture<Keg> {
+		const T = optionalT(Future.Monad);
 
 		const keg = await pipe(this.backend.loader(uri), T.chain(Keg.init));
 
-		if (optional.isNone(keg)) {
-			return optional.none;
+		if (Optional.isNone(keg)) {
+			return Optional.none;
 		}
 
 		this.kegMap.set(alias, keg);
@@ -165,12 +164,12 @@ export class Knut {
 		await pipe(
 			KnutConfigFile.fromStorage(this.backend.variable),
 			T.alt(() =>
-				T.some(KnutConfigFile.create(this.backend.variable.root)),
+				T.some(KnutConfigFile.create(this.backend.variable.uri)),
 			),
 			T.map((config) => {
 				config.data.kegs.push({
 					enabled: options?.enabled ?? true,
-					url: keg.storage.root,
+					url: keg.storage.uri,
 					alias,
 				});
 				return config;
@@ -183,7 +182,7 @@ export class Knut {
 		return keg;
 	}
 
-	getKeg(kegalias: string): Optional<Keg> {
+	getKeg(kegalias: string): Optional.Optional<Keg> {
 		return this.kegMap.get(kegalias) ?? null;
 	}
 
@@ -209,12 +208,15 @@ export class Knut {
 		}
 	}
 
-	async update(): Future<void> {
+	async update(): Future.Future<void> {
 		this.backend.cache.rm('fuse-data.json');
 		this.backend.cache.rm('fuse-index.json');
 	}
 
-	async search({ limit, filter }: SearchOptions): Future<SearchResult[]> {
+	async search({
+		limit,
+		filter,
+	}: SearchOptions): Future.Future<SearchResult[]> {
 		const results: SearchResult[] = [];
 		type Data = {
 			nodeId: string;
@@ -224,12 +226,12 @@ export class Knut {
 			author: string | null;
 			tags: string[];
 			updated: string;
-			meta: MY_JSON;
+			meta: Json.Json;
 		};
 		const rawData = await this.backend.cache.read('fuse-data.json');
-		let data = rawData ? (JSON.parse(rawData) as Data[]) : optional.none;
+		let data = rawData ? (JSON.parse(rawData) as Data[]) : Optional.none;
 
-		if (optional.isNone(data)) {
+		if (Optional.isNone(data)) {
 			data = [];
 			for await (const [kegalias, nodeId, node] of this.getNodeList()) {
 				const keg = this.getKeg(kegalias);
@@ -258,7 +260,7 @@ export class Knut {
 					title: node?.title ?? '',
 					author: pipe(
 						author,
-						optional.getOrElse(() => null),
+						Optional.getOrElse(() => null),
 					),
 					tags: [...tags],
 					updated: stringify(node.updated),
@@ -337,22 +339,28 @@ export class Knut {
 	/**
 	 * Export keg to an external source. This could be with git.
 	 */
-	async publish(kegpath: string, options?: PublishOptions): Future<void> {}
+	async publish(
+		kegpath: string,
+		options?: PublishOptions,
+	): Future.Future<void> {}
 
 	/**
 	 * Share a specific shareable node by providing a link.
 	 */
-	async share({ kegalias, nodeId }: ShareOptions): Future<Optional<string>> {
+	async share({
+		kegalias,
+		nodeId,
+	}: ShareOptions): Future.OptionalFuture<string> {
 		return null;
 	}
 
 	/**
 	 * Remove access to a node
 	 **/
-	async unshare(options: ShareOptions): Future<void> {}
+	async unshare(options: ShareOptions): Future.Future<void> {}
 
 	/**
 	 * import nodes from another keg. Used for combining multiple kegs into 1.
 	 */
-	async merge(from: string | string[], to: string): Future<void> {}
+	async merge(from: string | string[], to: string): Future.Future<void> {}
 }

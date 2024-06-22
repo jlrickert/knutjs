@@ -2,12 +2,10 @@ import { pipe } from 'fp-ts/lib/function.js';
 import { test, describe, expect, afterEach, vi } from 'vitest';
 import { NodeId } from './node.js';
 import { testUtils } from './internal/testUtils.js';
-import { optionalT } from './internal/optionalT.js';
-import { future } from './internal/future.js';
 import { Knut } from './knut.js';
-import { collectAsync } from './utils.js';
 import { KnutConfigFile } from './configFile.js';
 import { NodeContent } from './nodeContent.js';
+import { collectAsync, Future, optionalT } from './Utils/index.js';
 
 for await (const { name, getBackend } of testUtils.backends) {
 	afterEach(() => {
@@ -99,11 +97,11 @@ for await (const { name, getBackend } of testUtils.backends) {
 				expect.stringContaining('yaml-language-server'),
 			);
 
-			const T = optionalT(future.Monad);
+			const T = optionalT(Future.Monad);
 			expect(
 				await pipe(
 					Knut.fromBackend(backend),
-					T.chain((knut) => future.of(knut.getKeg('sample'))),
+					T.chain((knut) => Future.of(knut.getKeg('sample'))),
 				),
 			).toBeTruthy();
 		});

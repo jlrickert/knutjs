@@ -3,13 +3,9 @@ import invariant from 'tiny-invariant';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { afterEach } from 'vitest';
-import { optional } from './optional.js';
-import { Future } from './future.js';
-import { Loader, Backend } from '../backend.js';
-import { overwrite } from '../storage/storageUtils.js';
-import { GenericStorage } from '../storage/storage.js';
-import { NodeStorage } from '../storage/nodeStorage.js';
-import { WebStorage } from '../storage/webStorage.js';
+import { Backend } from '../Backend/index.js';
+import { Storage, WebStorage, NodeStorage } from '../Storage/index.js';
+import { Future, Optional } from '../Utils/index.js';
 
 export type Kegpath = 'samplekeg1' | 'samplekeg2' | 'samplekeg3';
 
@@ -37,20 +33,21 @@ const FIXTURE_CACHE_PATH = Path.resolve(fixturePath, 'cache/knut');
 
 const fixtureStorage = new NodeStorage(fixturePath);
 
-const tempNodeStorage: () => Future<GenericStorage> = async () => {
-	const rootPath = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
-	const storage = new NodeStorage(rootPath);
+const tempNodeStorage: () => Future.Future<Storage.GenericStorage> =
+	async () => {
+		const rootPath = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
+		const storage = new NodeStorage(rootPath);
 
-	afterEach(async () => {
-		try {
-			await rm(storage.root, { recursive: true });
-		} catch (e) {}
-	});
+		afterEach(async () => {
+			try {
+				await rm(storage.uri, { recursive: true });
+			} catch (e) {}
+		});
 
-	return storage;
-};
+		return storage;
+	};
 
-const testBrowserBackend = async (): Future<Backend> => {
+const testBrowserBackend = async (): Future.Future<Backend.Backend> => {
 	const fixture = fixtureStorage;
 
 	const storage = WebStorage.create('knut');
@@ -66,7 +63,7 @@ const testBrowserBackend = async (): Future<Backend> => {
 	const config = storage.child('config/knut');
 
 	const kegStorage = WebStorage.create('knut-kegs');
-	const loader: Loader = async (uri: string) => {
+	const loader: Backend.Loader = async (uri: string) => {
 		const storage = kegStorage.child(uri);
 		return storage;
 	};
@@ -76,7 +73,7 @@ const testBrowserBackend = async (): Future<Backend> => {
 		variable,
 		cache,
 		loader,
-	} satisfies Backend;
+	} satisfies Backend.Backend;
 
 	for (const kegalias of [
 		'samplekeg1',
@@ -86,26 +83,26 @@ const testBrowserBackend = async (): Future<Backend> => {
 		const storage = await backend.loader(kegalias);
 		const path = fixtureKegpath(kegalias);
 		invariant(
-			optional.isSome(storage),
+			Optional.isSome(storage),
 			`Expect fixture to load keg storage`,
 		);
-		await overwrite(fixture.child(path), storage);
+		await Storage.overwrite(fixture.child(path), storage);
 	}
 
-	await overwrite(fixture.child(FIXTURE_CONFIG_PATH), backend.config);
-	await overwrite(fixture.child(FIXTURE_VAR_PATH), backend.variable);
-	await overwrite(fixture.child(FIXTURE_CACHE_PATH), backend.cache);
+	await Storage.overwrite(fixture.child(FIXTURE_CONFIG_PATH), backend.config);
+	await Storage.overwrite(fixture.child(FIXTURE_VAR_PATH), backend.variable);
+	await Storage.overwrite(fixture.child(FIXTURE_CACHE_PATH), backend.cache);
 	return backend;
 };
 
-const testEmptyNodeBackend = async (): Future<Backend> => {
+const testEmptyNodeBackend = async (): Future.Future<Backend.Backend> => {
 	const root = await tempNodeStorage();
 
 	const cache = root.child('cache/knut');
 	const config = root.child('config/knut');
 	const variable = root.child('local/share/knut');
 
-	const loader: Loader = async (uri) => {
+	const loader: Backend.Loader = async (uri) => {
 		return root.child(uri);
 	};
 
@@ -120,15 +117,15 @@ const testEmptyNodeBackend = async (): Future<Backend> => {
 /**
  * Returns a platform with full fixtures
  **/
-const testNodeBackend = async (): Future<Backend> => {
+const testNodeBackend = async (): Future.Future<Backend.Backend> => {
 	const root = await tempNodeStorage();
 
 	const cache = root.child('cache/knut');
 	const config = root.child('config/knut');
 	const variable = root.child('local/share/knut');
-	await overwrite(fixtureStorage, root);
+	await Storage.overwrite(fixtureStorage, root);
 
-	const loader: Loader = async (uri) => {
+	const loader: Backend.Loader = async (uri) => {
 		return root.child(uri);
 	};
 

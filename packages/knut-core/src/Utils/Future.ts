@@ -3,8 +3,11 @@ import { Apply1 } from 'fp-ts/lib/Apply.js';
 import { Chain1 } from 'fp-ts/lib/Chain.js';
 import { Monad1 } from 'fp-ts/lib/Monad.js';
 import { identity, pipe } from 'fp-ts/lib/function.js';
+import { Optional } from './Optional.js';
 
 export type Future<A> = Promise<A>;
+
+export type OptionalFuture<A> = Future<Optional<A>>;
 
 export const URI = 'Future';
 export type URI = typeof URI;
