@@ -1,28 +1,34 @@
 import { pipe } from 'fp-ts/lib/function.js';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, assert } from 'vitest';
 import { Optional, Future, optionalT } from './index.js';
 
 describe.concurrent('OptionalT', () => {
 	const T = optionalT(Future.Monad);
 	test('map', async () => {
-		const greeting = T.some('Welcome');
-		const excitingGreeting = await pipe(
-			greeting,
-			T.map((a) => a + '!'),
-		);
-		expect(excitingGreeting).toEqual('Welcome!');
+		expect(
+			await pipe(
+				T.some('Welcome'),
+				T.map((a) => `${a}!`),
+			),
+		).toEqual('Welcome!');
 	});
 
 	test('ap', async () => {
-		const a = T.some('a');
-		const b = T.some('b');
 		expect(
-			pipe(
-				a,
-				T.map((a) => (b: string) => [a, b]),
-				T.ap(b),
+			await T.ap(
+				T.some((a: number) => a + a),
+				T.some(2),
 			),
-		).toStrictEqual(Future.of(['a', 'b']));
+		).toStrictEqual(await T.some(4));
+
+		assert.deepStrictEqual(
+			await pipe(
+				T.some('a'),
+				T.map((a) => (b: string) => [a, b]),
+				T.ap(T.some('b')),
+			),
+			await Future.of(['a', 'b']),
+		);
 	});
 
 	test('chain', async () => {
@@ -74,21 +80,35 @@ describe.concurrent('OptionalT', () => {
 		expect(
 			await pipe(
 				T.some('s'),
-				T.match(
-					() => 'I got nothing',
-					(a) => `I got ${a}`,
-				),
+				T.match({
+					onNone: () => 'I got nothing',
+					onSome: (a) => `I got ${a}`,
+				}),
 			),
+		).toStrictEqual('I got s');
+
+		expect(
+			await T.match(T.some('s'), {
+				onNone: () => 'I got nothing',
+				onSome: (a) => `I got ${a}`,
+			}),
 		).toStrictEqual('I got s');
 
 		expect(
 			await pipe(
 				T.none,
-				T.match(
-					() => 'I got nothing',
-					(a) => `I got ${a}`,
-				),
+				T.match({
+					onNone: () => 'I got nothing',
+					onSome: (a) => `I got ${a}`,
+				}),
 			),
+		).toStrictEqual('I got nothing');
+
+		expect(
+			await T.match(T.none, {
+				onNone: () => 'I got nothing',
+				onSome: (a) => `I got ${a}`,
+			}),
 		).toStrictEqual('I got nothing');
 	});
 
