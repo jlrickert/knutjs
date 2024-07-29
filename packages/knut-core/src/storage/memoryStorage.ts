@@ -1,12 +1,21 @@
 import * as Path from 'path';
 import invariant from 'tiny-invariant';
-import { overwrite } from './Storage.js';
 import {
 	BaseStorage,
 	StorageNodeStats,
 	StorageNodeTime,
+	StorageResult,
 } from './BaseStorage.js';
-import { Future, Optional, Stringer, stringify } from '../Utils/index.js';
+import {
+	Future,
+	Optional,
+	pipe,
+	Result,
+	Stringer,
+	stringify,
+} from '../Utils/index.js';
+import { overwrite } from './Storage.js';
+import { StorageError } from './index.js';
 
 type FsNodeTimestamps = {
 	mtime: string;
@@ -151,37 +160,55 @@ export class MemoryStorage extends BaseStorage {
 		}
 	}
 
-	async read(path: Stringer): Future.OptionalFuture<string> {
+	async read(path: Stringer): StorageResult<string> {
 		const fullpath = this.getFullPath(path);
 		const currentTime = stringify(new Date());
 		const node = this.getNode(fullpath);
 		if (node?.type !== 'file') {
-			return null;
+			return Result.err(
+				StorageError.fileNotFound({ filename: fullpath }),
+			);
 		}
 		const parentPath = this.getDirpath(fullpath);
 		invariant(parentPath, 'Expect valid file to have a parent directory');
 		await this.utime(fullpath, { atime: currentTime });
 		await this.utime(parentPath, { atime: currentTime });
 
-		return node.content;
+		return Result.ok(node.content);
 	}
 
-	async write(path: Stringer, content: Stringer): Future.Future<boolean> {
+	async write(path: Stringer, content: Stringer): StorageResult<true> {
 		const fullpath = this.getFullPath(path);
 		const nodeStats = await this.stats(fullpath);
 
 		// Write cannot write a file over a directory
-		if (nodeStats && nodeStats.isDirectory()) {
-			return false;
+		if (Result.isOk(nodeStats) && nodeStats.value.isDirectory()) {
+			return Result.err(StorageError.dirNotFound({ dirname: fullpath }));
+		}
+
+		// Return appropriate error in the case that there is some other problem.
+		if (
+			Result.isErr(nodeStats) &&
+			nodeStats.error.code !== 'PATH_NOT_FOUND'
+		) {
+			return Result.err(nodeStats.error);
 		}
 
 		const now = new Date();
-		const newStats = {
-			mtime: stringify(now),
-			atime: stringify(nodeStats?.atime ?? now),
-			ctime: stringify(nodeStats?.ctime ?? now),
-			btime: stringify(nodeStats?.btime ?? now),
-		};
+		const newStats = Result.match(nodeStats, {
+			onOk: (a): FsNodeTimestamps => ({
+				mtime: stringify(now),
+				atime: stringify(a.atime ?? now),
+				ctime: stringify(a.ctime ?? now),
+				btime: stringify(a.btime ?? now),
+			}),
+			onErr: (): FsNodeTimestamps => ({
+				atime: stringify(now),
+				btime: stringify(now),
+				ctime: stringify(now),
+				mtime: stringify(now),
+			}),
+		});
 
 		// Actually write the node to the filesystem
 		const index = this.fs.nodes.length;
@@ -195,10 +222,12 @@ export class MemoryStorage extends BaseStorage {
 		// Handle the parent node
 		const parentPath = this.getDirpath(fullpath);
 		invariant(
-			parentPath,
+			Optional.isSome(parentPath),
 			'Expect parent to exist as a node writing to must be a file that is guaranteed be in a directory',
 		);
-		if (!(await this.mkdir(parentPath))) {
+
+		// Update mtime if directory exists
+		if (Result.isErr(await this.mkdir(parentPath))) {
 			await this.utime(parentPath, { mtime: newStats.mtime });
 		}
 
@@ -212,19 +241,35 @@ export class MemoryStorage extends BaseStorage {
 			parent.children.sort();
 		}
 
-		return true;
+		return Result.ok(true);
 	}
 
-	async rm(path: Stringer): Future.Future<boolean> {
+	async rm(path: Stringer): StorageResult<true> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
-		if (!node || node?.type !== 'file') {
-			return false;
+		if (Optional.isNone(node)) {
+			return Result.err(
+				StorageError.fileNotFound({ filename: fullpath }),
+			);
+		}
+
+		if (node.type === 'directory') {
+			return Result.err(
+				StorageError.dirExists({
+					dirname: fullpath,
+					reason: `Cannot remove directory ${fullpath}`,
+				}),
+			);
 		}
 
 		const index = this.fs.index[fullpath];
 		if (index === undefined || index === 0) {
-			return false;
+			return Result.err(
+				StorageError.uknownError({
+					message: 'Fatal error',
+					reason: 'Retrieving node relies on a index existing',
+				}),
+			);
 		}
 		delete this.fs.nodes[index];
 		this.rebuildIndex();
@@ -236,17 +281,19 @@ export class MemoryStorage extends BaseStorage {
 		invariant(parent?.type === 'directory');
 		parent.children = parent.children.filter((child) => child !== fullpath);
 
-		return true;
+		return Result.ok(true);
 	}
 
 	/**
 	 * Reading a directory updates the atime for both itself and the parent if available
 	 **/
-	async readdir(path: Stringer): Future.OptionalFuture<string[]> {
+	async readdir(path: Stringer): StorageResult<string[]> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (node?.type !== 'directory') {
-			return null;
+			return Result.err(
+				StorageError.notADirectory({ dirname: fullpath }),
+			);
 		}
 
 		const now = new Date();
@@ -257,19 +304,17 @@ export class MemoryStorage extends BaseStorage {
 			await this.utime(parentPath, { atime: now });
 		}
 
-		return node.children.map((child) => {
+		const list = node.children.map((child) => {
 			return Path.relative(this.uri, child);
 		});
+		return Result.ok(list);
 	}
 
-	async utime(
-		path: Stringer,
-		stats: StorageNodeTime,
-	): Future.Future<boolean> {
+	async utime(path: Stringer, stats: StorageNodeTime): StorageResult<true> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
-		if (!node) {
-			return false;
+		if (Optional.isNone(node)) {
+			return Result.err(StorageError.pathNotFound({ path: fullpath }));
 		}
 
 		const prevStats = node.stats;
@@ -281,14 +326,14 @@ export class MemoryStorage extends BaseStorage {
 		};
 		node.stats = nextStats;
 
-		return true;
+		return Result.ok(true);
 	}
 
-	async mkdir(path: Stringer): Future.Future<boolean> {
+	async mkdir(path: Stringer): StorageResult<true> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (node) {
-			return false;
+			return Result.err(StorageError.uknownError({ reason: 'Unable ' }));
 		}
 
 		const pathParts = fullpath.split('/').slice(1);
@@ -307,7 +352,9 @@ export class MemoryStorage extends BaseStorage {
 		for (const dirpath of dirsToMake) {
 			const node = this.getNode(dirpath);
 			if (node?.type === 'file') {
-				return false;
+				return Result.err(
+					StorageError.fileExists({ filename: dirpath }),
+				);
 			}
 		}
 
@@ -338,23 +385,42 @@ export class MemoryStorage extends BaseStorage {
 		parent.children.push(fullpath);
 		parent.children.sort();
 
-		return true;
+		return Result.ok(true);
 	}
 
 	async rmdir(
 		path: Stringer,
 		options?: { recursive?: boolean },
-	): Future.Future<boolean> {
+	): StorageResult<true> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
+		if (Optional.isNone(node)) {
+			return Result.err(StorageError.dirNotFound({ dirname: fullpath }));
+		}
 
-		if (node?.type !== 'directory' || node.path === '/') {
-			return false;
+		if (node.path === '/') {
+			return Result.err(
+				StorageError.permissionError({
+					filename: '/',
+					message: 'Unable to remove root directory',
+					reason: 'Unable to remove root directory',
+				}),
+			);
+		}
+
+		if (node?.type !== 'directory') {
+			return Result.err(
+				StorageError.notADirectory({ dirname: fullpath, reason: '' }),
+			);
 		}
 
 		// can only delete empty nodes if not recursive
 		if (node.children.length !== 0 && !options?.recursive) {
-			return false;
+			return Result.err(
+				StorageError.dirNotEmpty({
+					dirname: fullpath,
+				}),
+			);
 		}
 
 		if (options?.recursive) {
@@ -376,24 +442,24 @@ export class MemoryStorage extends BaseStorage {
 
 		this.rebuildIndex();
 
-		return true;
+		return Result.ok(true);
 	}
 
-	async stats(path: Stringer): Future.OptionalFuture<StorageNodeStats> {
+	async stats(path: Stringer): StorageResult<StorageNodeStats> {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (Optional.isNone(node)) {
-			return Optional.none;
+			return Result.err(StorageError.pathNotFound({ path: fullpath }));
 		}
-		return {
+		return Result.ok({
 			...node.stats,
-			isFile() {
-				return node?.type === 'file';
+			isFile: () => {
+				return node.type === 'file';
 			},
-			isDirectory() {
-				return node?.type === 'directory';
+			isDirectory: () => {
+				return node.type === 'directory';
 			},
-		};
+		});
 	}
 
 	child(subpath: Stringer): MemoryStorage {

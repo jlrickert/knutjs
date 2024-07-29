@@ -1,5 +1,8 @@
 import { TimeLike } from 'fs';
 import { Future, Stringer } from '../Utils/index.js';
+import { StorageError } from './StorageError.js';
+
+export type StorageResult<T> = Future.FutureResult<T, StorageError>;
 
 export type StorageNodeTime = {
 	/**
@@ -34,17 +37,17 @@ export abstract class BaseStorage {
 	/**
 	 * Read a files content if it exists. This updates access time.
 	 **/
-	abstract read(path: Stringer): Future.OptionalFuture<string>;
+	abstract read(path: Stringer): StorageResult<string>;
 
 	/**
 	 * Create or overwrite a file if it exists. Modifies modified time.
 	 **/
-	abstract write(path: Stringer, contents: Stringer): Future.Future<boolean>;
+	abstract write(path: Stringer, contents: Stringer): StorageResult<true>;
 
 	/**
 	 * Remove a file if it exists
 	 **/
-	abstract rm(path: Stringer): Future.Future<boolean>;
+	abstract rm(path: Stringer): StorageResult<true>;
 
 	/**
 	 * Copy over a file or directory. Creates directories if needed. Copies over all contents if it is a directory.
@@ -55,7 +58,7 @@ export abstract class BaseStorage {
 	 * read directory and get all subpaths. The returned paths are all full
 	 * paths.
 	 */
-	abstract readdir(path: Stringer): Future.OptionalFuture<string[]>;
+	abstract readdir(path: Stringer): StorageResult<string[]>;
 
 	/**
 	 * Remove a directory if it exists
@@ -63,25 +66,22 @@ export abstract class BaseStorage {
 	abstract rmdir(
 		path: Stringer,
 		options?: { recursive?: boolean },
-	): Future.Future<boolean>;
+	): StorageResult<true>;
 
 	/**
 	 * Modify access time, modified time, and/or created time values.
 	 **/
-	abstract utime(
-		path: string,
-		stats: StorageNodeTime,
-	): Future.Future<boolean>;
+	abstract utime(path: string, stats: StorageNodeTime): StorageResult<true>;
 
 	/**
 	 * Create a directory if it doesn't exist
 	 **/
-	abstract mkdir(path: Stringer): Future.Future<boolean>;
+	abstract mkdir(path: Stringer): StorageResult<true>;
 
 	/**
 	 * Get time stats about a node on the filesystem
 	 **/
-	abstract stats(path: Stringer): Future.OptionalFuture<StorageNodeStats>;
+	abstract stats(path: Stringer): StorageResult<StorageNodeStats>;
 
 	/**
 	 * Get an underlying reference to the file system that changes the current
@@ -89,4 +89,3 @@ export abstract class BaseStorage {
 	 **/
 	abstract child(subpath: Stringer): BaseStorage;
 }
-

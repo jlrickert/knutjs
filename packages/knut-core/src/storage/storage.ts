@@ -1,5 +1,5 @@
 import invariant from 'tiny-invariant';
-import { currentPlatform, Future, Optional } from '../Utils/index.js';
+import { currentPlatform, Future, Result } from '../Utils/index.js';
 import { ApiStorage } from './ApiStorage.js';
 import { BaseStorage } from './BaseStorage.js';
 import { MemoryStorage } from './MemoryStorage.js';
@@ -43,19 +43,25 @@ export const overwrite = async (
 	dest: BaseStorage,
 ): Future.Future<void> => {
 	const pathList = await src.readdir('');
-	if (Optional.isNone(pathList)) {
+	if (Result.isErr(pathList)) {
 		return;
 	}
-	for (const path of pathList) {
+	for (const path of pathList.value) {
 		const stats = await src.stats(path);
-		invariant(stats, 'Expect readdir to only list items that exist');
-		if (stats.isDirectory()) {
+		invariant(
+			Result.isOk(stats),
+			'Expect readdir to only list items that exist',
+		);
+		if (stats.value.isDirectory()) {
 			await dest.mkdir(path);
 			await overwrite(src.child(path), dest.child(path));
-		} else if (stats.isFile()) {
+		} else if (stats.value.isFile()) {
 			const content = await src.read(path);
-			invariant(content, 'Expect readdir to list a valid file');
-			await dest.write(path, content);
+			invariant(
+				Result.isOk(content),
+				'Expect readdir to list a valid file',
+			);
+			await dest.write(path, content.value);
 		} else {
 			throw new Error('Unhandled node type');
 		}

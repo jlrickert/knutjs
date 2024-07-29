@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MemoryStorage } from './MemoryStorage.js';
-import { stringify } from '../Utils/index.js';
+import { Result, stringify } from '../Utils/index.js';
+import { StorageError } from './index.js';
 
 describe('describe memory storage', () => {
 	afterEach(() => {
@@ -18,19 +19,21 @@ describe('describe memory storage', () => {
 		const message = 'an example message';
 		await storage.write('example', message);
 
-		const content = await storage.read('example');
+		const content = Result.unwrap(await storage.read('example'));
 		expect(content).toEqual(message);
 
-		const stats = await storage.stats('example');
-		expect(stats?.mtime).toEqual(stringify(now));
-		expect(stats?.atime).toEqual(stringify(now));
-		expect(stats?.ctime).toEqual(stringify(now));
+		const stats = Result.unwrap(await storage.stats('example'));
+		expect(stats.mtime).toEqual(stringify(now));
+		expect(stats.atime).toEqual(stringify(now));
+		expect(stats.ctime).toEqual(stringify(now));
 	});
 
 	test('should be able to handle pathing', async () => {
 		const storage = MemoryStorage.create();
 		await storage.write('a/b/c', 'content');
-		expect(await storage.child('a/b').read('c')).toEqual('content');
+		expect(Result.unwrap(await storage.child('a/b').read('c'))).toEqual(
+			'content',
+		);
 	});
 
 	test('should create directories and updated modified time for parent directory when adding a new file', async () => {
@@ -39,10 +42,10 @@ describe('describe memory storage', () => {
 		vi.setSystemTime(now);
 
 		const check = async (path: string, mtime: Date) => {
-			const stats = await storage.stats(path);
-			expect(stats?.atime).toEqual(stringify(now));
-			expect(stats?.mtime).toEqual(stringify(mtime));
-			expect(stats?.ctime).toEqual(stringify(now));
+			const stats = Result.unwrap(await storage.stats(path));
+			expect(stats.atime).toEqual(stringify(now));
+			expect(stats.mtime).toEqual(stringify(mtime));
+			expect(stats.ctime).toEqual(stringify(now));
 		};
 
 		const storage = MemoryStorage.create();
@@ -68,10 +71,10 @@ describe('describe memory storage', () => {
 		vi.setSystemTime(now);
 
 		const check = async (path: string, atime: Date) => {
-			const stats = await storage.stats(path);
-			expect(stats?.mtime).toEqual(stringify(now));
-			expect(stats?.ctime).toEqual(stringify(now));
-			expect(stats?.atime).toEqual(stringify(atime));
+			const stats = Result.unwrap(await storage.stats(path));
+			expect(stats.mtime).toEqual(stringify(now));
+			expect(stats.ctime).toEqual(stringify(now));
+			expect(stats.atime).toEqual(stringify(atime));
 		};
 
 		const storage = MemoryStorage.create();
@@ -101,7 +104,7 @@ describe('describe memory storage', () => {
 		await storage.write('/path/b/b', 'file b');
 		await storage.write('/path/c/c', 'file c');
 		await storage.write('/path/d/d', 'file d');
-		const directories = await storage.readdir('/path');
+		const directories = Result.unwrap(await storage.readdir('/path'));
 		expect(directories).toStrictEqual([
 			'path/a',
 			'path/b',
@@ -109,9 +112,17 @@ describe('describe memory storage', () => {
 			'path/d',
 		]);
 		const childStorage = storage.child('path');
-		expect(await childStorage.readdir('path')).toStrictEqual(null);
-		expect(await childStorage.readdir('a')).toStrictEqual(['a/a']);
-		expect(await childStorage.readdir('')).toStrictEqual([
+		expect(
+			Result.unwrapErr(await childStorage.readdir('path')),
+		).toStrictEqual(
+			expect.objectContaining<Partial<StorageError.StorageError>>({
+				code: 'NOT_A_DIRECTORY',
+			}),
+		);
+		expect(Result.unwrap(await childStorage.readdir('a'))).toStrictEqual([
+			'a/a',
+		]);
+		expect(Result.unwrap(await childStorage.readdir(''))).toStrictEqual([
 			'a',
 			'b',
 			'c',
@@ -127,59 +138,61 @@ describe('describe memory storage', () => {
 		const storage = MemoryStorage.create();
 		const message = 'an example message';
 		await storage.write('/path/to/example', message);
-		const content = await storage.read('/path/to/example');
+		const content = Result.unwrap(await storage.read('/path/to/example'));
 		expect(content).toEqual(message);
 
 		{
-			const files = await storage.readdir('/path/to');
+			const files = Result.unwrap(await storage.readdir('/path/to'));
 			expect(files).toStrictEqual(['path/to/example']);
 		}
 
 		{
-			const files = await storage.readdir('/path');
+			const files = Result.unwrap(await storage.readdir('/path'));
 			expect(files).toStrictEqual(['path/to']);
 		}
 
 		{
-			const files = await storage.readdir('/');
+			const files = Result.unwrap(await storage.readdir('/'));
 			expect(files).toStrictEqual(['path']);
 		}
 
 		{
-			const files = await storage.readdir('');
+			const files = Result.unwrap(await storage.readdir(''));
 			expect(files).toStrictEqual(['path']);
 		}
 
 		{
-			const stats = await storage.stats('/path/to/example');
-			expect(stats?.isFile()).toBeTruthy();
-			expect(stats?.atime).toEqual(stringify(now));
-			expect(stats?.ctime).toEqual(stringify(now));
-			expect(stats?.mtime).toEqual(stringify(now));
+			const stats = Result.unwrap(
+				await storage.stats('/path/to/example'),
+			);
+			expect(stats.isFile()).toBeTruthy();
+			expect(stats.atime).toEqual(stringify(now));
+			expect(stats.ctime).toEqual(stringify(now));
+			expect(stats.mtime).toEqual(stringify(now));
 		}
 
 		{
-			const stats = await storage.stats('/path/to');
-			expect(stats?.isDirectory()).toBeTruthy();
-			expect(stats?.atime).toEqual(stringify(now));
-			expect(stats?.ctime).toEqual(stringify(now));
-			expect(stats?.mtime).toEqual(stringify(now));
+			const stats = Result.unwrap(await storage.stats('/path/to'));
+			expect(stats.isDirectory()).toBeTruthy();
+			expect(stats.atime).toEqual(stringify(now));
+			expect(stats.ctime).toEqual(stringify(now));
+			expect(stats.mtime).toEqual(stringify(now));
 		}
 
 		{
-			const stats = await storage.stats('/path');
-			expect(stats?.isDirectory()).toBeTruthy();
-			expect(stats?.atime).toEqual(stringify(now));
-			expect(stats?.ctime).toEqual(stringify(now));
-			expect(stats?.mtime).toEqual(stringify(now));
+			const stats = Result.unwrap(await storage.stats('/path'));
+			expect(stats.isDirectory()).toBeTruthy();
+			expect(stats.atime).toEqual(stringify(now));
+			expect(stats.ctime).toEqual(stringify(now));
+			expect(stats.mtime).toEqual(stringify(now));
 		}
 
 		{
-			const stats = await storage.stats('/');
-			expect(stats?.isDirectory()).toBeTruthy();
-			expect(stats?.atime).toEqual(stringify(now));
-			expect(stats?.ctime).toEqual(stringify(now));
-			expect(stats?.mtime).toEqual(stringify(now));
+			const stats = Result.unwrap(await storage.stats('/'));
+			expect(stats.isDirectory()).toBeTruthy();
+			expect(stats.atime).toEqual(stringify(now));
+			expect(stats.ctime).toEqual(stringify(now));
+			expect(stats.mtime).toEqual(stringify(now));
 		}
 	});
 });

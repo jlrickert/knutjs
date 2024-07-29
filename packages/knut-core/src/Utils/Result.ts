@@ -3,6 +3,7 @@ import { PipeableTraverse2, Traversable2 } from 'fp-ts/lib/Traversable.js';
 import { Refinement } from 'fp-ts/lib/Refinement.js';
 import { Predicate } from 'fp-ts/lib/Predicate.js';
 import { dual } from 'effect/Function';
+import invariant from 'tiny-invariant';
 import { Optional, pipe, Result } from './index.js';
 
 export type Result<T, E> = Ok<T, E> | Err<T, E>;

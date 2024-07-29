@@ -3,6 +3,7 @@ import {
 	BaseStorage,
 	StorageNodeStats,
 	StorageNodeTime,
+	StorageResult,
 } from './BaseStorage.js';
 
 export class ApiStorage extends BaseStorage {
@@ -18,38 +19,38 @@ export class ApiStorage extends BaseStorage {
 		throw new Error('Method not implemented.');
 	}
 
-	async read(filepath: Stringer): Promise<string | null> {
+	async read(filepath: Stringer): StorageResult<string> {
 		throw new Error('Method not implemented.');
 	}
 
-	async write(filepath: Stringer, contents: Stringer): Promise<boolean> {
+	async write(filepath: Stringer, contents: Stringer): StorageResult<true> {
 		throw new Error('Method not implemented.');
 	}
 
-	async rm(filepath: Stringer): Promise<boolean> {
+	async rm(filepath: Stringer): StorageResult<true> {
 		throw new Error('Method not implemented.');
 	}
 
-	async readdir(dirpath: Stringer): Promise<string[] | null> {
+	async readdir(dirpath: Stringer): StorageResult<string[]> {
 		throw new Error('Method not implemented.');
 	}
 
 	async rmdir(
 		filepath: Stringer,
 		options?: { recursive?: boolean | undefined } | undefined,
-	): Promise<boolean> {
+	): StorageResult<true> {
 		throw new Error('Method not implemented.');
 	}
 
-	async utime(path: string, stats: StorageNodeTime): Promise<boolean> {
+	async utime(path: string, stats: StorageNodeTime): StorageResult<true> {
 		throw new Error('Method not implemented.');
 	}
 
-	async mkdir(dirpath: Stringer): Promise<boolean> {
+	async mkdir(dirpath: Stringer): StorageResult<true> {
 		throw new Error('Method not implemented.');
 	}
 
-	async stats(filepath: Stringer): Promise<StorageNodeStats | null> {
+	async stats(filepath: Stringer): StorageResult<StorageNodeStats> {
 		throw new Error('Method not implemented.');
 	}
 
