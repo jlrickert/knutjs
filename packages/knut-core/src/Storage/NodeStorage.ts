@@ -1,10 +1,10 @@
 import * as Path from 'path';
 import { homedir } from 'os';
 import * as FS from 'fs/promises';
+import { Result, Stringer, stringify } from '../Utils/index.js';
 import { NodeId } from '../node.js';
 import { BaseStorage, StorageNodeStats, StorageResult } from './BaseStorage.js';
-import { Result, Stringer, stringify } from '../Utils/index.js';
-import { uknownError } from './Storage.js';
+import { StorageError } from './index.js';
 
 export class NodeStorage extends BaseStorage {
 	private static parsePath(path: Stringer): string {
@@ -39,7 +39,7 @@ export class NodeStorage extends BaseStorage {
 			return Result.ok(content);
 		} catch (error) {
 			return Result.err(
-				uknownError({
+				StorageError.uknownError({
 					reason: `Unable to read file "${fullpath}"`,
 					error,
 				}),
@@ -57,7 +57,7 @@ export class NodeStorage extends BaseStorage {
 			return Result.ok(true);
 		} catch (error) {
 			return Result.err(
-				uknownError({
+				StorageError.uknownError({
 					reason: `Unable to write to file ${fullpath}`,
 					error,
 				}),
@@ -71,7 +71,7 @@ export class NodeStorage extends BaseStorage {
 			return Result.ok(true);
 		} catch (error) {
 			return Result.err(
-				uknownError({
+				StorageError.uknownError({
 					reason: `Unable to remove file ${stringify(filepath)}`,
 					error,
 				}),
@@ -98,7 +98,7 @@ export class NodeStorage extends BaseStorage {
 			return Result.ok(list);
 		} catch (error) {
 			return Result.err(
-				uknownError({
+				StorageError.uknownError({
 					reason: `unable to read directory "${fullPath}"`,
 					error,
 				}),
@@ -116,7 +116,7 @@ export class NodeStorage extends BaseStorage {
 			return Result.ok(true);
 		} catch (error) {
 			return Result.err(
-				uknownError({
+				StorageError.uknownError({
 					reason: `unable to rmdir "${fullPath}"`,
 					error,
 				}),
@@ -133,8 +133,20 @@ export class NodeStorage extends BaseStorage {
 			await FS.utimes(fullpath, atime, mtime);
 			return Result.ok(true);
 		} catch (error) {
+			if ((error as any).code === 'ENOENT') {
+				return Result.err(
+					StorageError.pathNotFound({
+						path: fullpath,
+						message: 'Unable to modify timestamps',
+						error,
+					}),
+				);
+			}
 			return Result.err(
-				uknownError({ reason: `unable to utime ${fullpath}`, error }),
+				StorageError.uknownError({
+					reason: `unable to utime ${fullpath}`,
+					error,
+				}),
 			);
 		}
 	}
@@ -148,7 +160,7 @@ export class NodeStorage extends BaseStorage {
 			return Result.ok(true);
 		} catch (error) {
 			return Result.err(
-				uknownError({
+				StorageError.uknownError({
 					reason: `unable to mkdir "${fullpath}"`,
 					error,
 				}),
@@ -172,8 +184,17 @@ export class NodeStorage extends BaseStorage {
 				},
 			});
 		} catch (error) {
+			if ((error as any).code === 'ENOENT') {
+				return Result.err(
+					StorageError.pathNotFound({
+						path: fullpath,
+						message: 'Unable to fetch timestamps',
+						error,
+					}),
+				);
+			}
 			return Result.err(
-				uknownError({
+				StorageError.uknownError({
 					reason: `unable to stat ${filepath}`,
 					error,
 				}),

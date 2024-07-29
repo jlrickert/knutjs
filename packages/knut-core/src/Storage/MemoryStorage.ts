@@ -9,7 +9,6 @@ import {
 import {
 	Future,
 	Optional,
-	pipe,
 	Result,
 	Stringer,
 	stringify,
@@ -162,7 +161,7 @@ export class MemoryStorage extends BaseStorage {
 
 	async read(path: Stringer): StorageResult<string> {
 		const fullpath = this.getFullPath(path);
-		const currentTime = stringify(new Date());
+		const currentTime = new Date();
 		const node = this.getNode(fullpath);
 		if (node?.type !== 'file') {
 			return Result.err(
@@ -228,7 +227,7 @@ export class MemoryStorage extends BaseStorage {
 
 		// Update mtime if directory exists
 		if (Result.isErr(await this.mkdir(parentPath))) {
-			await this.utime(parentPath, { mtime: newStats.mtime });
+			await this.utime(parentPath, { mtime: new Date(newStats.mtime) });
 		}
 
 		const parent = this.getNode(parentPath);
@@ -358,7 +357,7 @@ export class MemoryStorage extends BaseStorage {
 			}
 		}
 
-		const currentTime = stringify(new Date());
+		const currentTime = new Date();
 		const newStats = {
 			mtime: stringify(currentTime),
 			atime: stringify(currentTime),
@@ -379,7 +378,12 @@ export class MemoryStorage extends BaseStorage {
 		invariant(parentPath, 'Expect parent to be non root');
 
 		await this.mkdir(parentPath);
-		await this.utime(parentPath, newStats);
+		await this.utime(parentPath, {
+			ctime: currentTime,
+			btime: currentTime,
+			atime: currentTime,
+			mtime: currentTime,
+		});
 		const parent = this.getNode(parentPath);
 		invariant(parent?.type === 'directory');
 		parent.children.push(fullpath);
@@ -453,6 +457,10 @@ export class MemoryStorage extends BaseStorage {
 		}
 		return Result.ok({
 			...node.stats,
+			mtime: new Date(node.stats.mtime),
+			atime: new Date(node.stats.atime),
+			btime: new Date(node.stats.btime),
+			ctime: new Date(node.stats.ctime),
 			isFile: () => {
 				return node.type === 'file';
 			},

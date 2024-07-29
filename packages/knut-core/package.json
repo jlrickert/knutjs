@@ -23,6 +23,11 @@
 			"require": "./dist/Storage/index.cjs",
 			"types": "./dist/Storage/index.d.ts"
 		},
+		"./Testing": {
+			"import": "./dist/Testing/index.js",
+			"require": "./dist/Testing/index.cjs",
+			"types": "./dist/Testing/index.d.ts"
+		},
 		"./Utils": {
 			"import": "./dist/Utils//index.js",
 			"require": "./dist/Utils/index.cjs",

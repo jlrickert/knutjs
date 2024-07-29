@@ -1,8 +1,9 @@
 import * as Path from 'path';
 import { describe, expect, test } from 'vitest';
+import { TestUtils } from '../Testing/index.js';
+import { Result } from '../Utils/index.js';
 import { MemoryStorage } from './MemoryStorage.js';
 import { BaseStorage } from './BaseStorage.js';
-import { testUtils } from '../internal/testUtils.js';
 
 test('path library exploration', () => {
 	expect(Path.isAbsolute('/home/user/.config/knut')).toBeTruthy();
@@ -24,25 +25,32 @@ test('path library exploration', () => {
 
 describe('file system storage', () => {
 	test('should mirror the behavior of memory storage', async () => {
-		const storage = await testUtils.tempNodeStorage();
+		const storage = await TestUtils.tempNodeStorage();
 		const memory = MemoryStorage.create();
+
+		// Check if the same command is the same between node storage and memory storage
 		const check = async <K extends keyof Omit<BaseStorage, 'uri'>>(
 			key: K,
 			...args: Parameters<BaseStorage[K]>
 		) => {
-			const a = await (storage[key] as any)(...args);
-			const b = await (memory[key] as any)(...args);
+			const a = (await (storage[key] as any)(...args)) as any;
+			const b = (await (memory[key] as any)(...args)) as any;
+
 			const diffDate = (a: string, b: string) => {
 				return Math.abs(new Date(a).getTime() - new Date(b).getTime());
 			};
-			if (key === 'stats') {
+			if (Result.isOk(a) && Result.isOk(b) && key === 'stats') {
+				const _a = a.value as any;
+				const _b = b.value as any;
 				// Assuming Api will be less than 1 second to update
-				expect(diffDate(a.mtime, b.mtime)).toBeLessThan(1000);
-				expect(diffDate(a.atime, b.atime)).toBeLessThan(1000);
-				expect(diffDate(a.btime, b.btime)).toBeLessThan(1000);
+				expect(diffDate(_a.mtime, _b.mtime)).toBeLessThan(1000);
+				expect(diffDate(_a.atime, _b.atime)).toBeLessThan(1000);
+				expect(diffDate(_a.btime, _b.btime)).toBeLessThan(1000);
+				// file system doesn't always support ctime
+				// expect(diffDate(a.ctime, b.ctime)).toBeLessThan(1000);
 				return;
 			}
-			expect(a).toStrictEqual(b);
+			expect(a.value).toStrictEqual(b.value);
 		};
 
 		await check('utime', 'a', { mtime: new Date() });
@@ -50,7 +58,7 @@ describe('file system storage', () => {
 		await check('read', 'path/to/example');
 		await check('write', '/another/path/to/example', 'example');
 		await check('read', '/another/path/to/example');
-		await check('write', 'another/path/to/example', 'Example');
+		await check('write', 'another/path/to/example', '# Example');
 		await check('read', 'another/path/to/example');
 		await check('stats', 'path/to/example');
 		await check('stats', '/another/path/to/example');

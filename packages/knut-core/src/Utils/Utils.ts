@@ -111,3 +111,5 @@ export let _nowHack = () => new Date().toISOString();
 export const currentDate = () => {
 	return _nowHack();
 };
+
+export const cast = <A>(a: any): a is A => a;

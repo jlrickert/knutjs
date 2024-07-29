@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import invariant from 'tiny-invariant';
 import { MemoryStorage } from './MemoryStorage.js';
-import { Result, stringify } from '../Utils/index.js';
+import { Result } from '../Utils/index.js';
 import { StorageError } from './index.js';
 
 describe('describe memory storage', () => {
@@ -23,9 +24,9 @@ describe('describe memory storage', () => {
 		expect(content).toEqual(message);
 
 		const stats = Result.unwrap(await storage.stats('example'));
-		expect(stats.mtime).toEqual(stringify(now));
-		expect(stats.atime).toEqual(stringify(now));
-		expect(stats.ctime).toEqual(stringify(now));
+		expect(stats.mtime).toEqual(now);
+		expect(stats.atime).toEqual(now);
+		expect(stats.ctime).toEqual(now);
 	});
 
 	test('should be able to handle pathing', async () => {
@@ -43,9 +44,9 @@ describe('describe memory storage', () => {
 
 		const check = async (path: string, mtime: Date) => {
 			const stats = Result.unwrap(await storage.stats(path));
-			expect(stats.atime).toEqual(stringify(now));
-			expect(stats.mtime).toEqual(stringify(mtime));
-			expect(stats.ctime).toEqual(stringify(now));
+			expect(stats.atime).toEqual(now);
+			expect(stats.mtime).toEqual(mtime);
+			expect(stats.ctime).toEqual(now);
 		};
 
 		const storage = MemoryStorage.create();
@@ -72,9 +73,9 @@ describe('describe memory storage', () => {
 
 		const check = async (path: string, atime: Date) => {
 			const stats = Result.unwrap(await storage.stats(path));
-			expect(stats.mtime).toEqual(stringify(now));
-			expect(stats.ctime).toEqual(stringify(now));
-			expect(stats.atime).toEqual(stringify(atime));
+			expect(stats.mtime).toEqual(now);
+			expect(stats.ctime).toEqual(now);
+			expect(stats.atime).toEqual(atime);
 		};
 
 		const storage = MemoryStorage.create();
@@ -165,34 +166,35 @@ describe('describe memory storage', () => {
 			const stats = Result.unwrap(
 				await storage.stats('/path/to/example'),
 			);
+			invariant(stats.atime && stats.ctime && stats.mtime);
 			expect(stats.isFile()).toBeTruthy();
-			expect(stats.atime).toEqual(stringify(now));
-			expect(stats.ctime).toEqual(stringify(now));
-			expect(stats.mtime).toEqual(stringify(now));
+			expect(stats.atime).toEqual(now);
+			expect(stats.ctime).toEqual(now);
+			expect(stats.mtime).toEqual(now);
 		}
 
 		{
 			const stats = Result.unwrap(await storage.stats('/path/to'));
 			expect(stats.isDirectory()).toBeTruthy();
-			expect(stats.atime).toEqual(stringify(now));
-			expect(stats.ctime).toEqual(stringify(now));
-			expect(stats.mtime).toEqual(stringify(now));
+			expect(stats.atime).toEqual(now);
+			expect(stats.ctime).toEqual(now);
+			expect(stats.mtime).toEqual(now);
 		}
 
 		{
 			const stats = Result.unwrap(await storage.stats('/path'));
 			expect(stats.isDirectory()).toBeTruthy();
-			expect(stats.atime).toEqual(stringify(now));
-			expect(stats.ctime).toEqual(stringify(now));
-			expect(stats.mtime).toEqual(stringify(now));
+			expect(stats.atime).toEqual(now);
+			expect(stats.ctime).toEqual(now);
+			expect(stats.mtime).toEqual(now);
 		}
 
 		{
 			const stats = Result.unwrap(await storage.stats('/'));
 			expect(stats.isDirectory()).toBeTruthy();
-			expect(stats.atime).toEqual(stringify(now));
-			expect(stats.ctime).toEqual(stringify(now));
-			expect(stats.mtime).toEqual(stringify(now));
+			expect(stats.atime).toEqual(now);
+			expect(stats.ctime).toEqual(now);
+			expect(stats.mtime).toEqual(now);
 		}
 	});
 });

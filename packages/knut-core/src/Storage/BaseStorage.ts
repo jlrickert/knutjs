@@ -1,4 +1,3 @@
-import { TimeLike } from 'fs';
 import { Future, Stringer } from '../Utils/index.js';
 import { StorageError } from './StorageError.js';
 
@@ -8,22 +7,22 @@ export type StorageNodeTime = {
 	/**
 	 * modified time
 	 **/
-	mtime?: TimeLike;
+	mtime?: Date;
 
 	/**
 	 * last accessed time. This is when a file or directory was last read
 	 **/
-	atime?: TimeLike;
+	atime?: Date;
 
 	/**
 	 * changed time. This is when metadata is changed
 	 */
-	ctime?: TimeLike;
+	ctime?: Date;
 
 	/**
 	 * birth time. Time when the file was last created
 	 **/
-	btime?: TimeLike;
+	btime?: Date;
 };
 
 export type StorageNodeStats = StorageNodeTime & {
