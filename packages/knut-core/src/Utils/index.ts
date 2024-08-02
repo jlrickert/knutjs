@@ -13,5 +13,8 @@ export { optionalT } from './OptionalT.js';
 export { resultT } from './ResultT.js';
 export * from './Utils.js';
 export * from './Traits.js';
+
+// TODO(jared): remove the monadic tuple crap. Just slows things down and we
+// dont really use the addditional flexibility.
 export const FutureResult = resultT(Future.Monad);
 export const FutureOptional = optionalT(Optional.Monad);

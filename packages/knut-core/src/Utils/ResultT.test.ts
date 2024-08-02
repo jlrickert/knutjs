@@ -1,5 +1,5 @@
 import { describe, expect, test, assert } from 'vitest';
-import { pipe, Future, resultT, Result } from './index.js';
+import { pipe, Future, resultT, Result, Optional } from './index.js';
 
 describe.concurrent('ResultT', () => {
 	const T = resultT(Future.Monad);
@@ -50,6 +50,23 @@ describe.concurrent('ResultT', () => {
 			await pipe(
 				'Hello world',
 				T.fromNullable(() => 'Some error'),
+			),
+			await T.ok('Hello world'),
+		);
+	});
+
+	test('fromOptional', async () => {
+		assert.deepStrictEqual(
+			await pipe(
+				Optional.none,
+				T.fromOptional(() => 'Some error'),
+			),
+			await T.err('Some error'),
+		);
+		assert.deepStrictEqual(
+			await pipe(
+				Optional.some<string>('Hello world'),
+				T.fromOptional(() => 'Some error'),
 			),
 			await T.ok('Hello world'),
 		);

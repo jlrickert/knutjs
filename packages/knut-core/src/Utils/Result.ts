@@ -96,6 +96,26 @@ export const getOrElse: {
 	return onErr(ma.error);
 });
 
+/**
+ * This crashes the application if inner value is an error.
+ */
+export const unwrap: {
+	<A>(ma: Result<A, any>): A;
+} = (ma) => {
+	invariant(isOk(ma), 'Programming error. Unable to unwrap an error value');
+	return ma.value;
+};
+
+/**
+ * This crashes the application if inner value is an error.
+ */
+export const unwrapErr: {
+	<E>(ma: Result<any, E>): E;
+} = (ma) => {
+	invariant(isErr(ma), 'Programming error. Unable to unwrap an error value');
+	return ma.error;
+};
+
 export const refineOrErr: {
 	<T1, T2 extends T1, E1, E2>(
 		refinement: Refinement<T1, T2>,

@@ -4,7 +4,7 @@ import { Refinement } from 'fp-ts/lib/Refinement.js';
 import { Predicate } from 'fp-ts/lib/Predicate.js';
 import { dual } from 'effect/Function';
 import { pipe } from 'effect';
-import { Result } from './index.js';
+import { Optional, Result } from './index.js';
 
 const ok =
 	<M extends URIS>(M: Monad1<M>) =>
@@ -170,6 +170,30 @@ const fromNullable: <M extends URIS>(
 		);
 	});
 
+const fromOptional: <M extends URIS>(
+	M: Monad1<M>,
+) => {
+	<E>(
+		onNone: () => E,
+	): <T>(value: Optional.Optional<T>) => Kind<M, Result.Result<T, E>>;
+	<T, E>(
+		value: Optional.Optional<T>,
+		onNone: () => E,
+	): Kind<M, Result.Result<T, E>>;
+} = <M extends URIS>(M: Monad1<M>) =>
+	dual(
+		2,
+		<T, E>(
+			value: Optional.Optional<T>,
+			onErr: () => E,
+		): Kind<M, Result.Result<T, E>> => {
+			if (Optional.isSome(value)) {
+				return M.of(Result.ok(value as T)) as any;
+			}
+			return M.of(Result.err(onErr())) as any;
+		},
+	);
+
 const filterOrErr: <M extends URIS>(
 	M: Monad1<M>,
 ) => {
@@ -231,6 +255,7 @@ export const resultT = <M extends URIS>(M: Monad1<M>) => ({
 	match: match(M),
 	ap: ap(M),
 	fromNullable: fromNullable(M),
+	fromOptional: fromOptional(M),
 	refineOrErr: refineOrErr(M),
 	filterOrErr: filterOrErr(M),
 	alt: alt(M),

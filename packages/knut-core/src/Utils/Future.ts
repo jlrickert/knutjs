@@ -6,7 +6,7 @@ import { Result } from './Result.js';
 
 export type Future<T> = Promise<T>;
 
-export type OptionalFuture<T> = Future<Optional<T>>;
+export type FutureOptional<T> = Future<Optional<T>>;
 export type FutureResult<T, E> = Future<Result<T, E>>;
 
 export const URI = 'Future';
