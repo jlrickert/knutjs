@@ -3,8 +3,18 @@ import * as YAML from 'yaml';
 import { homedir } from 'os';
 import { absurd, pipe } from 'fp-ts/lib/function.js';
 import { KegVersion } from './kegFile.js';
-import { Storage } from './Storage/index.js';
-import { deepCopy, Future, Optional, optionalT } from './Utils/index.js';
+import { Storage, StorageError } from './Storage/index.js';
+import {
+	deepCopy,
+	Future,
+	FutureResult,
+	Json,
+	JsonError,
+	Optional,
+	Result,
+	Yaml,
+	YamlError,
+} from './Utils/index.js';
 
 export type KegConfigDefinition = {
 	enabled: boolean;
@@ -26,24 +36,33 @@ export type ConfigDefinition = {
 	kegs: KegConfigDefinition[];
 };
 
+export type KnutConfigFileResult<T> = Future.FutureResult<
+	T,
+	StorageError.StorageError | YamlError.YamlError
+>;
+
 /**
  * Represents a config file
  */
 export class KnutConfigFile {
 	static async fromStorage(
 		storage: Storage.GenericStorage,
-	): Future.OptionalFuture<KnutConfigFile> {
-		const t = optionalT(Future.Monad);
+	): Future.FutureResult<
+		KnutConfigFile,
+		StorageError.StorageError | YamlError.YamlError | JsonError.JsonError
+	> {
 		const config = await pipe(
 			// Try reading config.yaml
 			storage.read('config.yaml'),
-			t.chain((data) => KnutConfigFile.fromYAML(data, storage.uri)),
+			FutureResult.chain(async (data) => {
+				return KnutConfigFile.fromYAML(data, storage.uri);
+			}),
 
 			// Try reading config.json
-			t.alt(() => {
+			FutureResult.alt(async () => {
 				return pipe(
 					storage.read('config.json'),
-					t.chain((data) => {
+					FutureResult.chain((data) => {
 						return KnutConfigFile.fromJSON(data, storage.uri);
 					}),
 				);
@@ -56,30 +75,28 @@ export class KnutConfigFile {
 	static async fromJSON(
 		json: string,
 		root?: string,
-	): Future.OptionalFuture<KnutConfigFile> {
-		try {
-			const value = JSON.parse(json) as ConfigDefinition;
-			const config = new KnutConfigFile(
-				Optional.fromNullable(root),
-				value,
-			);
-			return config;
-		} catch (e) {
-			return Optional.none;
-		}
+	): Future.FutureResult<KnutConfigFile, JsonError.JsonError> {
+		const result = Json.parse<ConfigDefinition>(json);
+		return Result.map(
+			result,
+			(data) => new KnutConfigFile(Optional.fromNullable(root), data),
+		);
 	}
 
 	static async fromYAML(
 		yaml: string,
 		root?: string,
-	): Future.OptionalFuture<KnutConfigFile> {
-		const data = YAML.parse(yaml) as ConfigDefinition;
-		return new KnutConfigFile(Optional.fromNullable(root), data);
+	): Future.FutureResult<KnutConfigFile, YamlError.YamlError> {
+		const result = Yaml.parse<ConfigDefinition>(yaml);
+		return Result.map(result, (data) => {
+			return new KnutConfigFile(Optional.fromNullable(root), data);
+		});
 	}
 
 	static create(root?: string): KnutConfigFile {
 		return new KnutConfigFile(Optional.fromNullable(root), {
 			version: 'draft-0.1',
+			format: 'yaml',
 			kegs: [],
 		});
 	}
@@ -93,7 +110,9 @@ export class KnutConfigFile {
 		return this._root;
 	}
 
-	async toStorage(storage: Storage.GenericStorage): Future.Future<boolean> {
+	async toStorage(
+		storage: Storage.GenericStorage,
+	): Future.FutureResult<true, StorageError.StorageError> {
 		switch (this.format) {
 			case 'yaml': {
 				const ok = await storage.write('config.yaml', this.toYAML());
@@ -112,7 +131,7 @@ export class KnutConfigFile {
 
 	/**
 	 * Resolve urls to some path
-	 **/
+	 */
 	resolve(): KnutConfigFile {
 		const next = this.clone();
 		for (const keg of next.data.kegs) {
@@ -130,7 +149,7 @@ export class KnutConfigFile {
 
 	/**
 	 * Make urls relative
-	 **/
+	 */
 	relative(): KnutConfigFile {
 		const next = this.clone();
 		const root = this.root ?? '/';
@@ -179,16 +198,37 @@ export class KnutConfigFile {
 		return this._data;
 	}
 
-	getKeg(kegalias: string): Optional.Optional<KegConfigDefinition> {
+	getKeg(
+		kegalias: string,
+		options?: { resolution: 'relative' | 'absolute' },
+	): Optional.Optional<KegConfigDefinition> {
 		const data = this.data.kegs.find((a) => a.alias === kegalias);
 		if (!data) {
 			return null;
 		}
+		const url = Optional.match(this.root, {
+			onSome: (root) => {
+				switch (options?.resolution) {
+					case 'absolute':
+						return Path.resolve(root, data.url);
+					case 'relative': {
+						return Path.relative(root ?? '/', data.url);
+					}
+
+					default: {
+						return data.url;
+					}
+				}
+			},
+			onNone: () => {
+				return data.url;
+			},
+		});
 
 		return {
 			enabled: data.enabled,
 			alias: data.alias,
-			url: data.url,
+			url,
 			kegv: data.kegv,
 		};
 	}

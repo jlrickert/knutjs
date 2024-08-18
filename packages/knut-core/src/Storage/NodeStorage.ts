@@ -7,12 +7,14 @@ import { BaseStorage, StorageNodeStats, StorageResult } from './BaseStorage.js';
 import { StorageError } from './index.js';
 
 export class NodeStorage extends BaseStorage {
+	public readonly readonly: boolean = false;
 	private static parsePath(path: Stringer): string {
 		return stringify(path).replace(/^~/, homedir());
 	}
 
-	constructor(root: string) {
+	constructor(root: string, options?: { readonly?: boolean }) {
 		super(Path.normalize(NodeStorage.parsePath(root)));
+		this.readonly = options?.readonly ?? false;
 	}
 
 	private getFullPath(path: Stringer): string {
@@ -206,6 +208,7 @@ export class NodeStorage extends BaseStorage {
 		const path = NodeStorage.parsePath(subpath);
 		const storage = new NodeStorage(
 			Path.isAbsolute(path) ? path : this.getFullPath(path),
+			{ readonly: this.readonly },
 		);
 		return storage;
 	}

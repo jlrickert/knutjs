@@ -6,6 +6,12 @@ import { MemoryStorage } from './MemoryStorage.js';
 import { NodeStorage } from './NodeStorage.js';
 import { WebStorage } from './WebStorage.js';
 
+export {
+	type StorageResult,
+	type StorageNodeStats,
+	type StorageNodeTime,
+	type BaseStorage,
+} from './BaseStorage.js';
 export * from './ApiStorage.js';
 export * from './BaseStorage.js';
 export * from './MemoryStorage.js';
@@ -38,30 +44,34 @@ export const loadStorage = (path: string): BaseStorage => {
 /**
  * copy over all contents from the source to the destination.
  */
-export const overwrite = async (
-	src: BaseStorage,
-	dest: BaseStorage,
-): Future.Future<void> => {
-	const pathList = await src.readdir('');
+export const overwrite = async (args: {
+	source: BaseStorage;
+	target: BaseStorage;
+}): Future.Future<void> => {
+	const { source, target } = args;
+	const pathList = await source.readdir('');
 	if (Result.isErr(pathList)) {
 		return;
 	}
 	for (const path of pathList.value) {
-		const stats = await src.stats(path);
+		const stats = await source.stats(path);
 		invariant(
 			Result.isOk(stats),
 			'Expect readdir to only list items that exist',
 		);
 		if (stats.value.isDirectory()) {
-			await dest.mkdir(path);
-			await overwrite(src.child(path), dest.child(path));
+			await target.mkdir(path);
+			await overwrite({
+				source: source.child(path),
+				target: target.child(path),
+			});
 		} else if (stats.value.isFile()) {
-			const content = await src.read(path);
+			const content = await source.read(path);
 			invariant(
 				Result.isOk(content),
 				'Expect readdir to list a valid file',
 			);
-			await dest.write(path, content.value);
+			await target.write(path, content.value);
 		} else {
 			throw new Error('Unhandled node type');
 		}

@@ -1,4 +1,5 @@
 type BaseStorageError<Code extends string> = {
+	scope: 'STORAGE';
 	code: Code;
 	/**
 	 * Message for end users
@@ -78,6 +79,7 @@ export const permissionError = (options: {
 	error?: any;
 }): PermissionError => {
 	return makeError({
+		scope: 'STORAGE',
 		code: 'PERMISSION_ERROR',
 		message:
 			options.message ??
@@ -94,6 +96,7 @@ export const fileNotFound = (options: {
 	error?: any;
 }): FileNotFoundError =>
 	makeError({
+		scope: 'STORAGE',
 		code: 'FILE_NOT_FOUND',
 		message: options.message ?? `File "${options.filename}" not found`,
 		reason: options.reason,
@@ -108,6 +111,7 @@ export const notADirectory = (options: {
 	error?: any;
 }): NotADirectoryError => {
 	return makeError({
+		scope: 'STORAGE',
 		code: 'NOT_A_DIRECTORY',
 		message: options.message ?? `Directory "${options.dirname}"`,
 		reason: options.reason,
@@ -123,6 +127,7 @@ export const dirNotEmpty = (options: {
 	error?: any;
 }): DirNotEmptyError => {
 	return makeError({
+		scope: 'STORAGE',
 		code: 'DIR_NOT_EMPTY',
 		dirname: options.dirname,
 		message: `$Directory ${options.dirname} not empty`,
@@ -138,6 +143,7 @@ export const dirNotFound = (options: {
 	error?: any;
 }) =>
 	makeError({
+		scope: 'STORAGE',
 		code: 'DIR_NOT_FOUND',
 		message: options.message ?? `Directory "${options.dirname}" not found`,
 		reason: options.reason,
@@ -151,6 +157,7 @@ export const uknownError = (options: {
 	error?: any;
 }) =>
 	makeError({
+		scope: 'STORAGE',
 		code: 'UKNOWN_ERROR',
 		message: options.message ?? 'Uknown Error',
 		reason: options.reason,
@@ -164,6 +171,7 @@ export const pathNotFound = (options: {
 	error?: any;
 }) =>
 	makeError({
+		scope: 'STORAGE',
 		code: 'PATH_NOT_FOUND',
 		message:
 			options.message ?? `No such file or directory: ${options.path}`,
@@ -179,6 +187,7 @@ export const pathExists = (options: {
 	error?: any;
 }) =>
 	makeError({
+		scope: 'STORAGE',
 		code: 'PATH_EXISTS',
 		path: options.path,
 		message: options.message ?? `Path already exists: ${options.path}`,
@@ -193,6 +202,7 @@ export const dirExists = (options: {
 	error?: any;
 }) =>
 	makeError({
+		scope: 'STORAGE',
 		code: 'DIR_EXISTS',
 		message: options.message ?? `Directory exists: ${options.dirname}`,
 		dirname: options.dirname,
@@ -207,6 +217,7 @@ export const fileExists = (options: {
 	error?: any;
 }) =>
 	makeError({
+		scope: 'STORAGE',
 		code: 'FILE_EXISTS',
 		filename: options.filename,
 		message: options.message ?? `File exists: ${options.filename}`,
