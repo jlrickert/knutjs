@@ -4,6 +4,7 @@ import { Predicate } from 'fp-ts/lib/Predicate.js';
 import { Refinement } from 'fp-ts/lib/Refinement.js';
 import { PipeableTraverse1 } from 'fp-ts/lib/Traversable.js';
 import { identity, pipe } from 'fp-ts/lib/function.js';
+import { Result } from './index.js';
 
 export type Some<A> = NonNullable<A>;
 export type None = null | undefined;
@@ -46,6 +47,15 @@ export const fromPredicate: {
 		return refinement(a) ? some(a as any) : none;
 	},
 );
+
+export const fromResult = <A>(
+	result: Result.Result<A, unknown>,
+): Optional<A> => {
+	if (Result.isOk(result)) {
+		return of(result.value);
+	}
+	return none;
+};
 
 export const refine: {
 	<A, B extends A>(

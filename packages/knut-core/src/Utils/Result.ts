@@ -48,6 +48,17 @@ export const fromOptional: {
 	return err(onErr());
 });
 
+export const tryCatch: {
+	<E>(onErr: (e: unknown) => E): <T>(f: () => T) => Result<T, E>
+	<T, E>(f: () => T, onError: (e: unknown) => E): Result<T, E>
+} = dual(2, <T, E>(f: () => T, onErr: (e: unknown) => E): Result<T, E> => {
+	try {
+		return Result.ok(f())
+	} catch (e) {
+		return Result.err(onErr(e))
+	}
+})
+
 export const fromNullable: {
 	<T, E>(onErr: () => E): (value: T) => Result<T, E>;
 	<T, E>(value: T, onErr: () => E): Result<T, E>;

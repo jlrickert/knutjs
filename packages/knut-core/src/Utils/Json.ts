@@ -1,3 +1,5 @@
+import { JsonError, Result } from './index.js';
+
 export type JsonObject = { [key: string]: Json };
 export type JsonArray = Json[];
 export type JsonBoolean = boolean;
@@ -15,4 +17,17 @@ export const stringify = (
 ): string => {
 	const space = options?.space;
 	return JSON.stringify(value, undefined, space);
+};
+
+export const parse = <T = unknown>(
+	data: string,
+): Result.Result<T, JsonError.JsonError> => {
+	return Result.tryCatch(
+		() => JSON.parse(data) as T,
+		(e) =>
+			JsonError.makeParseError({
+				data: e,
+				message: 'Failed to parse data',
+			}),
+	);
 };
