@@ -13,6 +13,8 @@ export * as Yaml from './Yaml.js';
 export * as YamlError from './YamlError.js';
 export * as Optional from './Optional.js';
 export * as Result from './Result.js';
+export { Markdown } from './Markdown.js';
+export * as MarkdownError from './MarkdownError.js';
 export { optionalT } from './OptionalT.js';
 export { resultT } from './ResultT.js';
 export * from './Traits.js';

@@ -1,12 +1,11 @@
 import * as Path from 'path';
 import { homedir } from 'os';
+import { Future, Result } from '../Utils/index.js';
 import { Storage } from '../Storage/index.js';
-import { Future, Optional } from '../Utils/index.js';
-import { Backend, createBackend, Loader } from './Backend.js';
-import { pipe } from 'effect';
-import { sequenceS } from 'fp-ts/lib/Apply.js';
+import { Backend, make, Loader } from './Backend.js';
+import { KnutConfigFile } from '../ConfigFile.js';
 
-const getUserVarDir = async (): Promise<string> => {
+const getUserDataDir = async (): Future.Future<string> => {
 	const platform = process.platform;
 
 	const dataDir = process.env.XDG_DATA_HOME ?? null;
@@ -15,9 +14,36 @@ const getUserVarDir = async (): Promise<string> => {
 	}
 
 	if (platform === 'win32') {
-		const dir = process.env.LOCALAPPDATA || '';
+		const dir = process.env.APPDATA || '';
 		if (dir === '') {
 			return Path.join(homedir(), 'AppData', 'Local');
+		}
+		return dir;
+	}
+
+	if (platform === 'darwin') {
+		return Path.join(homedir(), 'Library', 'Application Support');
+	}
+
+	if (platform === 'linux') {
+		return Path.join(homedir(), '.local', 'share');
+	}
+
+	throw new Error(`Platform ${platform} not supported`);
+};
+
+const getUserStateDir = async (): Future.Future<string> => {
+	const platform = process.platform;
+
+	const dataDir = process.env.XDG_STATE_HOME ?? null;
+	if (dataDir) {
+		return dataDir;
+	}
+
+	if (platform === 'win32') {
+		const dir = process.env.LOCALAPPDATA || '';
+		if (dir === '') {
+			return Path.join(homedir(), 'LocalAppData', 'Local');
 		}
 		return dir;
 	}
@@ -44,7 +70,7 @@ const getUserCacheDir = async (): Promise<string> => {
 	if (platform === 'win32') {
 		const dir = process.env.LOCALAPPDATA || '';
 		if (dir === '') {
-			return Path.join(homedir(), 'AppData', 'Local');
+			return Path.join(homedir(), 'AppData', 'Local', 'Caches');
 		}
 		return Path.join(dir, 'Temp');
 	}
@@ -88,32 +114,32 @@ const getUserConfigDir = async (): Promise<string> => {
 
 /**
  * Node environment. This typically will be running on a workstation or server
- **/
-export const nodeBackend: () => Future.OptionalFuture<Backend> = async () => {
-	const cache = new Storage.NodeStorage(await getUserCacheDir()).child(
-		'knut',
-	);
-	const variable = new Storage.NodeStorage(await getUserVarDir()).child(
+ */
+export const nodeBackend: () => Future.FutureOptional<Backend> = async () => {
+	const data = new Storage.NodeStorage(await getUserDataDir()).child('knut');
+	const state = new Storage.NodeStorage(await getUserStateDir()).child(
 		'knut',
 	);
 	const config = new Storage.NodeStorage(await getUserConfigDir()).child(
 		'knut',
 	);
+	const cache = new Storage.NodeStorage(await getUserCacheDir()).child(
+		'knut',
+	);
 	const loader: Loader = async (uri) => {
 		const storage = new Storage.NodeStorage(uri);
-		return storage;
+		const configFile = Result.getOrElse(
+			await KnutConfigFile.fromStorage(config),
+			() => KnutConfigFile.create(config.getRoot()),
+		);
+		const x = configFile.getKeg(uri, { resolution: 'absolute' });
+		return Result.ok(storage);
 	};
-	createBackend({ cache, config, variable, loader });
-	const backend = pipe(
-		sequenceS(Optional.Monad)({ cache, config, variable }),
-		Optional.map(({ variable, config, cache }) =>
-			createBackend({
-				cache,
-				config,
-				variable,
-				loader,
-			}),
-		),
-	);
-	return backend;
+	return make({
+		cache,
+		data,
+		state,
+		config,
+		loader,
+	});
 };

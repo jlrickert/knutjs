@@ -2,7 +2,7 @@ import * as Path from 'path';
 import invariant from 'tiny-invariant';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
-import { afterEach, describe } from 'vitest';
+import { afterAll, describe } from 'vitest';
 import { Backend } from '../Backend/index.js';
 import {
 	Storage,
@@ -10,7 +10,8 @@ import {
 	NodeStorage,
 	MemoryStorage,
 } from '../Storage/index.js';
-import { Future, Result } from '../Utils/index.js';
+import { Future, pipe, Result } from '../Utils/index.js';
+import { KnutConfigFile } from '../ConfigFile.js';
 import { TestUtils } from './index.js';
 
 export type Kegpath = 'samplekeg1' | 'samplekeg2' | 'samplekeg3';
@@ -18,10 +19,38 @@ export type Kegpath = 'samplekeg1' | 'samplekeg2' | 'samplekeg3';
 export const FIXTURE_PATH = Path.resolve(__dirname, '..', '..', 'testdata');
 
 /**
+ * Fixtures data path
+ */
+export const FIXTURE_DATA_PATH = Path.resolve(FIXTURE_PATH, 'local/share/knut');
+
+/**
+ * Fixtures state path
+ */
+export const FIXTURE_STATE_PATH = Path.resolve(
+	FIXTURE_PATH,
+	'local/state/knut',
+);
+
+/**
+ * Fixtures config path
+ */
+export const FIXTURE_CONFIG_PATH = Path.resolve(FIXTURE_PATH, 'config/knut');
+
+/**
+ * Path to cache fixture
+ */
+export const FIXTURE_CACHE_PATH = Path.resolve(FIXTURE_PATH, 'cache/knut');
+
+/**
+ * Path to keg fixtures
+ */
+export const FIXTURE_KEGS_PATH = Path.resolve(FIXTURE_PATH, 'kegs');
+
+/**
  * Path to sample keg fixtures on the file system.
  */
 export const fixtureKegpath = (kegpath: Kegpath) =>
-	Path.resolve(FIXTURE_PATH, kegpath);
+	Path.resolve(FIXTURE_KEGS_PATH, kegpath);
 
 export const FIXTURE_PATH_MAP = {
 	samplekeg1: fixtureKegpath('samplekeg1'),
@@ -30,70 +59,64 @@ export const FIXTURE_PATH_MAP = {
 } as const;
 
 /**
- * Config path to the config test fixtures
- **/
-export const FIXTURE_CONFIG_PATH = Path.resolve(FIXTURE_PATH, 'config/knut');
-
-/**
- * Variable path to fixtures
- **/
-export const FIXTURE_VAR_PATH = Path.resolve(FIXTURE_PATH, 'local/share/knut');
-
-/**
- * Path to cache fixture
- **/
-export const FIXTURE_CACHE_PATH = Path.resolve(FIXTURE_PATH, 'cache/knut');
-
-/**
  * Base fixture file system. DO NOT MUTATE.
  */
-export const fixtureStorage = new NodeStorage(FIXTURE_PATH);
+export const fixtures = new NodeStorage(FIXTURE_PATH);
+
+export const kegAliasFixtures = [
+	'samplekeg1',
+	'samplekeg2',
+	'samplekeg3',
+] as const;
 
 /**
  * Load fixtures into the backend. This mutates backend
  */
 const loadFixutures = async (backend: Backend.Backend) => {
-	for (const kegalias of [
-		'samplekeg1',
-		'samplekeg2',
-		'samplekeg3',
-	] satisfies Kegpath[]) {
-		const storage = await backend.loader(kegalias);
-		const path = fixtureKegpath(kegalias);
-		invariant(Result.isOk(storage), `Expect fixture to load keg storage`);
-		await Storage.overwrite({
-			source: fixtureStorage.child(path),
-			target: storage.value,
-		});
-	}
-
 	await Storage.overwrite({
-		source: fixtureStorage.child(FIXTURE_CONFIG_PATH),
+		source: fixtures.child(FIXTURE_DATA_PATH),
+		target: backend.data,
+	});
+	await Storage.overwrite({
+		source: fixtures.child(FIXTURE_STATE_PATH),
+		target: backend.state,
+	});
+	await Storage.overwrite({
+		source: fixtures.child(FIXTURE_CONFIG_PATH),
 		target: backend.config,
 	});
 	await Storage.overwrite({
-		source: fixtureStorage.child(FIXTURE_VAR_PATH),
-		target: backend.variable,
-	});
-	await Storage.overwrite({
-		source: fixtureStorage.child(FIXTURE_CACHE_PATH),
+		source: fixtures.child(FIXTURE_CACHE_PATH),
 		target: backend.cache,
 	});
+
+	for (const kegalias of kegAliasFixtures) {
+		const storage = await backend.loader(kegalias);
+		const path = fixtureKegpath(kegalias);
+
+		invariant(Result.isOk(storage), `Expect fixture to load keg storage`);
+		await Storage.overwrite({
+			source: fixtures.child(path),
+			target: storage.value,
+		});
+	}
 };
 
 /**
  * An empty file system storage that is located in a temporary location.
  * Removes tempoary directory automatically. Unverified outside of vitest.
  */
-export const tempNodeStorage: () => Future.Future<Storage.GenericStorage> =
-	async () => {
+export const tempNodeStorage =
+	async (): Future.Future<Storage.GenericStorage> => {
 		const rootPath = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
 		const storage = new NodeStorage(rootPath);
 
-		afterEach(async () => {
+		afterAll(async () => {
 			try {
 				await rm(storage.uri, { recursive: true });
-			} catch (e) {}
+			} catch (e) {
+				throw new Error(e as any);
+			}
 		});
 
 		return storage;
@@ -104,29 +127,45 @@ export const testMemoryBackend = async (): Future.Future<Backend.Backend> => {
 	const storage = MemoryStorage.create();
 
 	// Child path needs to match up with fixture cache
-	const cache = storage.child('cache/knut');
+	const cache = storage.child('cache');
 
-	// Variable path needs to match up with fixture variable path
-	const variable = storage.child('local/share/knut');
+	// data path needs to match up with fixture variable path
+	const data = storage.child('data');
+
+	// state path needs to match up with fixture variable path
+	const state = storage.child('state');
 
 	// Config path needs to match up with fixture path so that config.yaml
 	// resolves to the correct location
-	const config = storage.child('config/knut');
+	const config = storage.child('config');
 
-	const kegStorage = MemoryStorage.create();
-	const loader: Backend.Loader = async (uri: string) => {
+	const kegStorage = storage.child('kegs');
+	await Storage.overwrite({
+		source: fixtures.child('kegs'),
+		target: kegStorage,
+	});
+
+	const loader: Backend.Loader = async (uri, config) => {
 		const storage = kegStorage.child(uri);
 		return Result.ok(storage);
 	};
 
-	const backend = {
+	const backend = Backend.make({
+		data,
+		state,
 		config,
-		variable,
 		cache,
 		loader,
-	} satisfies Backend.Backend;
+	});
 
 	await loadFixutures(backend);
+
+	const knutConfig = Result.unwrap(
+		await KnutConfigFile.fromStorage(config),
+		'Expect load fixture to create valid config',
+	);
+	await knutConfig.toStorage({ storage: config });
+
 	return backend;
 };
 
@@ -134,28 +173,45 @@ export const testBrowserBackend = async (): Future.Future<Backend.Backend> => {
 	const storage = WebStorage.create('knut');
 
 	// Child path needs to match up with fixture cache
-	const cache = storage.child('cache/knut');
+	const cache = storage.child('cache');
 
-	// Variable path needs to match up with fixture variable path
-	const variable = storage.child('local/share/knut');
+	// Data path needs to match up with fixture variable path
+	const data = storage.child('data');
+
+	// state path needs to match up with fixture variable path
+	const state = storage.child('state');
 
 	// Config path needs to match up with fixture path so that config.yaml
 	// resolves to the correct location
-	const config = storage.child('config/knut');
+	const config = storage.child('config');
 
 	const kegStorage = WebStorage.create('knut-kegs');
-	const loader: Backend.Loader = async (uri: string) => {
+	await Storage.overwrite({
+		source: fixtures.child('kegs'),
+		target: kegStorage,
+	});
+
+	const loader: Backend.Loader = async (uri, config) => {
 		const storage = kegStorage.child(uri);
 		return Result.ok(storage);
 	};
 
 	const backend: Backend.Backend = Backend.make({
 		config,
-		variable,
+		data,
+		state,
 		cache,
 		loader,
 	});
 	await loadFixutures(backend);
+	const configFile = Result.unwrap(
+		await KnutConfigFile.fromStorage(config),
+		`Expecting config file to be found`,
+	);
+	Result.unwrap(
+		await configFile.relative('/').toStorage({ storage: config }),
+		'Expecting to be able to write to config',
+	);
 	return backend;
 };
 
@@ -163,42 +219,66 @@ export const testEmptyNodeBackend =
 	async (): Future.Future<Backend.Backend> => {
 		const root = await tempNodeStorage();
 
-		const cache = root.child('cache/knut');
-		const config = root.child('config/knut');
-		const variable = root.child('local/share/knut');
+		const cacheStore = root.child('cache');
+		const configStore = root.child('config');
+		const stateStore = root.child('state');
+		const dataStore = root.child('data');
 
 		const loader: Backend.Loader = async (uri) => {
-			return Result.ok(root.child(uri));
+			const stateConf = pipe(
+				await KnutConfigFile.fromStorage(stateStore),
+				Result.getOrElse(() => KnutConfigFile.create(stateStore.uri)),
+			);
+			const userConf = pipe(
+				await KnutConfigFile.fromStorage(configStore),
+				Result.getOrElse(() => KnutConfigFile.create(dataStore.uri)),
+			);
+			const config = stateConf.merge(userConf);
+			const path = config.getKeg(uri)?.url ?? uri;
+			return Result.ok(root.child(path));
 		};
 
 		return {
-			config,
-			variable,
-			cache,
+			config: configStore,
+			data: dataStore,
+			state: stateStore,
+			cache: cacheStore,
 			loader,
 		};
 	};
 
 /**
  * Returns a platform with full fixtures
- **/
+ */
 export const testNodeBackend = async (): Future.Future<Backend.Backend> => {
-	const root = await tempNodeStorage();
-
-	const cache = root.child('cache/knut');
-	const config = root.child('config/knut');
-	const variable = root.child('local/share/knut');
-
-	const loader: Backend.Loader = async (uri) => {
-		return Result.ok(root.child(uri));
-	};
-	const backend = Backend.make({
-		loader,
-		config,
-		variable,
-		cache,
-	});
+	const backend = await testEmptyNodeBackend();
+	// const root = await tempNodeStorage();
+	//
+	// const cache = root.child('cache');
+	// const config = root.child('config');
+	// const data = root.child('data');
+	// const state = root.child('state');
+	// const kegStorage = root.child('kegs');
+	// await Storage.overwrite({
+	// 	source: fixtures.child('kegs'),
+	// 	target: kegStorage,
+	// });
+	//
+	// const loader: Backend.Loader = async (uri) => {
+	// 	return Result.ok(root.child(`kegs/${uri}`));
+	// };
+	// const backend = Backend.make({
+	// 	config,
+	// 	state,
+	// 	data,
+	// 	cache,
+	// 	loader,
+	// });
 	await loadFixutures(backend);
+	// const configuration = Result.unwrap(
+	// 	await KnutConfigFile.fromStorage(config),
+	// );
+	// await configuration.relative('/kegs').toStorage(config);
 	return backend;
 };
 
@@ -231,5 +311,3 @@ export const describeEachBackend = (
 		});
 	}
 };
-
-// export const loadFile =

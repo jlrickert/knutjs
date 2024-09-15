@@ -84,7 +84,7 @@ export class MemoryStorage extends BaseStorage {
 		storage: BaseStorage,
 	): Future.Future<MemoryStorage> {
 		const store = MemoryStorage.create();
-		await overwrite(storage, store);
+		await overwrite({ source: storage, target: store });
 		return store;
 	}
 

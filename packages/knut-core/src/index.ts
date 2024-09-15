@@ -6,3 +6,4 @@ export { KnutConfigFile } from './configFile.js';
 export { Backend } from './Backend/index.js';
 export { Storage } from './Storage/index.js';
 export * as Utils from './Utils/index.js';
+export { type KnutError } from './KnutError.js';

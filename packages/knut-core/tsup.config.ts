@@ -27,6 +27,7 @@ export default defineConfig(() => {
 			entry: [
 				'./src/index.ts',
 				'./src/Storage/index.ts',
+				'./src/Testing/index.ts',
 				'./src/Backend/index.ts',
 				'./src/Utils/index.ts',
 			],

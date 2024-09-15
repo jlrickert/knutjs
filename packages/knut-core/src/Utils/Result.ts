@@ -49,15 +49,15 @@ export const fromOptional: {
 });
 
 export const tryCatch: {
-	<E>(onErr: (e: unknown) => E): <T>(f: () => T) => Result<T, E>
-	<T, E>(f: () => T, onError: (e: unknown) => E): Result<T, E>
+	<E>(onErr: (e: unknown) => E): <T>(f: () => T) => Result<T, E>;
+	<T, E>(f: () => T, onError: (e: unknown) => E): Result<T, E>;
 } = dual(2, <T, E>(f: () => T, onErr: (e: unknown) => E): Result<T, E> => {
 	try {
-		return Result.ok(f())
+		return Result.ok(f());
 	} catch (e) {
-		return Result.err(onErr(e))
+		return Result.err(onErr(e));
 	}
-})
+});
 
 export const fromNullable: {
 	<T, E>(onErr: () => E): (value: T) => Result<T, E>;
@@ -110,10 +110,9 @@ export const getOrElse: {
 /**
  * This crashes the application if inner value is an error.
  */
-export const unwrap: {
-	<A>(ma: Result<A, any>): A;
-} = (ma) => {
-	invariant(isOk(ma), 'Programming error. Unable to unwrap an error value');
+export const unwrap = <A>(ma: Result<A, any>, msg?: string) => {
+	const baseMsg = 'Programming error. Unable to unwrap an error value';
+	invariant(isOk(ma), msg ? `${baseMsg}: ${msg}` : baseMsg);
 	return ma.value;
 };
 

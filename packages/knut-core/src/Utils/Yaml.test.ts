@@ -6,7 +6,7 @@ describe.concurrent('Yaml', () => {
 	describe('parse', () => {
 		test('should parse yaml content', async () => {
 			const data = Result.unwrap(
-				await TestUtils.fixtureStorage.read('samplekeg1/keg'),
+				await TestUtils.fixtures.read('samplekeg1/keg'),
 			);
 			const result = Yaml.parse(data);
 			expect(result).toStrictEqual(

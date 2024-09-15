@@ -35,17 +35,17 @@ export abstract class BaseStorage {
 
 	/**
 	 * Read a files content if it exists. This updates access time.
-	 **/
+	 */
 	abstract read(path: Stringer): StorageResult<string>;
 
 	/**
 	 * Create or overwrite a file if it exists. Modifies modified time.
-	 **/
+	 */
 	abstract write(path: Stringer, contents: Stringer): StorageResult<true>;
 
 	/**
 	 * Remove a file if it exists
-	 **/
+	 */
 	abstract rm(path: Stringer): StorageResult<true>;
 
 	/**
@@ -61,7 +61,7 @@ export abstract class BaseStorage {
 
 	/**
 	 * Remove a directory if it exists
-	 **/
+	 */
 	abstract rmdir(
 		path: Stringer,
 		options?: { recursive?: boolean },
@@ -69,22 +69,22 @@ export abstract class BaseStorage {
 
 	/**
 	 * Modify access time, modified time, and/or created time values.
-	 **/
+	 */
 	abstract utime(path: string, stats: StorageNodeTime): StorageResult<true>;
 
 	/**
 	 * Create a directory if it doesn't exist
-	 **/
+	 */
 	abstract mkdir(path: Stringer): StorageResult<true>;
 
 	/**
 	 * Get time stats about a node on the filesystem
-	 **/
+	 */
 	abstract stats(path: Stringer): StorageResult<StorageNodeStats>;
 
 	/**
 	 * Get an underlying reference to the file system that changes the current
-	 * working directory
-	 **/
+	 * working directory. This cannot escape the root for the storage.
+	 */
 	abstract child(subpath: Stringer): BaseStorage;
 }

@@ -42,6 +42,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'filesystem',
 					reason: `Unable to read file "${fullpath}"`,
 					error,
 				}),
@@ -60,6 +61,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'filesystem',
 					reason: `Unable to write to file ${fullpath}`,
 					error,
 				}),
@@ -74,6 +76,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'filesystem',
 					reason: `Unable to remove file ${stringify(filepath)}`,
 					error,
 				}),
@@ -101,6 +104,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'filesystem',
 					reason: `unable to read directory "${fullPath}"`,
 					error,
 				}),
@@ -119,6 +123,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'filesystem',
 					reason: `unable to rmdir "${fullPath}"`,
 					error,
 				}),
@@ -138,6 +143,7 @@ export class NodeStorage extends BaseStorage {
 			if ((error as any).code === 'ENOENT') {
 				return Result.err(
 					StorageError.pathNotFound({
+						storageType: 'filesystem',
 						path: fullpath,
 						message: 'Unable to modify timestamps',
 						error,
@@ -146,6 +152,7 @@ export class NodeStorage extends BaseStorage {
 			}
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'filesystem',
 					reason: `unable to utime ${fullpath}`,
 					error,
 				}),
@@ -163,6 +170,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'filesystem',
 					reason: `unable to mkdir "${fullpath}"`,
 					error,
 				}),
@@ -189,6 +197,7 @@ export class NodeStorage extends BaseStorage {
 			if ((error as any).code === 'ENOENT') {
 				return Result.err(
 					StorageError.pathNotFound({
+						storageType: 'filesystem',
 						path: fullpath,
 						message: 'Unable to fetch timestamps',
 						error,
@@ -197,6 +206,7 @@ export class NodeStorage extends BaseStorage {
 			}
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'filesystem',
 					reason: `unable to stat ${filepath}`,
 					error,
 				}),
