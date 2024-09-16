@@ -1,9 +1,10 @@
 import * as Path from 'path';
 import { homedir } from 'os';
-import { Future, Result } from '../Utils/index.js';
+import { Future, Optional, pipe, Result } from '../Utils/index.js';
 import { Storage } from '../Storage/index.js';
-import { Backend, make, Loader } from './Backend.js';
 import { KnutConfigFile } from '../KnutConfigFile.js';
+import { Backend, make, Loader } from './Backend.js';
+import { BackendError } from './index.js';
 
 const getUserDataDir = async (): Future.Future<string> => {
 	const platform = process.platform;
@@ -116,30 +117,46 @@ const getUserConfigDir = async (): Promise<string> => {
  * Node environment. This typically will be running on a workstation or server
  */
 export const FsBackend: () => Future.FutureOptional<Backend> = async () => {
-	const data = new Storage.NodeStorage(await getUserDataDir()).child('knut');
-	const state = new Storage.NodeStorage(await getUserStateDir()).child(
+	const dataStore = new Storage.FsStorage(await getUserDataDir()).child(
 		'knut',
 	);
-	const config = new Storage.NodeStorage(await getUserConfigDir()).child(
+	const stateStore = new Storage.FsStorage(await getUserStateDir()).child(
 		'knut',
 	);
-	const cache = new Storage.NodeStorage(await getUserCacheDir()).child(
+	const configStore = new Storage.FsStorage(await getUserConfigDir()).child(
 		'knut',
 	);
-	const loader: Loader = async (uri) => {
-		const storage = new Storage.NodeStorage(uri);
-		const configFile = Result.getOrElse(
-			await KnutConfigFile.fromStorage(config),
-			() => KnutConfigFile.create(config.getRoot()),
+	const cacheStore = new Storage.FsStorage(await getUserCacheDir()).child(
+		'knut',
+	);
+	const loader: Loader = async (kegAlias, config) => {
+		const stateConf = pipe(
+			await KnutConfigFile.fromStorage(stateStore),
+			Result.getOrElse(() => KnutConfigFile.create(stateStore.uri)),
 		);
-		const x = configFile.getKeg(uri, { resolution: 'absolute' });
+		const userConf = pipe(
+			await KnutConfigFile.fromStorage(configStore),
+			Result.getOrElse(() => KnutConfigFile.create(dataStore.uri)),
+		);
+		const conf = stateConf.merge(userConf);
+		const path = conf.getKeg(kegAlias)?.url;
+		if (Optional.isNone(path)) {
+			return Result.err(
+				BackendError.loaderError({
+					kegAlias: kegAlias,
+					message: `Keg alias ${kegAlias} not found.`,
+				}),
+			);
+		}
+		const storage = new Storage.FsStorage(path);
 		return Result.ok(storage);
 	};
+
 	return make({
-		cache,
-		data,
-		state,
-		config,
+		cache: cacheStore,
+		data: dataStore,
+		state: stateStore,
+		config: configStore,
 		loader,
 	});
 };

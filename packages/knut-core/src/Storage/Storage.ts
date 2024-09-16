@@ -3,7 +3,7 @@ import { currentPlatform, Future, Result } from '../Utils/index.js';
 import { ApiStorage } from './ApiStorage.js';
 import { BaseStorage } from './BaseStorage.js';
 import { MemoryStorage } from './MemoryStorage.js';
-import { NodeStorage } from './NodeStorage.js';
+import { FsStorage } from './FsStorage.js';
 import { WebStorage } from './WebStorage.js';
 
 export {
@@ -15,7 +15,7 @@ export {
 export * from './ApiStorage.js';
 export * from './BaseStorage.js';
 export * from './MemoryStorage.js';
-export * from './NodeStorage.js';
+export * from './FsStorage.js';
 export * from './WebStorage.js';
 
 export type GenericStorage = BaseStorage;
@@ -31,7 +31,7 @@ export const loadStorage = (path: string): BaseStorage => {
 			return storage.child(path);
 		}
 		case 'node': {
-			const storage = new NodeStorage(path);
+			const storage = new FsStorage(path);
 			return storage;
 		}
 		default: {

@@ -165,7 +165,10 @@ export class MemoryStorage extends BaseStorage {
 		const node = this.getNode(fullpath);
 		if (node?.type !== 'file') {
 			return Result.err(
-				StorageError.fileNotFound({ filename: fullpath }),
+				StorageError.fileNotFound({
+					storageType: 'memory',
+					filename: fullpath,
+				}),
 			);
 		}
 		const parentPath = this.getDirpath(fullpath);
@@ -182,7 +185,12 @@ export class MemoryStorage extends BaseStorage {
 
 		// Write cannot write a file over a directory
 		if (Result.isOk(nodeStats) && nodeStats.value.isDirectory()) {
-			return Result.err(StorageError.dirNotFound({ dirname: fullpath }));
+			return Result.err(
+				StorageError.dirNotFound({
+					storageType: 'memory',
+					dirname: fullpath,
+				}),
+			);
 		}
 
 		// Return appropriate error in the case that there is some other problem.
@@ -248,13 +256,17 @@ export class MemoryStorage extends BaseStorage {
 		const node = this.getNode(fullpath);
 		if (Optional.isNone(node)) {
 			return Result.err(
-				StorageError.fileNotFound({ filename: fullpath }),
+				StorageError.fileNotFound({
+					storageType: 'memory',
+					filename: fullpath,
+				}),
 			);
 		}
 
 		if (node.type === 'directory') {
 			return Result.err(
 				StorageError.dirExists({
+					storageType: 'memory',
 					dirname: fullpath,
 					reason: `Cannot remove directory ${fullpath}`,
 				}),
@@ -265,6 +277,7 @@ export class MemoryStorage extends BaseStorage {
 		if (index === undefined || index === 0) {
 			return Result.err(
 				StorageError.uknownError({
+					storageType: 'memory',
 					message: 'Fatal error',
 					reason: 'Retrieving node relies on a index existing',
 				}),
@@ -291,7 +304,10 @@ export class MemoryStorage extends BaseStorage {
 		const node = this.getNode(fullpath);
 		if (node?.type !== 'directory') {
 			return Result.err(
-				StorageError.notADirectory({ dirname: fullpath }),
+				StorageError.notADirectory({
+					storageType: 'memory',
+					dirname: fullpath,
+				}),
 			);
 		}
 
@@ -313,7 +329,12 @@ export class MemoryStorage extends BaseStorage {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (Optional.isNone(node)) {
-			return Result.err(StorageError.pathNotFound({ path: fullpath }));
+			return Result.err(
+				StorageError.pathNotFound({
+					storageType: 'memory',
+					path: fullpath,
+				}),
+			);
 		}
 
 		const prevStats = node.stats;
@@ -332,7 +353,12 @@ export class MemoryStorage extends BaseStorage {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (node) {
-			return Result.err(StorageError.uknownError({ reason: 'Unable ' }));
+			return Result.err(
+				StorageError.uknownError({
+					storageType: 'memory',
+					reason: 'Unable ',
+				}),
+			);
 		}
 
 		const pathParts = fullpath.split('/').slice(1);
@@ -352,7 +378,10 @@ export class MemoryStorage extends BaseStorage {
 			const node = this.getNode(dirpath);
 			if (node?.type === 'file') {
 				return Result.err(
-					StorageError.fileExists({ filename: dirpath }),
+					StorageError.fileExists({
+						storageType: 'memory',
+						filename: dirpath,
+					}),
 				);
 			}
 		}
@@ -399,12 +428,18 @@ export class MemoryStorage extends BaseStorage {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (Optional.isNone(node)) {
-			return Result.err(StorageError.dirNotFound({ dirname: fullpath }));
+			return Result.err(
+				StorageError.dirNotFound({
+					storageType: 'memory',
+					dirname: fullpath,
+				}),
+			);
 		}
 
 		if (node.path === '/') {
 			return Result.err(
 				StorageError.permissionError({
+					storageType: 'memory',
 					filename: '/',
 					message: 'Unable to remove root directory',
 					reason: 'Unable to remove root directory',
@@ -414,7 +449,11 @@ export class MemoryStorage extends BaseStorage {
 
 		if (node?.type !== 'directory') {
 			return Result.err(
-				StorageError.notADirectory({ dirname: fullpath, reason: '' }),
+				StorageError.notADirectory({
+					storageType: 'memory',
+					dirname: fullpath,
+					reason: '',
+				}),
 			);
 		}
 
@@ -422,6 +461,7 @@ export class MemoryStorage extends BaseStorage {
 		if (node.children.length !== 0 && !options?.recursive) {
 			return Result.err(
 				StorageError.dirNotEmpty({
+					storageType: 'memory',
 					dirname: fullpath,
 				}),
 			);
@@ -453,7 +493,12 @@ export class MemoryStorage extends BaseStorage {
 		const fullpath = this.getFullPath(path);
 		const node = this.getNode(fullpath);
 		if (Optional.isNone(node)) {
-			return Result.err(StorageError.pathNotFound({ path: fullpath }));
+			return Result.err(
+				StorageError.pathNotFound({
+					storageType: 'memory',
+					path: fullpath,
+				}),
+			);
 		}
 		return Result.ok({
 			...node.stats,

@@ -9,7 +9,7 @@ export * as BackendError from './BackendError.js';
 export { apiBackend } from './ApiBackend.js';
 export { browserBackend } from './DomBackend.js';
 export { memoryBackend } from './MemoryBackend.js';
-export { FsBackend as nodeBackend } from './FsBackend.js';
+export { FsBackend } from './FsBackend.js';
 
 export const detectBackend = async () => {
 	switch (currentPlatform) {

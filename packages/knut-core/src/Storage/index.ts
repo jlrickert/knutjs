@@ -4,5 +4,5 @@ export { BaseStorage } from './BaseStorage.js';
 
 export { ApiStorage } from './ApiStorage.js';
 export { WebStorage } from './WebStorage.js';
-export { NodeStorage } from './NodeStorage.js';
+export { FsStorage } from './FsStorage.js';
 export { MemoryStorage } from './MemoryStorage.js';
