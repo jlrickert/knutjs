@@ -2,7 +2,7 @@ import { Storage } from '../Storage/index.js';
 import { currentPlatform, Future } from '../Utils/index.js';
 import { KnutError } from '../KnutError.js';
 import { browserBackend } from './DomBackend.js';
-import { nodeBackend } from './NodeBackend.js';
+import { FsBackend } from './FsBackend.js';
 import { memoryBackend } from './MemoryBackend.js';
 
 /**
@@ -76,7 +76,7 @@ export const detectBackend: () => Future.Future<Backend> = async () => {
 			return await browserBackend();
 		}
 		case 'node': {
-			return (await nodeBackend()) ?? memoryBackend();
+			return (await FsBackend()) ?? memoryBackend();
 		}
 		default: {
 			return memoryBackend();

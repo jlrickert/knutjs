@@ -3,7 +3,7 @@ import { homedir } from 'os';
 import { Future, Result } from '../Utils/index.js';
 import { Storage } from '../Storage/index.js';
 import { Backend, make, Loader } from './Backend.js';
-import { KnutConfigFile } from '../ConfigFile.js';
+import { KnutConfigFile } from '../KnutConfigFile.js';
 
 const getUserDataDir = async (): Future.Future<string> => {
 	const platform = process.platform;
@@ -115,7 +115,7 @@ const getUserConfigDir = async (): Promise<string> => {
 /**
  * Node environment. This typically will be running on a workstation or server
  */
-export const nodeBackend: () => Future.FutureOptional<Backend> = async () => {
+export const FsBackend: () => Future.FutureOptional<Backend> = async () => {
 	const data = new Storage.NodeStorage(await getUserDataDir()).child('knut');
 	const state = new Storage.NodeStorage(await getUserStateDir()).child(
 		'knut',

@@ -1,7 +1,7 @@
 import { currentPlatform } from '../Utils/Utils.js';
 import { browserBackend } from './DomBackend.js';
 import { memoryBackend } from './MemoryBackend.js';
-import { nodeBackend } from './NodeBackend.js';
+import { FsBackend } from './FsBackend.js';
 
 export * as Backend from './Backend.js';
 export * as BackendError from './BackendError.js';
@@ -9,7 +9,7 @@ export * as BackendError from './BackendError.js';
 export { apiBackend } from './ApiBackend.js';
 export { browserBackend } from './DomBackend.js';
 export { memoryBackend } from './MemoryBackend.js';
-export { nodeBackend } from './NodeBackend.js';
+export { FsBackend as nodeBackend } from './FsBackend.js';
 
 export const detectBackend = async () => {
 	switch (currentPlatform) {
@@ -17,7 +17,7 @@ export const detectBackend = async () => {
 			return browserBackend();
 		}
 		case 'node': {
-			return nodeBackend();
+			return FsBackend();
 		}
 		default: {
 			return memoryBackend();
