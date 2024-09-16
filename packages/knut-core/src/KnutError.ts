@@ -1,15 +1,14 @@
 import { BackendError } from './Backend/index.js';
 import { StorageError } from './Storage/index.js';
-import { JsonError, YamlError } from './Utils/index.js';
+import { BaseError, JsonError, YamlError } from './Utils/index.js';
 
-export interface BaseError<Scope extends string> {
-	scope: Scope;
-	code: string;
-	message: string;
-	reason?: string;
-}
+export interface BaseCoreError<Code extends string>
+	extends BaseError.BaseError<'CORE', Code> { }
+
+export interface UnknownError extends BaseCoreError<'UNKNOWN'> { }
 
 export type KnutError =
+	| UnknownError
 	| StorageError.StorageError
 	| YamlError.YamlError
 	| JsonError.JsonError

@@ -96,10 +96,7 @@ export const match: {
 
 export const getOrElse: {
 	<B, E>(onErr: (err: E) => B): <A>(ma: Result<A, E>) => A | B;
-	<A, B, E>(
-		ma: Result<A, E>,
-		onErr: (err: E) => B,
-	): <A>(ma: Result<A, E>) => A | B;
+	<A, B, E>(ma: Result<A, E>, onErr: (err: E) => B): A | B;
 } = dual(2, <A, B, E>(ma: Result<A, E>, onErr: (err: E) => B) => {
 	if (isOk(ma)) {
 		return ma.value;

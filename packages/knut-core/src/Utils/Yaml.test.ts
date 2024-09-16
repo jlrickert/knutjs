@@ -6,14 +6,14 @@ describe.concurrent('Yaml', () => {
 	describe('parse', () => {
 		test('should parse yaml content', async () => {
 			const data = Result.unwrap(
-				await TestUtils.fixtures.read('samplekeg1/keg'),
+				await TestUtils.fixtures.read('kegs/samplekeg1/keg'),
 			);
 			const result = Yaml.parse(data);
 			expect(result).toStrictEqual(
 				Result.ok({
 					updated: '2022-11-26 19:33:24Z',
 					kegv: '2023-01',
-					title: 'A Sample Keg Number 1',
+					title: 'A Sample Keg number 1',
 					url: 'git@github.com:YOU/keg.git',
 					creator: 'git@github.com:YOU/YOU.git',
 					state: 'living',

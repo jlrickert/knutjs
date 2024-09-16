@@ -25,7 +25,7 @@ test('path library exploration', () => {
 
 describe('file system storage', () => {
 	test('should mirror the behavior of memory storage', async () => {
-		const storage = await TestUtils.tempNodeStorage();
+		const storage = await TestUtils.tempFsStorage();
 		const memory = MemoryStorage.create();
 
 		// Check if the same command is the same between node storage and memory storage

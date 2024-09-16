@@ -1,6 +1,7 @@
 import * as Path from 'path';
 import * as YAML from 'yaml';
 import { homedir } from 'os';
+import { NonEmptyReadonlyArray } from 'effect/Array';
 import { absurd, pipe } from 'fp-ts/lib/function.js';
 import { KegVersion } from './kegFile.js';
 import { Storage, StorageError } from './Storage/index.js';
@@ -76,9 +77,8 @@ export class KnutConfigFile {
 		json: string,
 		root?: string,
 	): Future.FutureResult<KnutConfigFile, JsonError.JsonError> {
-		const result = Json.parse<ConfigDefinition>(json);
 		return Result.map(
-			result,
+			Json.parse<ConfigDefinition>(json),
 			(data) => new KnutConfigFile(Optional.fromNullable(root), data),
 		);
 	}
@@ -87,8 +87,7 @@ export class KnutConfigFile {
 		yaml: string,
 		root?: string,
 	): Future.FutureResult<KnutConfigFile, YamlError.YamlError> {
-		const result = Yaml.parse<ConfigDefinition>(yaml);
-		return Result.map(result, (data) => {
+		return Result.map(Yaml.parse<ConfigDefinition>(yaml), (data) => {
 			return new KnutConfigFile(Optional.fromNullable(root), data);
 		});
 	}
@@ -101,30 +100,56 @@ export class KnutConfigFile {
 		});
 	}
 
-	constructor(
+	/**
+	 * Merge other configurations. This creates a brand new config
+	 */
+	static merge(...configurations: NonEmptyReadonlyArray<KnutConfigFile>) {
+		const conf = KnutConfigFile.create();
+		for (const other of configurations) {
+			conf.data.format = Optional.getOrElse(
+				other.data.format,
+				() => conf.data.format,
+			);
+			for (const keg of other.data.kegs) {
+				conf.upsertKegConfig(keg);
+			}
+		}
+		return conf;
+	}
+
+	private constructor(
 		private _root: Optional.Optional<string>,
 		private _data: ConfigDefinition,
-	) {}
+	) { }
 
 	get root() {
 		return this._root;
 	}
 
-	async toStorage(
-		storage: Storage.GenericStorage,
-	): Future.FutureResult<true, StorageError.StorageError> {
-		switch (this.format) {
+	public async toStorage(args: {
+		name?: string;
+		format?: PreferedFormat;
+		storage: Storage.GenericStorage;
+	}): Future.FutureResult<true, StorageError.StorageError> {
+		const format = Optional.isSome(args.format) ? args.format : this.format;
+		switch (format) {
 			case 'yaml': {
-				const ok = await storage.write('config.yaml', this.toYAML());
+				const name = Optional.isSome(args.name)
+					? `${args.name}.yaml`
+					: 'config.yaml';
+				const ok = await args.storage.write(name, this.toYAML());
 				return ok;
 			}
 			case 'json': {
-				const ok = await storage.write('config.json', this.toYAML());
+				const name = Optional.isSome(args.name)
+					? `${args.name}.json`
+					: 'config.json';
+				const ok = await args.storage.write(name, this.toJSON());
 				return ok;
 			}
 
 			default: {
-				return absurd(this.format);
+				return absurd(format);
 			}
 		}
 	}
@@ -132,17 +157,15 @@ export class KnutConfigFile {
 	/**
 	 * Resolve urls to some path
 	 */
-	resolve(): KnutConfigFile {
+	resolve(root: string): KnutConfigFile {
 		const next = this.clone();
 		for (const keg of next.data.kegs) {
 			const home = homedir();
+			if (keg.url.match(/^https?/)) {
+				continue;
+			}
 			const url = keg.url.replace(/^~/, home);
-			keg.url = pipe(
-				this.root,
-				Optional.map((root) => Path.resolve(root, url)),
-				Optional.getOrElse(() => url),
-			);
-			keg.url = this.root ? Path.resolve(this.root, url) : url;
+			keg.url = Path.resolve(root, url);
 		}
 		return next;
 	}
@@ -150,21 +173,20 @@ export class KnutConfigFile {
 	/**
 	 * Make urls relative
 	 */
-	relative(): KnutConfigFile {
+	relative(root: string): KnutConfigFile {
 		const next = this.clone();
-		const root = this.root ?? '/';
-		if (root.match(/^https?/)) {
-			return next;
-		}
 		for (const keg of next.data.kegs) {
+			if (keg.url.match(/^https?/)) {
+				continue;
+			}
 			const home = homedir();
 			const url = keg.url.replace(/^~/, home);
-			keg.url = Path.relative(root ?? '/', url);
+			keg.url = Path.relative(root, url);
 		}
 		return next;
 	}
 
-	updateKegConfig(definition: KegConfigDefinition) {
+	upsertKegConfig(definition: KegConfigDefinition) {
 		const index = this._data.kegs.findIndex(
 			(a) => a.alias === definition.alias,
 		);
@@ -177,12 +199,15 @@ export class KnutConfigFile {
 
 	get filepath(): string {
 		switch (this.format) {
-			case 'json':
+			case 'json': {
 				return 'config.json';
-			case 'yaml':
+			}
+			case 'yaml': {
 				return 'config.yaml';
-			default:
+			}
+			default: {
 				return absurd(this.format);
+			}
 		}
 	}
 
@@ -248,7 +273,7 @@ export class KnutConfigFile {
 	concat(other: KnutConfigFile): KnutConfigFile {
 		const config = this.clone();
 		for (const keg of other._data.kegs) {
-			config.updateKegConfig(keg);
+			config.upsertKegConfig(keg);
 		}
 		return config;
 	}

@@ -6,19 +6,20 @@ import { NodeId } from '../node.js';
 import { BaseStorage, StorageNodeStats, StorageResult } from './BaseStorage.js';
 import { StorageError } from './index.js';
 
-export class NodeStorage extends BaseStorage {
+export class FsStorage extends BaseStorage {
+	public static readonly STORAGE_TYPE = 'FileSystem';
 	public readonly readonly: boolean = false;
 	private static parsePath(path: Stringer): string {
 		return stringify(path).replace(/^~/, homedir());
 	}
 
 	constructor(root: string, options?: { readonly?: boolean }) {
-		super(Path.normalize(NodeStorage.parsePath(root)));
+		super(Path.normalize(FsStorage.parsePath(root)));
 		this.readonly = options?.readonly ?? false;
 	}
 
 	private getFullPath(path: Stringer): string {
-		const filepath = NodeStorage.parsePath(path);
+		const filepath = FsStorage.parsePath(path);
 		if (Path.isAbsolute(filepath)) {
 			return Path.join(this.uri, filepath);
 		}
@@ -35,7 +36,7 @@ export class NodeStorage extends BaseStorage {
 	}
 
 	async read(filepath: Stringer): StorageResult<string> {
-		const fullpath = this.getFullPath(NodeStorage.parsePath(filepath));
+		const fullpath = this.getFullPath(FsStorage.parsePath(filepath));
 		try {
 			const content = await FS.readFile(fullpath, { encoding: 'utf-8' });
 			return Result.ok(content);
@@ -61,7 +62,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
-					storageType: 'filesystem',
+					storageType: FsStorage.STORAGE_TYPE,
 					reason: `Unable to write to file ${fullpath}`,
 					error,
 				}),
@@ -76,7 +77,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
-					storageType: 'filesystem',
+					storageType: FsStorage.STORAGE_TYPE,
 					reason: `Unable to remove file ${stringify(filepath)}`,
 					error,
 				}),
@@ -104,7 +105,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
-					storageType: 'filesystem',
+					storageType: FsStorage.STORAGE_TYPE,
 					reason: `unable to read directory "${fullPath}"`,
 					error,
 				}),
@@ -123,7 +124,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
-					storageType: 'filesystem',
+					storageType: FsStorage.STORAGE_TYPE,
 					reason: `unable to rmdir "${fullPath}"`,
 					error,
 				}),
@@ -143,7 +144,7 @@ export class NodeStorage extends BaseStorage {
 			if ((error as any).code === 'ENOENT') {
 				return Result.err(
 					StorageError.pathNotFound({
-						storageType: 'filesystem',
+						storageType: FsStorage.STORAGE_TYPE,
 						path: fullpath,
 						message: 'Unable to modify timestamps',
 						error,
@@ -152,7 +153,7 @@ export class NodeStorage extends BaseStorage {
 			}
 			return Result.err(
 				StorageError.uknownError({
-					storageType: 'filesystem',
+					storageType: FsStorage.STORAGE_TYPE,
 					reason: `unable to utime ${fullpath}`,
 					error,
 				}),
@@ -170,7 +171,7 @@ export class NodeStorage extends BaseStorage {
 		} catch (error) {
 			return Result.err(
 				StorageError.uknownError({
-					storageType: 'filesystem',
+					storageType: FsStorage.STORAGE_TYPE,
 					reason: `unable to mkdir "${fullpath}"`,
 					error,
 				}),
@@ -214,9 +215,9 @@ export class NodeStorage extends BaseStorage {
 		}
 	}
 
-	child(subpath: Stringer): NodeStorage {
-		const path = NodeStorage.parsePath(subpath);
-		const storage = new NodeStorage(
+	child(subpath: Stringer): FsStorage {
+		const path = FsStorage.parsePath(subpath);
+		const storage = new FsStorage(
 			Path.isAbsolute(path) ? path : this.getFullPath(path),
 			{ readonly: this.readonly },
 		);

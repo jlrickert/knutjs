@@ -138,7 +138,7 @@ export const FsBackend: () => Future.FutureOptional<Backend> = async () => {
 			await KnutConfigFile.fromStorage(configStore),
 			Result.getOrElse(() => KnutConfigFile.create(dataStore.uri)),
 		);
-		const conf = stateConf.merge(userConf);
+		const conf = KnutConfigFile.merge(stateConf, userConf);
 		const path = conf.getKeg(kegAlias)?.url;
 		if (Optional.isNone(path)) {
 			return Result.err(
