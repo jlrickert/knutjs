@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { testUtils } from './internal/testUtils.js';
-import { KegStorage } from './kegStorage.js';
+import { KegStorage } from './KegStore.js';
 import { collectAsync } from './Utils/index.js';
 
 for await (const { name, getBackend } of testUtils.backends) {
