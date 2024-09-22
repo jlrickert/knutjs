@@ -13,7 +13,7 @@ declare module '../Data/KnutError.js' {
 }
 
 export const loaderError = (
-	options: BaseError.BaseErrorArgs<{ kegAlias: string }>,
+	options: BaseError.BaseErrorParams<{ kegAlias: string; message: string }>,
 ) => {
 	return BaseError.make<LoaderError>({
 		scope: 'BACKEND',

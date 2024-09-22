@@ -1,5 +1,6 @@
 export * as Json from './Json.js';
 export * as JsonError from './JsonError.js';
+export * as KegError from './KegError.js';
 export * as KegUri from './KegUri.js';
 export * as KnutError from './KnutError.js';
 export * as Markdown from './Markdown.js';

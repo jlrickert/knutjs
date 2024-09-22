@@ -12,8 +12,16 @@ import {
 	Result,
 } from './Utils/index.js';
 import { NonEmptyReadonlyArray } from 'effect/Array';
-import { KegVersion } from './KegFile.js';
-import { Json, JsonError, Yaml, YamlError } from './Data/index.js';
+import { KegVersion } from './KegConfig.js';
+import {
+	Json,
+	JsonError,
+	NodeContent,
+	NodeMeta,
+	Yaml,
+	YamlError,
+} from './Data/index.js';
+import { KegNodeOptions } from './KegNode.js';
 
 export type KegConfigDefinition = {
 	enabled: boolean;
@@ -138,6 +146,14 @@ export class KnutConfigFile {
 
 	get root() {
 		return this._root;
+	}
+
+	getNodeOptions(): KegNodeOptions {
+		const preferedFormat = this.data.format;
+		return {
+			metaType: preferedFormat ?? NodeMeta.DEFAULT_NODE_META_TYPE,
+			contentType: NodeContent.DEFAULT_NODE_CONTENT_TYPE,
+		};
 	}
 
 	public async toStorage(args: {

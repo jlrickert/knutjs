@@ -11,11 +11,11 @@ declare module '../Data/KnutError.js' {
 }
 
 export const makeParseError = (
-	options: BaseError.BaseErrorArgs,
+	params: BaseError.BaseErrorParams<{ message: string }>,
 ): MarkdownError => {
 	return BaseError.make<MarkdownError>({
 		scope: 'MARKDOWN',
 		code: 'PARSE_ERR',
-		...options,
+		...params,
 	});
 };

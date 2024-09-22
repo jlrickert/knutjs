@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { TestUtils } from './Testing/index.js';
 import { Result } from './Utils/index.js';
-import { KegFile } from './KegFile.js';
+import { KegConfig } from './KegConfig.js';
 
 TestUtils.describeEachBackend('KegFile', async ({ loadBackend }) => {
 	test('should be able to parse from a valid yaml file', async () => {
@@ -10,7 +10,7 @@ TestUtils.describeEachBackend('KegFile', async ({ loadBackend }) => {
 			'Expect file "kegs/samplekeg1" to exist in fixtures',
 		);
 		const kegFile = Result.unwrap(
-			KegFile.fromYaml(data),
+			KegConfig.fromYaml(data),
 			'Expect valid yaml to not throw an error',
 		);
 		expect(kegFile.data.creator).toEqual('git@github.com:YOU/YOU.git');
@@ -21,7 +21,7 @@ TestUtils.describeEachBackend('KegFile', async ({ loadBackend }) => {
 		const backend = await loadBackend();
 		for (const alias of TestUtils.kegAliasFixtures) {
 			const storage = Result.unwrap(await backend.loader(alias));
-			const kegFile = Result.unwrap(await KegFile.fromStorage(storage));
+			const kegFile = Result.unwrap(await KegConfig.fromStorage(storage));
 			expect(kegFile.data.title).toStrictEqual(
 				expect.stringContaining('Sample Keg'),
 			);

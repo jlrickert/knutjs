@@ -6,5 +6,5 @@ Here is an optional paragraph.
 
 The above is fine, just cannot appear before another list (per KEGML spec).
 
-- [Last Changes Index](latest.md)
-- [Nodes by ID](nodes.tsv)
+- [Last Changes Index](./changes.md)
+- [Nodes by ID](./nodes.tsv)

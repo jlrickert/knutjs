@@ -1,12 +1,5 @@
 import { Storage } from './Storage/index.js';
-import {
-	currentDate,
-	Future,
-	Optional,
-	pipe,
-	Result,
-	stringify,
-} from './Utils/index.js';
+import { Future, Optional, pipe, Result, stringify } from './Utils/index.js';
 import { Json, NodeId, Yaml } from './Data/index.js';
 import { KnutErrorScopeMap } from './Data/KnutError.js';
 
@@ -33,11 +26,11 @@ export type IndexEntryData = {
 /**
  * Plain old data representing a keg
  */
-export type KegFileData = {
+export type KegConfigData = {
 	/**
 	 * last time the index has been updated.
 	 **/
-	updated?: string;
+	updated?: Date;
 	kegv?: KegVersion;
 	title?: string;
 	url?: string;
@@ -48,20 +41,25 @@ export type KegFileData = {
 	indexes?: IndexEntryData[];
 };
 
-export class KegFile {
+export class KegConfig {
+	static async hasConfig(storage: Storage.GenericStorage) {
+		return Result.isOk(await storage.stats('keg'));
+	}
+
 	/**
 	 * Load a keg file for the given path
 	 */
 	static async fromStorage(
 		storage: Storage.GenericStorage,
 	): Future.FutureResult<
-		KegFile,
+		KegConfig,
 		KnutErrorScopeMap['YAML' | 'JSON' | 'STORAGE']
 	> {
 		const kegdata = pipe(
 			await storage.read('keg'),
-			Result.chain((a) => {
-				return KegFile.fromYaml(a);
+			Result.chain((yaml) => {
+				// console.log({ where: 'fromStorage', uri: storage.uri, yaml });
+				return KegConfig.fromYaml(yaml);
 			}),
 		);
 		return kegdata;
@@ -69,23 +67,23 @@ export class KegFile {
 
 	static fromYaml(yaml: string) {
 		return Result.map(
-			Yaml.parse<KegFileData>(yaml),
-			(data) => new KegFile(data),
+			Yaml.parse<KegConfigData>(yaml),
+			(data) => new KegConfig(data),
 		);
 	}
 
 	static fromJson(json: string) {
 		return Result.map(
-			Json.parse<KegFileData>(json),
-			(data) => new KegFile(data),
+			Json.parse<KegConfigData>(json),
+			(data) => new KegConfig(data),
 		);
 	}
 
-	static default(): KegFile {
-		return new KegFile({
+	static default(): KegConfig {
+		return new KegConfig({
 			// $schema:
 			// 	'https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json',
-			updated: currentDate(),
+			updated: new Date(),
 			kegv: '2023-01',
 			state: 'living',
 		});
@@ -99,9 +97,9 @@ export class KegFile {
 		state?: string;
 		summary?: string;
 	}) {
-		const kegFile = KegFile.default();
-		kegFile._data.url = options?.url;
-		kegFile._data.linkfmt = options?.linkfmt;
+		const kegFile = KegConfig.default();
+		kegFile.data.url = options?.url;
+		kegFile.data.linkfmt = options?.linkfmt;
 		kegFile.upsertIndex({
 			file: 'dex/changes.md',
 			summary: 'latest changes',
@@ -117,15 +115,14 @@ export class KegFile {
 		return kegFile;
 	}
 
-	private constructor(private _data: KegFileData) {}
-
-	public get data(): Readonly<KegFileData> {
-		return this._data;
+	public data: KegConfigData;
+	private constructor(data: KegConfigData) {
+		this.data = data;
 	}
 
 	*getIndexes() {
 		const entries: IndexEntryData[] = [];
-		for (const entry of this._data.indexes ?? []) {
+		for (const entry of this.data.indexes ?? []) {
 			entries.push(entry);
 			yield entry satisfies IndexEntryData;
 		}
@@ -133,50 +130,56 @@ export class KegFile {
 	}
 
 	upsertIndex(index: IndexEntryData) {
-		if (this._data.indexes === undefined) {
-			this._data.indexes = [];
+		if (this.data.indexes === undefined) {
+			this.data.indexes = [];
 		}
-		const i = this._data.indexes?.findIndex((a) => a.name === index.name);
+		const i = this.data.indexes?.findIndex((a) => a.name === index.name);
 		if (i < 0) {
-			this._data.indexes.push(index);
+			this.data.indexes.push(index);
 			return;
 		}
-		this._data.indexes[i] = { ...this._data.indexes[i], index };
+		this.data.indexes[i] = { ...this.data.indexes[i], index };
 	}
 
 	async toStorage(storage: Storage.GenericStorage) {
-		return await storage.write('keg', stringify(this));
+		return await storage.write('keg', this.stringify());
 	}
 
 	getCreator(): Optional.Optional<string> {
-		return this._data.creator ?? null;
+		return this.data.creator ?? null;
 	}
 
-	setCreator(value: string): KegFile {
-		this._data.creator = value;
+	setCreator(value: string): KegConfig {
+		this.data.creator = value;
 		return this;
 	}
 
 	getLink(nodeId: NodeId.NodeId): Optional.Optional<string> {
-		const linkfmt = this._data.linkfmt;
+		const linkfmt = this.data.linkfmt;
 		return linkfmt
 			? linkfmt.replace('{{id}}', NodeId.stringify(nodeId))
 			: null;
 	}
 
 	toYaml(options?: Yaml.YamlStringifyOptions): string {
+		const { updated, ...data } = this.data;
 		const schemaLine =
 			'# yaml-language-server: $schema=https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json';
-		const content = Yaml.stringify(this._data, options);
+		const content = Yaml.stringify(
+			{ updated: stringify(updated ?? new Date()), ...data },
+			options,
+		);
 		return [schemaLine, content].join('\n');
 	}
 
 	toJson(options?: Json.JsonStringifyOptions): string {
+		const { updated, ...data } = this.data;
 		return Json.stringify(
 			{
 				$schema:
 					'https://raw.githubusercontent.com/jlrickert/knutjs/main/packages/knut-core/kegSchema.json',
-				...this._data,
+				updated: stringify(updated ?? new Date()),
+				...data,
 			},
 			options,
 		);

@@ -13,7 +13,9 @@ export interface KnutErrorScopeMap {
 export type KnutErrorScope = keyof KnutErrorScopeMap;
 export type KnutError = KnutErrorScopeMap[keyof KnutErrorScopeMap];
 
-export const makeUnknownError = (args: BaseError.BaseErrorArgs<{}>) => {
+export const makeUnknownError = (
+	args: BaseError.BaseErrorArgs<{ message: string }>,
+) => {
 	return BaseError.make<UnknownError>({
 		scope: 'CORE',
 		code: 'UNKNOWN',

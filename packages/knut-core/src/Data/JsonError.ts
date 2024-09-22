@@ -4,18 +4,18 @@ type Scope = 'JSON';
 export type JsonParseError = BaseError.BaseError<Scope, 'PARSE_ERR'>;
 export type JsonError = JsonParseError;
 
-declare module '../Data/KnutError.js' {
+declare module './KnutError.js' {
 	interface KnutErrorScopeMap {
 		JSON: JsonError;
 	}
 }
 
 export const makeParseError = (
-	options: BaseError.BaseErrorArgs,
+	params: BaseError.BaseErrorArgs<{ message: string }>,
 ): JsonParseError => {
 	return BaseError.make<JsonParseError>({
 		code: 'PARSE_ERR',
 		scope: 'JSON',
-		...options,
+		...params,
 	});
 };

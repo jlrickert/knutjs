@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../kegSchema.json
+# yaml-language-server: $schema=../../../kegSchema.json
 updated: 2022-11-26 19:33:24Z
 kegv:    2023-01
 
@@ -31,3 +31,5 @@ indexes:
     summary: latest changes
   - file: dex/nodes.tsv
     summary: all nodes by id
+  - file: dex/tags
+    summary: tags index

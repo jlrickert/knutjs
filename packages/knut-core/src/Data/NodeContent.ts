@@ -32,15 +32,15 @@ export const contentFilename = (options?: { type?: NodeContentType }) => {
 	return CONTENT_FILEMAP[t];
 };
 
-export const fromContent = (options: {
+export const fromContent = (params: {
 	title: string;
 	summary?: string;
 	type?: NodeContentType;
 }) => {
 	const ast = KegNodeAST.make();
-	ast.setTitle(options.title);
-	if (options.summary) {
-		ast.setSummary(options.summary);
+	ast.setTitle(params.title);
+	if (params.summary) {
+		ast.setSummary(params.summary);
 	}
 	return ast;
 };

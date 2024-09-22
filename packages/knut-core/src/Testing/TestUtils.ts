@@ -102,25 +102,12 @@ const loadFixutures = async (backend: Backend.Backend) => {
 	}
 };
 
-/**
- * An empty file system storage that is located in a temporary location.
- * Removes tempoary directory automatically. Unverified outside of vitest.
- */
-export const tempFsStorage =
-	async (): Future.Future<Storage.GenericStorage> => {
-		const rootPath = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
-		const storage = new FsStorage(rootPath);
-
-		afterAll(async () => {
-			try {
-				await rm(storage.uri, { recursive: true });
-			} catch (e) {
-				throw new Error(e as any);
-			}
-		});
-
-		return storage;
-	};
+let testMemoryStorageCounter = 0;
+export const testMemoryStorage = async () => {
+	const store = WebStorage.create(`memorystore-${testMemoryStorageCounter}`);
+	testMemoryStorageCounter++;
+	return store;
+};
 
 export const testMemoryBackend = async (): Future.Future<Backend.Backend> => {
 	// Holds knut configuration
@@ -169,21 +156,28 @@ export const testMemoryBackend = async (): Future.Future<Backend.Backend> => {
 	return backend;
 };
 
+let testBrowserStorageCounter = 0;
+export const testBrowserStorage = async () => {
+	const store = WebStorage.create(`webstore-${testBrowserStorageCounter}`);
+	testBrowserStorageCounter++;
+	return store;
+};
+
 export const testBrowserBackend = async (): Future.Future<Backend.Backend> => {
 	const storage = WebStorage.create('knut');
 
 	// Child path needs to match up with fixture cache
-	const cache = storage.child('cache');
+	const cacheStore = storage.child('cache');
 
 	// Data path needs to match up with fixture variable path
-	const data = storage.child('data');
+	const dataStore = storage.child('data');
 
 	// state path needs to match up with fixture variable path
-	const state = storage.child('state');
+	const stateStore = storage.child('state');
 
 	// Config path needs to match up with fixture path so that config.yaml
 	// resolves to the correct location
-	const config = storage.child('config');
+	const configStore = storage.child('config');
 
 	const kegStorage = WebStorage.create('knut-kegs');
 	await Storage.overwrite({
@@ -196,24 +190,38 @@ export const testBrowserBackend = async (): Future.Future<Backend.Backend> => {
 		return Result.ok(storage);
 	};
 
-	const backend: Backend.Backend = Backend.make({
-		config,
-		data,
-		state,
-		cache,
+	const backend = Backend.make({
+		config: configStore,
+		data: dataStore,
+		state: stateStore,
+		cache: cacheStore,
 		loader,
 	});
 	await loadFixutures(backend);
-	const configFile = Result.unwrap(
-		await KnutConfigFile.fromStorage(config),
-		`Expecting config file to be found`,
-	);
-	Result.unwrap(
-		await configFile.relative('/').toStorage({ storage: config }),
-		'Expecting to be able to write to config',
-	);
+	const config = await KnutConfigFile.fromBackend(backend);
+	await config.relative('/').toStorage({ storage: configStore });
 	return backend;
 };
+
+/**
+ * An empty file system storage that is located in a temporary location.
+ * Removes tempoary directory automatically. Unverified outside of vitest.
+ */
+export const tempFsStorage =
+	async (): Future.Future<Storage.GenericStorage> => {
+		const rootPath = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
+		const storage = new FsStorage(rootPath);
+
+		afterAll(async () => {
+			try {
+				await rm(storage.uri, { recursive: true });
+			} catch (e) {
+				throw new Error(e as any);
+			}
+		});
+
+		return storage;
+	};
 
 export const testEmptyFsBackend = async (): Future.Future<Backend.Backend> => {
 	const root = await tempFsStorage();
@@ -237,13 +245,13 @@ export const testEmptyFsBackend = async (): Future.Future<Backend.Backend> => {
 		return Result.ok(root.child(path));
 	};
 
-	return {
+	return Backend.make({
 		config: configStore,
 		data: dataStore,
 		state: stateStore,
 		cache: cacheStore,
 		loader,
-	};
+	});
 };
 
 /**
@@ -255,22 +263,31 @@ export const testFsBackend = async (): Future.Future<Backend.Backend> => {
 	return backend;
 };
 
+export const testFsStorage =
+	async (): Future.Future<Storage.GenericStorage> => {
+		return await tempFsStorage();
+	};
+
 type BackendTestCase = {
 	readonly name: string;
 	readonly loadBackend: () => Future.Future<Backend.Backend>;
+	readonly loadStorage: () => Future.Future<Storage.BaseStorage>;
 };
 export const backends: BackendTestCase[] = [
 	{
 		name: 'Local file system',
 		loadBackend: testFsBackend,
+		loadStorage: testFsStorage,
 	},
 	{
 		name: 'Browser',
 		loadBackend: testBrowserBackend,
+		loadStorage: testBrowserStorage,
 	},
 	{
 		name: 'In Memory',
 		loadBackend: testMemoryBackend,
+		loadStorage: testMemoryStorage,
 	},
 ];
 
@@ -278,9 +295,9 @@ export const describeEachBackend = (
 	desc: string,
 	factory: (args: BackendTestCase) => Future.Future<void>,
 ): void => {
-	for (const { name, loadBackend } of TestUtils.backends) {
-		describe(`${desc} (${name})`, async () => {
-			await factory({ name, loadBackend });
+	for (const options of TestUtils.backends) {
+		describe(`${desc} (${options.name})`, async () => {
+			await factory(options);
 		});
 	}
 };

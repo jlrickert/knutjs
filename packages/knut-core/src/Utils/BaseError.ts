@@ -17,11 +17,11 @@ export interface BaseError<Scope extends string, Code extends string> {
 	stackTrace?: string;
 }
 
-export type BaseErrorArgs<T = {}> = T & {
+export type BaseErrorParams<T = {}> = T & {
 	/*
 	 * Brief desciption of the error. Intent is for displaying to end users.
 	 */
-	message: string;
+	message?: string;
 
 	/**
 	 * Additionial data related to the error

@@ -1,6 +1,6 @@
 import { Storage } from '../Storage/index.js';
 import { currentPlatform, Future } from '../Utils/index.js';
-import { KnutError } from '../Data/KnutError.js';
+import { KnutErrorScopeMap } from '../Data/KnutError.js';
 import { browserBackend } from './DomBackend.js';
 import { FsBackend } from './FsBackend.js';
 import { memoryBackend } from './MemoryBackend.js';
@@ -17,7 +17,10 @@ import { memoryBackend } from './MemoryBackend.js';
  */
 export type Loader = (
 	kegAlias: string,
-) => Future.FutureResult<Storage.GenericStorage, KnutError>;
+) => Future.FutureResult<
+	Storage.GenericStorage,
+	KnutErrorScopeMap['STORAGE' | 'JSON' | 'YAML' | 'BACKEND']
+>;
 
 /**
  * Environment that knut is running in.

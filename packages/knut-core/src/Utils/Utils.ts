@@ -6,9 +6,12 @@ export const unsafeCoerce = <T>(value: any): value is T => {
 	return true;
 };
 
-export type DateFormat = 'Y-m-D' | 'Y-m-D H:M' | 'DD/MM/YY';
+export type DateFormat = 'Y-m-D' | 'Y-m-D H:M' | 'DD/MM/YY' | 'iso';
 export const now = (format: DateFormat): string => {
 	switch (format) {
+		case 'iso': {
+			return new Date().toISOString();
+		}
 		case 'Y-m-D': {
 			return Date.now().toString();
 		}
@@ -27,7 +30,7 @@ export const now = (format: DateFormat): string => {
 export const parseDate = (value: string) => {
 	return new Date(value);
 };
-export const stringifyDate = (date: Date): string => {
+export const stringifyDate = (date: Date, format: DateFormat): string => {
 	return date.toISOString();
 };
 
