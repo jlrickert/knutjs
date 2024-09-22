@@ -275,6 +275,6 @@ export class Keg {
 		}
 		await this.dex.toStorage(this.storage);
 		this.config.data.updated = new Date();
-		this.config.toStorage(this.storage);
+		await this.config.toStorage(this.storage);
 	}
 }
