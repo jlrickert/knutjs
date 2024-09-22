@@ -1,5 +1,6 @@
 import * as YAML from 'yaml';
-import { Result, YamlError } from './index.js';
+import { Result } from '../Utils/index.js';
+import { YamlError } from './index.js';
 
 export type YamlResult<T> = Result.Result<T, YamlError.YamlError>;
 export const parse = <T = unknown>(data: string): YamlResult<T> => {
@@ -14,13 +15,12 @@ export const parse = <T = unknown>(data: string): YamlResult<T> => {
 	);
 };
 
-export const stringify = (
-	value: any,
-	options?: YAML.DocumentOptions &
-		YAML.SchemaOptions &
-		YAML.ParseOptions &
-		YAML.CreateNodeOptions &
-		YAML.ToStringOptions,
-) => {
+export type YamlStringifyOptions = YAML.DocumentOptions &
+	YAML.SchemaOptions &
+	YAML.ParseOptions &
+	YAML.CreateNodeOptions &
+	YAML.ToStringOptions;
+
+export const stringify = (value: any, options?: YamlStringifyOptions) => {
 	return YAML.stringify(value, options);
 };

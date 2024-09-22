@@ -31,6 +31,8 @@ export type StorageNodeStats = StorageNodeTime & {
 };
 
 export abstract class BaseStorage {
+	abstract readonly storageType: string;
+
 	constructor(public readonly uri: string) {}
 
 	/**

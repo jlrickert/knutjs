@@ -29,7 +29,7 @@ describe('file system storage', () => {
 		const memory = MemoryStorage.create();
 
 		// Check if the same command is the same between node storage and memory storage
-		const check = async <K extends keyof Omit<BaseStorage, 'uri'>>(
+		const check = async <K extends keyof Omit<BaseStorage, 'uri' | 'storageType'>>(
 			key: K,
 			...args: Parameters<BaseStorage[K]>
 		) => {

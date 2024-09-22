@@ -39,8 +39,8 @@ export interface PathExistsError extends BaseStorageError<'PATH_EXISTS'> {
 export interface PathNotFoundError extends BaseStorageError<'PATH_NOT_FOUND'> {
 	path: string;
 }
-export interface PermissionError extends BaseStorageError<'PERMISSION_ERROR'> {}
-export interface UknownError extends BaseStorageError<'UKNOWN_ERROR'> {}
+export interface PermissionError extends BaseStorageError<'PERMISSION_ERROR'> { }
+export interface UknownError extends BaseStorageError<'UKNOWN_ERROR'> { }
 
 export type StorageError =
 	| DirExistsError
@@ -53,6 +53,12 @@ export type StorageError =
 	| PathNotFoundError
 	| PermissionError
 	| UknownError;
+
+declare module '../Data/KnutError.js' {
+	interface KnutErrorScopeMap {
+		STORAGE: StorageError;
+	}
+}
 
 const makeError = <T extends StorageError>(options: T): T => {
 	const { code, message, reason, error, stackTrace, ...opts } = options;

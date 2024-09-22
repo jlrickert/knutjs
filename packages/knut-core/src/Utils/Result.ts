@@ -108,8 +108,12 @@ export const getOrElse: {
  * This crashes the application if inner value is an error.
  */
 export const unwrap = <A>(ma: Result<A, any>, msg?: string) => {
-	const baseMsg = 'Programming error. Unable to unwrap an error value';
-	invariant(isOk(ma), msg ? `${baseMsg}: ${msg}` : baseMsg);
+	invariant(isOk(ma), () => {
+		const baseMsg = 'Programming error. Unable to unwrap an error value';
+		const message = msg ? `${baseMsg}: ${msg}` : baseMsg;
+		const trace = new Error().stack;
+		return `${message}: ${(ma as any).error.message}\n${trace}`;
+	});
 	return ma.value;
 };
 
@@ -218,6 +222,26 @@ export const map: {
 		return ma as any;
 	},
 );
+
+export const tap: {
+	<T>(f: (value: T) => void): <E>(ma: Result<T, E>) => Result<T, E>;
+	<T, E>(ma: Result<T, E>, f: (value: T) => void): Result<T, E>;
+} = dual(2, <T, E>(ma: Result<T, E>, f: (value: T) => void): Result<T, E> => {
+	if (isOk(ma)) {
+		f(ma.value);
+	}
+	return ma;
+});
+
+export const tapError: {
+	<E>(f: (error: E) => void): <T>(ma: Result<T, E>) => Result<T, E>;
+	<T, E>(ma: Result<T, E>, f: (error: E) => void): Result<T, E>;
+} = dual(2, <T, E>(ma: Result<T, E>, f: (error: E) => void): Result<T, E> => {
+	if (isErr(ma)) {
+		f(ma.error);
+	}
+	return ma;
+});
 
 export const chain: {
 	<T1, T2, E2>(

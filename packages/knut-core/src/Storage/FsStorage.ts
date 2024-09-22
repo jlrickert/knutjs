@@ -1,12 +1,13 @@
 import * as Path from 'path';
 import { homedir } from 'os';
 import * as FS from 'fs/promises';
-import { Result, Stringer, stringify } from '../Utils/index.js';
-import { NodeId } from '../node.js';
+import { Optional, Result, Stringer, stringify } from '../Utils/index.js';
 import { BaseStorage, StorageNodeStats, StorageResult } from './BaseStorage.js';
 import { StorageError } from './index.js';
+import { NodeId } from '../Data/index.js';
 
 export class FsStorage extends BaseStorage {
+	storageType: string = 'FileSystem';
 	public static readonly STORAGE_TYPE = 'FileSystem';
 	public readonly readonly: boolean = false;
 	private static parsePath(path: Stringer): string {
@@ -41,6 +42,15 @@ export class FsStorage extends BaseStorage {
 			const content = await FS.readFile(fullpath, { encoding: 'utf-8' });
 			return Result.ok(content);
 		} catch (error) {
+			if ((error as any).code === 'ENOENT') {
+				return Result.err(
+					StorageError.fileNotFound({
+						filename: fullpath,
+						storageType: this.storageType,
+						error,
+					}),
+				);
+			}
 			return Result.err(
 				StorageError.uknownError({
 					storageType: 'filesystem',
@@ -96,8 +106,8 @@ export class FsStorage extends BaseStorage {
 				.sort((a, b) => {
 					const idA = NodeId.parsePath(a);
 					const idB = NodeId.parsePath(b);
-					if (idA && idB) {
-						return idA.lt(idB) ? -1 : 1;
+					if (Optional.isSome(idA) && Optional.isSome(idB)) {
+						return NodeId.lt(idA, idB) ? -1 : 1;
 					}
 					return a < b ? -1 : 1;
 				});

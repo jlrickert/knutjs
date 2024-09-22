@@ -1,6 +1,6 @@
 import { absurd } from 'fp-ts/lib/function.js';
 
-import * as Json from './Json.js';
+import * as Json from '../Data/Json.js';
 
 export const unsafeCoerce = <T>(value: any): value is T => {
 	return true;
@@ -24,7 +24,7 @@ export const now = (format: DateFormat): string => {
 	}
 };
 
-export const parseDate = (value: string): Date | null => {
+export const parseDate = (value: string) => {
 	return new Date(value);
 };
 export const stringifyDate = (date: Date): string => {

@@ -7,6 +7,7 @@ import {
 } from './BaseStorage.js';
 
 export class ApiStorage extends BaseStorage {
+	public readonly storageType: string = 'API';
 	constructor(private url: string) {
 		super(url);
 	}

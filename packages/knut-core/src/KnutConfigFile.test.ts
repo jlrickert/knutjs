@@ -4,13 +4,14 @@ import { pipe, Result } from './Utils/index.js';
 import { TestUtils } from './Testing/index.js';
 
 TestUtils.describeEachBackend('KnutConfigFile', async ({ loadBackend }) => {
-	test('should be able load config files from storage', async () => {
+	test('should be able to load config files from storage', async () => {
 		const backend = await loadBackend();
 		const data = pipe(
 			await KnutConfigFile.fromStorage(backend.config),
 			Result.map((a) => a.data),
 			(a) => Result.unwrap(a),
 		);
+		expect(data.kegs).length(3)
 		expect(data.kegs[0].alias).toStrictEqual('sample1');
 		expect(data.kegs[1].alias).toStrictEqual('sample2');
 		expect(data.kegs[2].alias).toStrictEqual('sample3');

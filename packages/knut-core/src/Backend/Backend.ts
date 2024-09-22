@@ -1,6 +1,6 @@
 import { Storage } from '../Storage/index.js';
 import { currentPlatform, Future } from '../Utils/index.js';
-import { KnutError } from '../KnutError.js';
+import { KnutError } from '../Data/KnutError.js';
 import { browserBackend } from './DomBackend.js';
 import { FsBackend } from './FsBackend.js';
 import { memoryBackend } from './MemoryBackend.js';
@@ -16,13 +16,7 @@ import { memoryBackend } from './MemoryBackend.js';
  * memory:
  */
 export type Loader = (
-	uri: string,
-	config?: {
-		readonly?: string;
-		username?: string;
-		password?: string;
-		apiKey?: string;
-	},
+	kegAlias: string,
 ) => Future.FutureResult<Storage.GenericStorage, KnutError>;
 
 /**

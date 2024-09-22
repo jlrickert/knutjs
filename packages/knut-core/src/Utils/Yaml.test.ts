@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { TestUtils } from '../Testing/index.js';
-import { Result, Yaml, YamlError } from './index.js';
+import { Result } from './index.js';
+import { Yaml, YamlError } from '../Data/index.js';
 
 describe.concurrent('Yaml', () => {
 	describe('parse', () => {
@@ -27,6 +28,10 @@ describe.concurrent('Yaml', () => {
 						{
 							file: 'dex/nodes.tsv',
 							summary: 'all nodes by id',
+						},
+						{
+							file: 'dex/tags',
+							summary: 'tags index',
 						},
 					],
 				}),

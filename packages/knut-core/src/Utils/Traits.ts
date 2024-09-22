@@ -14,7 +14,7 @@ export const stringify = (value: Stringer): string => {
 	} else if (typeof value === 'number') {
 		return String(value);
 	} else if (value instanceof Date) {
-		return value.toISOString();
+		return value.toISOString().split('.')[0].replace('T', ' ') + 'Z';
 	} else if ('stringify' in value) {
 		return value.stringify();
 	}

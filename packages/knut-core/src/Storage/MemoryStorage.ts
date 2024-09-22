@@ -68,6 +68,7 @@ type Fs = {
 };
 
 export class MemoryStorage extends BaseStorage {
+	public readonly storageType: string = 'Memory';
 	static parse(content: string): Optional.Optional<MemoryStorage> {
 		const fs = JSON.parse(content) as Fs;
 		switch (fs.version) {

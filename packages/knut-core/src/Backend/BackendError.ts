@@ -6,6 +6,12 @@ export interface LoaderError extends BaseError.BaseError<'BACKEND', 'LOADER'> {
 
 export type BackendError = LoaderError;
 
+declare module '../Data/KnutError.js' {
+	interface KnutErrorScopeMap {
+		BACKEND: BackendError;
+	}
+}
+
 export const loaderError = (
 	options: BaseError.BaseErrorArgs<{ kegAlias: string }>,
 ) => {

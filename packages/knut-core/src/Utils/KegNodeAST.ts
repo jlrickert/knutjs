@@ -1,63 +1,31 @@
-import { fromMarkdown } from 'mdast-util-from-markdown';
-import { toMarkdown } from 'mdast-util-to-markdown';
-import { gfmFromMarkdown, gfmToMarkdown } from 'mdast-util-gfm';
-import { gfm } from 'micromark-extension-gfm';
 import * as Mdast from 'mdast';
-import { MarkdownError, Optional, pipe, Result } from './index.js';
+import { Optional, pipe, Result } from './index.js';
+import { KnutError, Markdown } from '../Data/index.js';
+export type KegNodeASTOutput = 'markdown';
 
-const parserExtensions = [gfm()];
-const mdastExtensions = [gfmFromMarkdown()];
-const compilerExtensions = [gfmToMarkdown()];
+export class KegNodeAST {
+	static parseMarkdown(markdown: string) {
+		const root = Markdown.parseMarkdown(markdown);
+		return Result.map(root, (root) => new KegNodeAST(root));
+	}
 
-const myToMarkdown = (root: Mdast.Nodes) => {
-	return toMarkdown(root, {
-		rule: '-',
-		bullet: '-',
-		strong: '_',
-		bulletOther: '+',
-		extensions: compilerExtensions,
-	});
-};
+	static make() {
+		return new KegNodeAST({ type: 'root', children: [] });
+	}
 
-const myFromMarkdown = (markdown: string) => {
-	return Result.tryCatch(
-		() => {
-			return fromMarkdown(markdown, 'utf-8', {
-				extensions: parserExtensions,
-				mdastExtensions: mdastExtensions,
-			});
-		},
-		(error) => {
-			return MarkdownError.makeParseError({
-				error,
-				message: 'Invalid markdown',
-			});
-		},
-	);
-};
-
-const isTitleToken = (token: Mdast.RootContent): token is Mdast.Heading => {
-	return token.type === 'heading' && token.depth === 1;
-};
-
-const isParagraphToken = (
-	token: Mdast.RootContent,
-): token is Mdast.Paragraph => {
-	return token.type === 'paragraph';
-};
-
-export class Markdown {
-	static parse(markdown: string) {
-		const root = myFromMarkdown(markdown);
-		return Result.map(root, (root) => new Markdown(root));
+	static create(args: { title: string; summary: string }) {
+		const ast = KegNodeAST.make();
+		ast.setTitle(args.title);
+		ast.setSummary(args.summary);
+		return ast;
 	}
 
 	private constructor(private root: Mdast.Root) {}
 
 	getTitle(): Optional.Optional<string> {
 		for (const child of this.root.children) {
-			if (isTitleToken(child)) {
-				const markdown = myToMarkdown({
+			if (Markdown.isTitleToken(child)) {
+				const markdown = Markdown.fromAST({
 					type: 'root',
 					children: [child],
 				});
@@ -74,7 +42,7 @@ export class Markdown {
 	setTitle(title: string) {
 		for (let i = 0; i < this.root.children.length; i++) {
 			const token = this.root.children[i];
-			if (isTitleToken(token)) {
+			if (Markdown.isTitleToken(token)) {
 				token.children = [{ type: 'text', value: title }];
 				return;
 			}
@@ -93,8 +61,8 @@ export class Markdown {
 	getSummary(): Optional.Optional<string> {
 		for (let i = 0; i < this.root.children.length; i++) {
 			const child = this.root.children[i];
-			if (isParagraphToken(child)) {
-				return Optional.some(myToMarkdown(child));
+			if (Markdown.isParagraphToken(child)) {
+				return Optional.some(Markdown.fromAST(child));
 			}
 			// TODO(jared): The content is probably at position 1
 			if (i <= 3) {
@@ -109,11 +77,11 @@ export class Markdown {
 	 */
 	setSummary(
 		summary: string | Mdast.PhrasingContent[],
-	): Optional.Optional<MarkdownError.MarkdownError> {
+	): Optional.Optional<KnutError.KnutErrorScopeMap['MARKDOWN']> {
 		const content =
 			typeof summary === 'string'
 				? pipe(
-						myFromMarkdown(summary),
+						Markdown.parseMarkdown(summary),
 						Result.map(
 							(a) => a.children as Mdast.PhrasingContent[],
 						),
@@ -123,7 +91,7 @@ export class Markdown {
 			return Optional.some(content.error);
 		}
 		for (const child of this.root.children) {
-			if (isParagraphToken(child)) {
+			if (Markdown.isParagraphToken(child)) {
 				child.children = content.value;
 				return Optional.none;
 			}
@@ -136,12 +104,23 @@ export class Markdown {
 		return Optional.none;
 	}
 
-	pushList(
-		list: [],
-		options?: { title?: string; titleType: 'heading' | 'string' },
-	) {}
+	pushList(list: Mdast.ListItem[], options?: { title?: string }) {
+		const title = options?.title;
+		if (Optional.isSome(title)) {
+			this.root.children.push({
+				type: 'heading',
+				depth: 2,
+				children: [{ type: 'text', value: title }],
+			});
+		}
+		this.root.children.push({
+			type: 'list',
+			spread: false,
+			children: list,
+		});
+	}
 
 	stringify() {
-		return myToMarkdown(this.root);
+		return Markdown.fromAST(this.root);
 	}
 }

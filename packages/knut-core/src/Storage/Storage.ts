@@ -77,3 +77,15 @@ export const overwrite = async (args: {
 		}
 	}
 };
+
+export const listNodes = async (storage: BaseStorage) => {
+	const dirList = Result.map(await storage.readdir(''), (list) =>
+		list.reduce((acc, item) => {
+			if (Number.isInteger(item)) {
+				acc.push(Number.parseInt(item));
+			}
+			return acc;
+		}, [] as number[]),
+	);
+	return dirList;
+};

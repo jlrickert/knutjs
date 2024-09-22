@@ -1,21 +1,19 @@
 import * as Path from 'path';
 import * as YAML from 'yaml';
 import { homedir } from 'os';
-import { NonEmptyReadonlyArray } from 'effect/Array';
 import { absurd, pipe } from 'fp-ts/lib/function.js';
-import { KegVersion } from './kegFile.js';
 import { Storage, StorageError } from './Storage/index.js';
+import { Backend } from './Backend/index.js';
 import {
 	deepCopy,
 	Future,
 	FutureResult,
-	Json,
-	JsonError,
 	Optional,
 	Result,
-	Yaml,
-	YamlError,
 } from './Utils/index.js';
+import { NonEmptyReadonlyArray } from 'effect/Array';
+import { KegVersion } from './KegFile.js';
+import { Json, JsonError, Yaml, YamlError } from './Data/index.js';
 
 export type KegConfigDefinition = {
 	enabled: boolean;
@@ -50,7 +48,9 @@ export class KnutConfigFile {
 		storage: Storage.GenericStorage,
 	): Future.FutureResult<
 		KnutConfigFile,
-		StorageError.StorageError | YamlError.YamlError | JsonError.JsonError
+		| StorageError.StorageError
+		| YamlError.YamlError
+		| JsonError.JsonParseError
 	> {
 		const config = await pipe(
 			// Try reading config.yaml
@@ -76,7 +76,7 @@ export class KnutConfigFile {
 	static async fromJSON(
 		json: string,
 		root?: string,
-	): Future.FutureResult<KnutConfigFile, JsonError.JsonError> {
+	): Future.FutureResult<KnutConfigFile, JsonError.JsonParseError> {
 		return Result.map(
 			Json.parse<ConfigDefinition>(json),
 			(data) => new KnutConfigFile(Optional.fromNullable(root), data),
@@ -90,6 +90,20 @@ export class KnutConfigFile {
 		return Result.map(Yaml.parse<ConfigDefinition>(yaml), (data) => {
 			return new KnutConfigFile(Optional.fromNullable(root), data);
 		});
+	}
+
+	static async fromBackend(
+		backend: Omit<Backend.Backend, 'loader'>,
+	): Future.Future<KnutConfigFile> {
+		const stateConf = Result.getOrElse(
+			await KnutConfigFile.fromStorage(backend.state),
+			() => KnutConfigFile.create(backend.state.uri),
+		);
+		const configConf = Result.getOrElse(
+			await KnutConfigFile.fromStorage(backend.config),
+			() => KnutConfigFile.create(backend.config.uri),
+		);
+		return KnutConfigFile.merge(stateConf, configConf);
 	}
 
 	static create(root?: string): KnutConfigFile {
@@ -120,7 +134,7 @@ export class KnutConfigFile {
 	private constructor(
 		private _root: Optional.Optional<string>,
 		private _data: ConfigDefinition,
-	) { }
+	) {}
 
 	get root() {
 		return this._root;

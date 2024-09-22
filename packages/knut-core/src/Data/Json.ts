@@ -1,4 +1,5 @@
-import { JsonError, Result } from './index.js';
+import { JsonError, KnutError } from './index.js';
+import { Result } from '../Utils/index.js';
 
 export type JsonObject = { [key: string]: Json };
 export type JsonArray = Json[];
@@ -7,21 +8,31 @@ export type JsonNumber = number;
 export type JsonNull = null;
 export type JsonString = string;
 
-export type Json = JsonNull | JsonNumber | JsonString | JsonArray | JsonObject;
+export type Json =
+	| JsonNull
+	| JsonNumber
+	| JsonBoolean
+	| JsonString
+	| JsonArray
+	| JsonObject;
 
+export type JsonStringifyOptions = {
+	space?: string;
+};
 export const stringify = (
 	value: Json,
-	options?: {
-		space?: string;
-	},
+	options?: JsonStringifyOptions,
 ): string => {
 	const space = options?.space;
 	return JSON.stringify(value, undefined, space);
 };
 
-export const parse = <T = unknown>(
-	data: string,
-): Result.Result<T, JsonError.JsonError> => {
+export type JsonResult<T> = Result.Result<
+	T,
+	KnutError.KnutErrorScopeMap['JSON']
+>;
+
+export const parse = <T = unknown>(data: string): JsonResult<T> => {
 	return Result.tryCatch(
 		() => JSON.parse(data) as T,
 		(e) =>

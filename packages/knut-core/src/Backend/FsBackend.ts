@@ -1,6 +1,6 @@
 import * as Path from 'path';
 import { homedir } from 'os';
-import { Future, Optional, pipe, Result } from '../Utils/index.js';
+import { Future, Optional, Result } from '../Utils/index.js';
 import { Storage } from '../Storage/index.js';
 import { KnutConfigFile } from '../KnutConfigFile.js';
 import { Backend, make, Loader } from './Backend.js';
@@ -129,16 +129,13 @@ export const FsBackend: () => Future.FutureOptional<Backend> = async () => {
 	const cacheStore = new Storage.FsStorage(await getUserCacheDir()).child(
 		'knut',
 	);
-	const loader: Loader = async (kegAlias, config) => {
-		const stateConf = pipe(
-			await KnutConfigFile.fromStorage(stateStore),
-			Result.getOrElse(() => KnutConfigFile.create(stateStore.uri)),
-		);
-		const userConf = pipe(
-			await KnutConfigFile.fromStorage(configStore),
-			Result.getOrElse(() => KnutConfigFile.create(dataStore.uri)),
-		);
-		const conf = KnutConfigFile.merge(stateConf, userConf);
+	const loader: Loader = async (kegAlias) => {
+		const conf = await KnutConfigFile.fromBackend({
+			data: dataStore,
+			state: stateStore,
+			cache: cacheStore,
+			config: configStore,
+		});
 		const path = conf.getKeg(kegAlias)?.url;
 		if (Optional.isNone(path)) {
 			return Result.err(

@@ -17,6 +17,7 @@ const getWindow = () => {
 };
 
 export class WebStorage extends BaseStorage {
+	public readonly storageType: string = 'Web';
 	private prefix: string;
 	private storage: MemoryStorage;
 

@@ -26,7 +26,7 @@ export type BaseErrorArgs<T = {}> = T & {
 	/**
 	 * Additionial data related to the error
 	 */
-	data?: any
+	data?: any;
 
 	/**
 	 * Detailed explanation of the error
@@ -49,7 +49,8 @@ export type BaseErrorArgs<T = {}> = T & {
  * Create an error. T parameter is for type hints only.
  */
 export const make = <T extends BaseError<any, any>>(options: T): T => {
-	const { scope, code, message, reason, error, stackTrace, ...opts } = options;
+	const { scope, code, message, reason, error, stackTrace, ...opts } =
+		options;
 	const trace = pipe(
 		Optional.fromNullable(stackTrace),
 		Optional.alt(() => {
@@ -70,5 +71,5 @@ export const make = <T extends BaseError<any, any>>(options: T): T => {
 		error: options.error,
 		stackTrace: trace,
 		...opts,
-	} as any
+	} as any;
 };
