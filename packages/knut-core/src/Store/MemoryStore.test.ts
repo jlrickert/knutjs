@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import invariant from 'tiny-invariant';
-import { MemoryStorage } from './MemoryStorage.js';
 import { Result } from '../Utils/index.js';
-import { StorageError } from './index.js';
+import { memoryStore } from './MemoryStore.js';
+import { StorageError } from '../Storage/index.js';
 
 describe('describe memory storage', () => {
 	afterEach(() => {
@@ -13,7 +13,7 @@ describe('describe memory storage', () => {
 		const now = new Date('2023-03-23');
 		vi.setSystemTime(now);
 
-		const storage = MemoryStorage.create();
+		const storage = memoryStore({ pwd: '/', uri: 'MEMORY' });
 		vi.advanceTimersByTime(1000 * 60);
 		now.setMinutes(now.getMinutes() + 1);
 
@@ -30,10 +30,13 @@ describe('describe memory storage', () => {
 	});
 
 	test('should be able to handle pathing', async () => {
-		const storage = MemoryStorage.create();
-		await storage.write('a/b/c', 'content');
-		expect(Result.unwrap(await storage.child('a/b').read('c'))).toEqual(
-			'content',
+		const storage = memoryStore({ pwd: '/' });
+		await storage.write('/a/b/c', 'content');
+		expect(await storage.read('/a/b/c')).toStrictEqual(
+			Result.ok('content'),
+		);
+		expect(await storage.child('a/b').read('c')).toStrictEqual(
+			Result.ok('content'),
 		);
 	});
 
@@ -49,7 +52,7 @@ describe('describe memory storage', () => {
 			expect(stats.ctime).toEqual(now);
 		};
 
-		const storage = MemoryStorage.create();
+		const storage = memoryStore({ pwd: '/' });
 		await storage.mkdir('/path/to/some/dir');
 
 		const later = new Date('2023-03-23');
@@ -78,7 +81,7 @@ describe('describe memory storage', () => {
 			expect(stats.atime).toEqual(atime);
 		};
 
-		const storage = MemoryStorage.create();
+		const storage = memoryStore({ pwd: '/' });
 		await storage.write('/path/to/some/example', 'example text');
 
 		const later = new Date('2023-03-23');
@@ -100,28 +103,23 @@ describe('describe memory storage', () => {
 	});
 
 	test('should be able to list the expected directories', async () => {
-		const storage = MemoryStorage.create();
+		const storage = memoryStore({ pwd: '/' });
 		await storage.write('/path/a/a', 'file a');
 		await storage.write('/path/b/b', 'file b');
 		await storage.write('/path/c/c', 'file c');
 		await storage.write('/path/d/d', 'file d');
 		const directories = Result.unwrap(await storage.readdir('/path'));
-		expect(directories).toStrictEqual([
-			'path/a',
-			'path/b',
-			'path/c',
-			'path/d',
-		]);
+		expect(directories).toStrictEqual(['a', 'b', 'c', 'd']);
 		const childStorage = storage.child('path');
 		expect(
 			Result.unwrapErr(await childStorage.readdir('path')),
 		).toStrictEqual(
 			expect.objectContaining<Partial<StorageError.StorageError>>({
-				code: 'NOT_A_DIRECTORY',
+				code: 'PATH_NOT_FOUND',
 			}),
 		);
 		expect(Result.unwrap(await childStorage.readdir('a'))).toStrictEqual([
-			'a/a',
+			'a',
 		]);
 		expect(Result.unwrap(await childStorage.readdir(''))).toStrictEqual([
 			'a',
@@ -136,7 +134,7 @@ describe('describe memory storage', () => {
 		const now = new Date('2023-03-23');
 		vi.setSystemTime(now);
 
-		const storage = MemoryStorage.create();
+		const storage = memoryStore({ pwd: '/' });
 		const message = 'an example message';
 		await storage.write('/path/to/example', message);
 		const content = Result.unwrap(await storage.read('/path/to/example'));
@@ -144,21 +142,20 @@ describe('describe memory storage', () => {
 
 		{
 			const files = Result.unwrap(await storage.readdir('/path/to'));
-			expect(files).toStrictEqual(['path/to/example']);
+			expect(files).toStrictEqual(['example']);
 		}
 
 		{
 			const files = Result.unwrap(await storage.readdir('/path'));
-			expect(files).toStrictEqual(['path/to']);
-		}
-
-		{
-			const files = Result.unwrap(await storage.readdir('/'));
-			expect(files).toStrictEqual(['path']);
+			expect(files).toStrictEqual(['to']);
 		}
 
 		{
 			const files = Result.unwrap(await storage.readdir(''));
+			expect(files).toStrictEqual(['path']);
+		}
+		{
+			const files = Result.unwrap(await storage.readdir('/'));
 			expect(files).toStrictEqual(['path']);
 		}
 

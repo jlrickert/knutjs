@@ -1,8 +1,5 @@
-import * as Path from 'path';
 import * as YAML from 'yaml';
-import { homedir } from 'os';
 import { absurd, pipe } from 'fp-ts/lib/function.js';
-import { Storage, StorageError } from './Storage/index.js';
 import { Backend } from './Backend/index.js';
 import {
 	deepCopy,
@@ -18,10 +15,13 @@ import {
 	JsonError,
 	NodeContent,
 	NodeMeta,
+	Path,
 	Yaml,
 	YamlError,
 } from './Data/index.js';
 import { KegNodeOptions } from './KegNode.js';
+import { KnutErrorScopeMap } from './Data/KnutError.js';
+import { Store } from './Store/index.js';
 
 export type KegConfigDefinition = {
 	enabled: boolean;
@@ -45,25 +45,23 @@ export type ConfigDefinition = {
 
 export type KnutConfigFileResult<T> = Future.FutureResult<
 	T,
-	StorageError.StorageError | YamlError.YamlError
+	KnutErrorScopeMap['STORAGE' | 'YAML']
 >;
 
 /**
  * Represents a config file
  */
 export class KnutConfigFile {
-	static async fromStorage(
-		storage: Storage.GenericStorage,
+	static async fromStore(
+		storage: Store.Store,
 	): Future.FutureResult<
 		KnutConfigFile,
-		| StorageError.StorageError
-		| YamlError.YamlError
-		| JsonError.JsonParseError
+		KnutErrorScopeMap['STORAGE' | 'YAML' | 'JSON']
 	> {
 		const config = await pipe(
 			// Try reading config.yaml
 			storage.read('config.yaml'),
-			FutureResult.chain(async (data) => {
+			FutureResult.chain((data) => {
 				return KnutConfigFile.fromYAML(data, storage.uri);
 			}),
 
@@ -104,12 +102,20 @@ export class KnutConfigFile {
 		backend: Omit<Backend.Backend, 'loader'>,
 	): Future.Future<KnutConfigFile> {
 		const stateConf = Result.getOrElse(
-			await KnutConfigFile.fromStorage(backend.state),
-			() => KnutConfigFile.create(backend.state.uri),
+			await KnutConfigFile.fromStore(backend.state),
+			() => {
+				return KnutConfigFile.create(backend.state.pwd).resolve(
+					backend.state.pwd,
+				);
+			},
 		);
 		const configConf = Result.getOrElse(
-			await KnutConfigFile.fromStorage(backend.config),
-			() => KnutConfigFile.create(backend.config.uri),
+			await KnutConfigFile.fromStore(backend.config),
+			() => {
+				return KnutConfigFile.create(backend.config.pwd).resolve(
+					backend.config.pwd,
+				);
+			},
 		);
 		return KnutConfigFile.merge(stateConf, configConf);
 	}
@@ -156,11 +162,11 @@ export class KnutConfigFile {
 		};
 	}
 
-	public async toStorage(args: {
+	public async toStore(args: {
 		name?: string;
 		format?: PreferedFormat;
-		storage: Storage.GenericStorage;
-	}): Future.FutureResult<true, StorageError.StorageError> {
+		storage: Store.Store;
+	}): Future.FutureResult<true, KnutErrorScopeMap['STORAGE']> {
 		const format = Optional.isSome(args.format) ? args.format : this.format;
 		switch (format) {
 			case 'yaml': {
@@ -185,12 +191,13 @@ export class KnutConfigFile {
 	}
 
 	/**
-	 * Resolve urls to some path
+	 * Recreates the config with urls relative to `root`
 	 */
 	resolve(root: string): KnutConfigFile {
 		const next = this.clone();
 		for (const keg of next.data.kegs) {
-			const home = homedir();
+			// const home = homedir();
+			const home = '~'; // FIXME: homedir  is not always available in this context.
 			if (keg.url.match(/^https?/)) {
 				continue;
 			}
@@ -209,7 +216,8 @@ export class KnutConfigFile {
 			if (keg.url.match(/^https?/)) {
 				continue;
 			}
-			const home = homedir();
+			// const home = homedir();
+			const home = '~'; // FIXME: homedir  is not always available in this context.
 			const url = keg.url.replace(/^~/, home);
 			keg.url = Path.relative(root, url);
 		}
@@ -283,7 +291,7 @@ export class KnutConfigFile {
 		return {
 			enabled: data.enabled,
 			alias: data.alias,
-			url,
+			url: url,
 			kegv: data.kegv,
 		};
 	}

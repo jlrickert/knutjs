@@ -1,6 +1,5 @@
-import { pipe } from 'fp-ts/lib/function.js';
 import { describe, expect, it } from 'vitest';
-import { FutureResult, Result } from '../Utils/index.js';
+import { FutureResult, pipe, Result } from '../Utils/index.js';
 import { TestUtils } from './index.js';
 
 describe('TestUtils.fixtures', () => {
@@ -15,7 +14,7 @@ describe('TestUtils.fixtures', () => {
 		);
 		expect(kegsDir).not.toHaveLength(0);
 		expect(kegsDir).toStrictEqual(
-			TestUtils.kegAliasFixtures.map((kegAlias) => `kegs/${kegAlias}`),
+			TestUtils.kegAliasFixtures.map((alias) => `${alias}`),
 		);
 	});
 });
@@ -55,7 +54,9 @@ for await (const { name, loadBackend } of TestUtils.backends) {
 			for (const alias of TestUtils.kegAliasFixtures) {
 				const rawKegConfigContent = await pipe(
 					backend.loader(alias),
-					FutureResult.chain((a) => a.read('keg')),
+					FutureResult.chain((s) => {
+						return s.read('keg');
+					}),
 				);
 
 				expect(rawKegConfigContent).toStrictEqual(

@@ -9,7 +9,7 @@ import { NodeContent } from './Data/index.js';
 
 TestUtils.describeEachBackend(
 	'Keg',
-	async ({ name, loadBackend, loadStorage }) => {
+	async ({ name, loadBackend, loadStore: loadStorage }) => {
 		afterEach(() => {
 			global.localStorage.clear();
 			vi.resetAllMocks();
@@ -54,7 +54,7 @@ TestUtils.describeEachBackend(
 						summary: NodeContent.TEMPLATES.zero.summary,
 					}).stringify(),
 				);
-				const zeroNodeStorage = storage.child(0);
+				const zeroNodeStorage = storage.child('0');
 				expect(
 					Result.map(
 						await KegNode.fromStorage(zeroNodeStorage),

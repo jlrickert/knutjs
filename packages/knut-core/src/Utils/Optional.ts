@@ -1,3 +1,4 @@
+import invariant from 'tiny-invariant';
 import { dual } from 'effect/Function';
 import { Monad1 } from 'fp-ts/lib/Monad.js';
 import { Predicate } from 'fp-ts/lib/Predicate.js';
@@ -224,6 +225,16 @@ export const bindTo: {
 		bind(name, () => ma),
 	);
 });
+
+export const unwrap = <T>(ma: Optional<T>, message?: string): T => {
+	invariant(isSome(ma), () => {
+		const baseMsg = 'Programming error. Unable to unwrap an error value';
+		const msg = message ? `${baseMsg}: ${message}` : baseMsg;
+		const trace = new Error().stack;
+		return `${msg}: ${(ma as any).error.message}\n${trace}`;
+	});
+	return ma;
+};
 
 export const Monad: Monad1<URI> = {
 	URI,

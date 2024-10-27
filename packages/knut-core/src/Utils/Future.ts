@@ -2,12 +2,12 @@ import { dual } from 'effect/Function';
 import { Monad1 } from 'fp-ts/lib/Monad.js';
 import { identity, pipe } from 'fp-ts/lib/function.js';
 import { Optional } from './Optional.js';
-import { Result } from './Result.js';
+import { Result } from './index.js';
 
 export type Future<T> = Promise<T>;
 
 export type FutureOptional<T> = Future<Optional<T>>;
-export type FutureResult<T, E> = Future<Result<T, E>>;
+export type FutureResult<T, E> = Future<Result.Result<T, E>>;
 
 export const URI = 'Future';
 export type URI = typeof URI;
@@ -146,6 +146,17 @@ export const bindTo: {
 } = dual(2, <N extends string, A>(ma: Future<A>, name: N) => {
 	return bind(Do, name, () => ma);
 });
+
+export async function tryCatch<T, E>(
+	f: () => Future<T>,
+	onErr: (error: unknown) => E,
+): FutureResult<T, E> {
+	try {
+		return of(Result.ok(await f()));
+	} catch (e) {
+		return of(Result.err(onErr(e)));
+	}
+}
 
 export const Monad: Monad1<URI> = {
 	URI: URI,

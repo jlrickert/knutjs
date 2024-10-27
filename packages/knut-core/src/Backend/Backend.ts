@@ -1,11 +1,18 @@
-import { Storage } from '../Storage/index.js';
-import { currentPlatform, Future } from '../Utils/index.js';
-import { KnutErrorScopeMap } from '../Data/KnutError.js';
-import { browserBackend } from './DomBackend.js';
-import { FsBackend } from './FsBackend.js';
+import {
+	currentPlatform,
+	Future,
+	Optional,
+	Result,
+} from '../Utils/index.js';
+import { KnutConfigFile } from '../KnutConfigFile.js';
+import { BackendError, KnutError } from '../Data/index.js';
+import { Store } from '../Store/index.js';
+import { webBackend } from './WebBackend.js';
+import { fsBackend } from './FsBackend.js';
 import { memoryBackend } from './MemoryBackend.js';
 
 /**
+ * Loader loads an instance of a keg storage
  * keg:kegalias
  * kegalias
  * ssh:/some/path/to/root/of/keg
@@ -16,52 +23,85 @@ import { memoryBackend } from './MemoryBackend.js';
  * memory:
  */
 export type Loader = (
-	kegAlias: string,
-) => Future.FutureResult<
-	Storage.GenericStorage,
-	KnutErrorScopeMap['STORAGE' | 'JSON' | 'YAML' | 'BACKEND']
->;
+	uri: string,
+) => Future.FutureResult<Store.Store, KnutError.KnutError>;
 
-/**
- * Environment that knut is running in.
- */
-export type Backend = {
+export type LoaderFactory = (params: {
+	alias: string;
+	uri: string;
+	knutConfig: KnutConfigFile;
+}) => ReturnType<Loader>;
+
+export type BackendStorage = {
 	/**
 	 * Data file system. This is safe to synchronize across systems
 	 */
-	data: Storage.GenericStorage;
+	data: Store.Store;
 
 	/**
 	 * Configuration file system. This is safe to synchronize across systems
 	 */
-	config: Storage.GenericStorage;
+	config: Store.Store;
 
 	/**
 	 * Device specic data. Not safe to synchronize
 	 */
-	state: Storage.GenericStorage;
+	state: Store.Store;
 
 	/**
 	 * Cache file system. Non essentail data. Typically data that may be
 	 * regenerated
 	 */
-	cache: Storage.GenericStorage;
+	cache: Store.Store;
+};
 
+/**
+ * Environment that knut is running in.
+ */
+export type Backend = BackendStorage & {
 	/**
 	 * Loader loads an instance of a keg storage
 	 */
 	loader: Loader;
 };
 
-export const make = (impl: Backend): Backend => {
-	return {
-		data: impl.data,
-		state: impl.state,
-		cache: impl.cache,
-		config: impl.config,
-		loader: impl.loader,
+export function make(params: {
+	data: Store.Store;
+	config: Store.Store;
+	state: Store.Store;
+	cache: Store.Store;
+	loader: LoaderFactory;
+}): Backend {
+	const loader: Loader = async (uri) => {
+		const config = await KnutConfigFile.fromBackend({
+			data: params.data,
+			state: params.state,
+			cache: params.cache,
+			config: params.config,
+		});
+		const definition = config.getKeg(uri);
+		if (Optional.isNone(definition)) {
+			return Result.err(BackendError.loaderError({ uri, config }));
+		}
+		if (!definition.enabled) {
+			return Result.err(
+				BackendError.kegNotEnabled({ alias: definition.alias }),
+			);
+		}
+		return params.loader({
+			alias: definition.alias,
+			uri: definition.url,
+			knutConfig: config,
+		});
 	};
-};
+	return {
+		data: params.data,
+		state: params.state,
+		cache: params.cache,
+		config: params.config,
+		loader: loader,
+	};
+}
 
 /**
  * Load a default backend. This could either be the browser or node. If wanting
@@ -70,10 +110,10 @@ export const make = (impl: Backend): Backend => {
 export const detectBackend: () => Future.Future<Backend> = async () => {
 	switch (currentPlatform) {
 		case 'dom': {
-			return await browserBackend();
+			return await webBackend();
 		}
 		case 'node': {
-			return (await FsBackend()) ?? memoryBackend();
+			return (await fsBackend()) ?? memoryBackend();
 		}
 		default: {
 			return memoryBackend();

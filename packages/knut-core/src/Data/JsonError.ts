@@ -11,7 +11,7 @@ declare module './KnutError.js' {
 }
 
 export const makeParseError = (
-	params: BaseError.BaseErrorArgs<{ message: string }>,
+	params: BaseError.BaseErrorParams<{ message: string }>,
 ): JsonParseError => {
 	return BaseError.make<JsonParseError>({
 		code: 'PARSE_ERR',

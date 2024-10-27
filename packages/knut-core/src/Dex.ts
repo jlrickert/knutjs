@@ -1,6 +1,7 @@
 import { NodeId } from './Data/index.js';
+import { KnutErrorScopeMap } from './Data/KnutError.js';
 import { KegNode } from './KegNode.js';
-import { Storage, StorageError } from './Storage/index.js';
+import { Store } from './Store/index.js';
 import {
 	Future,
 	KegNodeAST,
@@ -24,8 +25,8 @@ export class Dex {
 	private entryList: DexEntry[] = [];
 
 	static async fromStorage(
-		storage: Storage.GenericStorage,
-	): Future.FutureResult<Dex, StorageError.StorageError> {
+		storage: Store.Store,
+	): Future.FutureResult<Dex, KnutErrorScopeMap['STORAGE']> {
 		const content = await storage.read('dex/nodes.tsv');
 		if (Result.isErr(content)) {
 			return Result.err(content.error);
@@ -56,8 +57,8 @@ export class Dex {
 	}
 
 	async toStorage(
-		storage: Storage.GenericStorage,
-	): Future.FutureResult<true, StorageError.StorageError> {
+		storage: Store.Store,
+	): Future.FutureResult<true, KnutErrorScopeMap['STORAGE']> {
 		await storage.write('dex/nodex.tsv', this.getNodesTSVContent());
 		await storage.write('dex/changes.md', this.getChangesMDContent());
 		return Result.ok(true);
@@ -93,7 +94,7 @@ export class Dex {
 	addNode(nodeId: number, node: KegNode): void {
 		const entry: DexEntry = {
 			nodeId,
-			updated: node.getUpdate(),
+			updated: node.getUpdatedAt(),
 			title: node.getTitle() ?? '',
 			tags: node.getTags(),
 		};

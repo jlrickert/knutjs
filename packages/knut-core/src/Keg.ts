@@ -1,8 +1,13 @@
 import { pipe } from 'fp-ts/lib/function.js';
-import { Storage } from './Storage/index.js';
 import { Dex } from './Dex.js';
 import { Future, Optional, Result, FutureResult } from './Utils/index.js';
-import { KegError, NodeContent, NodeId, NodeMeta } from './Data/index.js';
+import {
+	KegError,
+	KnutError,
+	NodeContent,
+	NodeId,
+	NodeMeta,
+} from './Data/index.js';
 import { Backend } from './Backend/index.js';
 import { KegConfig } from './KegConfig.js';
 import {
@@ -12,6 +17,7 @@ import {
 } from './KegNode.js';
 import { KnutConfigFile } from './KnutConfigFile.js';
 import { KnutErrorScopeMap } from './Data/KnutError.js';
+import { Store } from './Store/index.js';
 
 export type CreateNodeOptions = {
 	content: string;
@@ -19,7 +25,7 @@ export type CreateNodeOptions = {
 };
 
 export type KegCreateParams = {
-	storage: Storage.GenericStorage;
+	storage: Store.Store;
 	/**
 	 * auto loads backend if none provided.
 	 */
@@ -37,7 +43,7 @@ export type KegCreateParams = {
 };
 
 export class Keg {
-	static async hasKeg(storage: Storage.GenericStorage) {
+	static async hasKeg(storage: Store.Store) {
 		return KegConfig.hasConfig(storage);
 	}
 
@@ -52,10 +58,7 @@ export class Keg {
 		alias: string;
 		backend?: Backend.Backend;
 		options?: KegNodeOptions;
-	}): Future.FutureResult<
-		Keg,
-		KnutErrorScopeMap['STORAGE' | 'JSON' | 'YAML' | 'KEG' | 'BACKEND']
-	> {
+	}): Future.FutureResult<Keg, KnutError.KnutError> {
 		const backend = params.backend ?? (await Backend.detectBackend());
 		return FutureResult.chain(backend.loader(params.alias), (storage) =>
 			Keg.fromStorage({ storage, backend }),
@@ -63,18 +66,18 @@ export class Keg {
 	}
 
 	static async fromStorage(params: {
-		storage: Storage.GenericStorage;
+		storage: Store.Store;
 		backend?: Backend.Backend;
 		options?: KegNodeOptions;
 	}): Future.FutureResult<
 		Keg,
-		KnutErrorScopeMap['YAML' | 'JSON' | 'STORAGE' | 'KEG']
+		KnutErrorScopeMap['YAML' | 'JSON' | 'STORAGE' | 'BACKEND' | 'KEG']
 	> {
 		const storage = params.storage;
 		const backend = params.backend ?? (await Backend.detectBackend());
 		if (!(await Keg.hasKeg(storage))) {
 			return Result.err(
-				KegError.makeKegExistsError({ uri: storage.uri }),
+				KegError.makeKegDoesntExistError({ uri: storage.uri }),
 			);
 		}
 		const config = await KegConfig.fromStorage(storage);
@@ -97,10 +100,7 @@ export class Keg {
 
 	static async create(
 		params: KegCreateParams,
-	): Future.FutureResult<
-		Keg,
-		KnutErrorScopeMap['STORAGE' | 'YAML' | 'JSON' | 'KEG']
-	> {
+	): Future.FutureResult<Keg, KnutError.KnutError> {
 		const backend = params.backend ?? (await Backend.detectBackend());
 
 		// Don't proceed if keg already exists
@@ -117,6 +117,9 @@ export class Keg {
 			return Result.err(
 				KegError.makeAliasExistsError({
 					alias,
+					data: {
+						uri: params.storage.uri,
+					},
 					message: `Keg alias ${params.kegalias} already exists in config`,
 				}),
 			);
@@ -141,7 +144,7 @@ export class Keg {
 
 		if (alias && params.appendToUserConfig) {
 			await FutureResult.chain(
-				KnutConfigFile.fromStorage(backend.config),
+				KnutConfigFile.fromStore(backend.config),
 				(conf) => {
 					conf.upsertKegConfig({
 						alias,
@@ -155,7 +158,7 @@ export class Keg {
 		}
 		if (alias && params.appendToStateConfig) {
 			await FutureResult.chain(
-				KnutConfigFile.fromStorage(backend.state),
+				KnutConfigFile.fromStore(backend.state),
 				(conf) => {
 					conf.upsertKegConfig({
 						alias,
@@ -174,13 +177,13 @@ export class Keg {
 
 	public readonly config: KegConfig;
 	public readonly dex: Dex;
-	public readonly storage: Storage.GenericStorage;
+	public readonly storage: Store.Store;
 	public readonly backend: Backend.Backend;
 	public readonly options: KegNodeOptions;
 	private constructor(params: {
 		config: KegConfig;
 		dex: Dex;
-		storage: Storage.GenericStorage;
+		storage: Store.Store;
 		backend: Backend.Backend;
 		options: KegNodeOptions;
 	}) {
@@ -191,11 +194,15 @@ export class Keg {
 		this.options = params.options;
 	}
 
+	getURI(): string {
+		return this.storage.uri;
+	}
+
 	async last(): Future.FutureResult<
 		Optional.Optional<number>,
 		KnutErrorScopeMap['STORAGE']
 	> {
-		const nodeList = await Storage.listNodes(this.storage);
+		const nodeList = await Store.listNodes(this.storage);
 		if (Result.isErr(nodeList)) {
 			return Result.err(nodeList.error);
 		}
@@ -222,7 +229,9 @@ export class Keg {
 			KegNode.create({
 				title: options?.title ?? '',
 				summary: options?.summary ?? '',
-				storage: this.storage.child(nodeId),
+				storage: this.storage.child(
+					NodeId.stringify(nodeId),
+				),
 			}),
 			FutureResult.chain(async (node) => {
 				this.dex.addNode(nodeId, node);
@@ -236,7 +245,7 @@ export class Keg {
 	}
 
 	async getNode(nodeId: NodeId.NodeId) {
-		const storage = this.storage.child(nodeId);
+		const storage = this.storage.child(NodeId.stringify(nodeId));
 		const node = await KegNode.fromStorage(storage, this.options);
 		return node;
 	}
@@ -245,7 +254,7 @@ export class Keg {
 		nodeId: NodeId.NodeId,
 	): Future.FutureResult<true, KnutErrorScopeMap['STORAGE'][]> {
 		const errors: KnutErrorScopeMap['STORAGE'][] = [];
-		Result.tapError(await this.storage.rm(nodeId), (error) =>
+		Result.tapError(await this.storage.rm(NodeId.stringify(nodeId)), (error) =>
 			errors.push(error),
 		);
 		Result.tapError(await this.dex.toStorage(this.storage), (error) =>
@@ -258,7 +267,7 @@ export class Keg {
 		NodeId.NodeId[],
 		KnutErrorScopeMap['STORAGE']
 	> {
-		return Storage.listNodes(this.storage);
+		return Store.listNodes(this.storage);
 	}
 
 	async update(): Future.FutureOptional<KnutErrorScopeMap['STORAGE']> {

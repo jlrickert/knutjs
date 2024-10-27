@@ -5,11 +5,11 @@ import {
 	parseDate,
 	Result,
 } from '../Utils/index.js';
-import { Storage } from '../Storage/index.js';
 import { KnutErrorScopeMap } from './KnutError.js';
 import { Json, NodeMeta, Yaml } from './index.js';
 import invariant from 'tiny-invariant';
 import { NonEmptyReadonlyArray } from 'effect/Array';
+import { Store } from '../Store/index.js';
 
 export type NodeMeta = Json.Json & {
 	tags?: string[];
@@ -36,7 +36,7 @@ export const META_FILEMAP = {
 } as const;
 export const NODE_META_TYPES = ['yaml', 'json'] as const;
 
-export const make = (meta: NodeMeta): NodeMeta => {
+export function make(meta: NodeMeta): NodeMeta {
 	if (typeof meta.date === 'string') {
 		meta.date = parseDate(meta.date);
 	}
@@ -58,20 +58,20 @@ export const make = (meta: NodeMeta): NodeMeta => {
 		}, [] as string[]);
 	}
 	return meta;
-};
+}
 
-export const filePath = (options?: { type?: NodeMetaType }) => {
+export function filePath(options?: { type?: NodeMetaType }) {
 	const t = options?.type ?? DEFAULT_NODE_META_TYPE;
 	return META_FILEMAP[t];
-};
+}
 
-export const hasMetaType = async (options: {
+export async function hasMetaType(options: {
 	type: NodeMetaType;
-	storage: Storage.GenericStorage;
-}) => {
+	storage: Store.Store;
+}) {
 	const { type, storage } = options;
 	return Result.isOk(await storage.stats(filePath({ type })));
-};
+}
 
 /**
  * Maps the content type the appropriate functions.  The returned type is wrong
@@ -94,59 +94,46 @@ const META_PARSER_MAP: Record<
  * Working directory for storage should be that of the node. For example
  * `/some/path/kegs/kegalias/234`.
  */
-export const fromStorage = async (
-	storage: Storage.GenericStorage,
+export async function fromStorage(
+	storage: Store.Store,
 	options?: {
 		metaType?: NodeMetaType;
 	},
 ): Future.FutureResult<
 	NodeMeta,
 	KnutErrorScopeMap['STORAGE' | 'JSON' | 'YAML']
-> => {
+> {
 	const metaType = options?.metaType ?? DEFAULT_NODE_META_TYPE;
 	const path = filePath({ type: metaType });
 	return Result.chain(await storage.read(path), (data) =>
 		META_PARSER_MAP[metaType](data),
 	);
-};
+}
 
 const META_STRINGER_MAP: Record<NodeMetaType, (meta: NodeMeta) => string> = {
 	yaml: (meta) => Yaml.stringify(meta),
 	json: (meta) => Json.stringify(meta),
 };
-export const stringify = (
-	meta: NodeMeta,
-	options?: { type?: NodeMetaType },
-) => {
+export function stringify(meta: NodeMeta, options?: { type?: NodeMetaType }) {
 	return META_STRINGER_MAP[options?.type ?? DEFAULT_NODE_META_TYPE](meta);
-};
+}
 
-export const toStorage = async (options: {
-	storage: Storage.GenericStorage;
+export async function toStorage(options: {
+	storage: Store.Store;
 	meta: NodeMeta;
 	metaType?: NodeMetaType;
-}) => {
+}) {
 	const { storage, meta, metaType: t = DEFAULT_NODE_META_TYPE } = options;
 	const path = filePath({ type: t });
 	const content = stringify(meta, { type: t });
 	return storage.write(path, content);
-};
+}
 
-export const emptyMeta = (): NodeMeta => ({});
+export function emptyMeta(): NodeMeta {
+	return {};
+}
 
-const statsLens = <K extends keyof NodeMetaStats>(
-	root: NodeMeta,
-	key: K,
-	value: NodeMetaStats[K],
-): NodeMeta => {
-	const next = deepCopy(root);
-	next.stats = next.stats ?? {};
-	invariant(Optional.isSome(next.stats));
-	next.stats[key] = value;
-	return next;
-};
-
-export const merge = (...metas: NonEmptyReadonlyArray<NodeMeta>) => {
+export function merge(...metas: NonEmptyReadonlyArray<NodeMeta>) {
 	const root = emptyMeta();
 	for (const other of metas) {
 		root.tags = Optional.isSome(other.tags)
@@ -169,4 +156,4 @@ export const merge = (...metas: NonEmptyReadonlyArray<NodeMeta>) => {
 		statLens('createdAt');
 	}
 	return make(root);
-};
+}

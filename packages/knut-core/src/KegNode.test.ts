@@ -3,7 +3,7 @@ import { TestUtils } from './Testing/index.js';
 import { KegNode } from './KegNode.js';
 import { Future, KegNodeAST, Result } from './Utils/index.js';
 
-TestUtils.describeEachBackend('KegNode', async ({ loadStorage }) => {
+TestUtils.describeEachBackend('KegNode', async ({ loadStore: loadStorage }) => {
 	test('should be able to create a new node', async () => {
 		const storage = await loadStorage();
 		const title = 'An example title';
@@ -23,15 +23,15 @@ TestUtils.describeEachBackend('KegNode', async ({ loadStorage }) => {
 		const storage = await Future.map(loadStorage(), (s) =>
 			s.child('docs/5'),
 		);
-		const node = Result.unwrapErr(await KegNode.fromStorage(storage));
-		expect(node[0]).toStrictEqual(
+		const errors = Result.unwrapErr(await KegNode.fromStorage(storage));
+		expect(errors[0]).toStrictEqual(
 			expect.objectContaining({
-				filename: `${storage.uri}/README.md`,
+				filename: `${storage.pwd}/README.md`,
 			}),
 		);
-		expect(node[1]).toStrictEqual(
+		expect(errors[1]).toStrictEqual(
 			expect.objectContaining({
-				filename: `${storage.uri}/meta.yaml`,
+				filename: `${storage.pwd}/meta.yaml`,
 			}),
 		);
 	});

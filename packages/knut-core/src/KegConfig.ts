@@ -1,7 +1,7 @@
-import { Storage } from './Storage/index.js';
 import { Future, Optional, pipe, Result, stringify } from './Utils/index.js';
 import { Json, NodeId, Yaml } from './Data/index.js';
 import { KnutErrorScopeMap } from './Data/KnutError.js';
+import { Store } from './Store/index.js';
 
 export type KegVersion = '2023-01';
 
@@ -42,7 +42,7 @@ export type KegConfigData = {
 };
 
 export class KegConfig {
-	static async hasConfig(storage: Storage.GenericStorage) {
+	static async hasConfig(storage: Store.Store) {
 		return Result.isOk(await storage.stats('keg'));
 	}
 
@@ -50,7 +50,7 @@ export class KegConfig {
 	 * Load a keg file for the given path
 	 */
 	static async fromStorage(
-		storage: Storage.GenericStorage,
+		storage: Store.Store,
 	): Future.FutureResult<
 		KegConfig,
 		KnutErrorScopeMap['YAML' | 'JSON' | 'STORAGE']
@@ -58,7 +58,6 @@ export class KegConfig {
 		const kegdata = pipe(
 			await storage.read('keg'),
 			Result.chain((yaml) => {
-				// console.log({ where: 'fromStorage', uri: storage.uri, yaml });
 				return KegConfig.fromYaml(yaml);
 			}),
 		);
@@ -141,7 +140,7 @@ export class KegConfig {
 		this.data.indexes[i] = { ...this.data.indexes[i], index };
 	}
 
-	async toStorage(storage: Storage.GenericStorage) {
+	async toStorage(storage: Store.Store) {
 		return await storage.write('keg', this.stringify());
 	}
 

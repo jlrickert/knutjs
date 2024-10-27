@@ -10,10 +10,7 @@ export const gte = (a: NodeId, b: NodeId) => a >= b;
 export const eq = (a: NodeId, b: NodeId) => a === b;
 export const ne = (a: NodeId, b: NodeId) => a !== b;
 
-export const parsePath = (
-	path: string,
-	sep = '/',
-): Optional.Optional<number> => {
+export function parsePath(path: string, sep = '/'): Optional.Optional<number> {
 	const parts = path.split(sep);
 	for (const part of parts) {
 		if (/^\d+$/.test(part)) {
@@ -21,4 +18,8 @@ export const parsePath = (
 		}
 	}
 	return Optional.none;
-};
+}
+
+export function isNumberic(value: string) {
+	return /^[0-9]+$/.test(value);
+}

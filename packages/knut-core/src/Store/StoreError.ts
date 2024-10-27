@@ -36,11 +36,15 @@ export interface NotADirectoryError
 export interface PathExistsError extends BaseStorageError<'PATH_EXISTS'> {
 	path: string;
 }
+export interface PathNotAvailableError
+	extends BaseStorageError<'PATH_NOT_AVAILABLE'> {
+	path: string;
+}
 export interface PathNotFoundError extends BaseStorageError<'PATH_NOT_FOUND'> {
 	path: string;
 }
-export interface PermissionError extends BaseStorageError<'PERMISSION_ERROR'> { }
-export interface UknownError extends BaseStorageError<'UKNOWN_ERROR'> { }
+export interface PermissionError extends BaseStorageError<'PERMISSION_ERROR'> {}
+export interface UknownError extends BaseStorageError<'UKNOWN_ERROR'> {}
 
 export type StorageError =
 	| DirExistsError
@@ -51,6 +55,7 @@ export type StorageError =
 	| NotADirectoryError
 	| PathExistsError
 	| PathNotFoundError
+	| PathNotAvailableError
 	| PermissionError
 	| UknownError;
 
@@ -60,7 +65,7 @@ declare module '../Data/KnutError.js' {
 	}
 }
 
-const makeError = <T extends StorageError>(options: T): T => {
+function makeError<T extends StorageError>(options: T): T {
 	const { code, message, reason, error, stackTrace, ...opts } = options;
 	let trace = options.stackTrace;
 	if (trace === undefined && error instanceof Error) {
@@ -77,15 +82,15 @@ const makeError = <T extends StorageError>(options: T): T => {
 		stackTrace: options.stackTrace ?? new Error().stack,
 		...opts,
 	} as any;
-};
+}
 
-export const permissionError = (options: {
+export function permissionError(options: {
 	filename: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}): PermissionError => {
+}): PermissionError {
 	return makeError({
 		scope: 'STORAGE',
 		code: 'PERMISSION_ERROR',
@@ -96,16 +101,16 @@ export const permissionError = (options: {
 		reason: options.reason,
 		error: options.error,
 	});
-};
+}
 
-export const fileNotFound = (options: {
+export function fileNotFound(options: {
 	filename: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}): FileNotFoundError =>
-	makeError({
+}): FileNotFoundError {
+	return makeError({
 		scope: 'STORAGE',
 		code: 'FILE_NOT_FOUND',
 		storageType: options.storageType,
@@ -114,14 +119,15 @@ export const fileNotFound = (options: {
 		error: options.error,
 		filename: options.filename,
 	});
+}
 
-export const notADirectory = (options: {
+export function notADirectory(options: {
 	dirname: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}): NotADirectoryError => {
+}): NotADirectoryError {
 	return makeError({
 		scope: 'STORAGE',
 		code: 'NOT_A_DIRECTORY',
@@ -131,15 +137,15 @@ export const notADirectory = (options: {
 		error: options.error,
 		dirname: options.dirname,
 	});
-};
+}
 
-export const dirNotEmpty = (options: {
+export function dirNotEmpty(options: {
 	dirname: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}): DirNotEmptyError => {
+}): DirNotEmptyError {
 	return makeError({
 		scope: 'STORAGE',
 		code: 'DIR_NOT_EMPTY',
@@ -149,16 +155,16 @@ export const dirNotEmpty = (options: {
 		reason: options.reason,
 		error: options.error,
 	});
-};
+}
 
-export const dirNotFound = (options: {
+export function dirNotFound(options: {
 	dirname: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}) =>
-	makeError({
+}) {
+	return makeError({
 		scope: 'STORAGE',
 		code: 'DIR_NOT_FOUND',
 		storageType: options.storageType,
@@ -167,14 +173,15 @@ export const dirNotFound = (options: {
 		error: options.error,
 		dirname: options.dirname,
 	});
+}
 
-export const uknownError = (options: {
+export function uknownError(options: {
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}) =>
-	makeError({
+}) {
+	return makeError({
 		scope: 'STORAGE',
 		code: 'UKNOWN_ERROR',
 		storageType: options.storageType,
@@ -182,15 +189,16 @@ export const uknownError = (options: {
 		reason: options.reason,
 		error: options.error,
 	});
+}
 
-export const pathNotFound = (options: {
+export function pathNotFound(options: {
 	path: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}) =>
-	makeError({
+}) {
+	return makeError({
 		scope: 'STORAGE',
 		code: 'PATH_NOT_FOUND',
 		storageType: options.storageType,
@@ -200,15 +208,34 @@ export const pathNotFound = (options: {
 		error: options.error,
 		path: options.path,
 	});
+}
 
-export const pathExists = (options: {
+export function pathNotAvailable(options: {
 	path: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}) =>
-	makeError({
+}) {
+	return makeError({
+		scope: 'STORAGE',
+		code: 'PATH_NOT_AVAILABLE',
+		storageType: options.storageType,
+		message: options.message ?? `Path not available for ${options.path}`,
+		reason: options.reason,
+		error: options.error,
+		path: options.path,
+	});
+}
+
+export function pathExists(options: {
+	path: string;
+	storageType: string;
+	message?: string;
+	reason?: string;
+	error?: any;
+}) {
+	return makeError({
 		scope: 'STORAGE',
 		code: 'PATH_EXISTS',
 		storageType: options.storageType,
@@ -217,15 +244,16 @@ export const pathExists = (options: {
 		reason: options.reason,
 		error: options.error,
 	});
+}
 
-export const dirExists = (options: {
+export function dirExists(options: {
 	dirname: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}) =>
-	makeError({
+}) {
+	return makeError({
 		scope: 'STORAGE',
 		code: 'DIR_EXISTS',
 		storageType: options.storageType,
@@ -234,15 +262,16 @@ export const dirExists = (options: {
 		reason: options.reason,
 		error: options.error,
 	});
+}
 
-export const fileExists = (options: {
+export function fileExists(options: {
 	filename: string;
 	storageType: string;
 	message?: string;
 	reason?: string;
 	error?: any;
-}) =>
-	makeError({
+}) {
+	return makeError({
 		scope: 'STORAGE',
 		code: 'FILE_EXISTS',
 		storageType: options.storageType,
@@ -251,3 +280,4 @@ export const fileExists = (options: {
 		reason: options.error,
 		error: options.error,
 	});
+}

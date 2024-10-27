@@ -1,16 +1,20 @@
-import { MemoryStorage } from '../Storage/index.js';
+import { MemoryStore } from '../Store/index.js';
 import { Future, Result } from '../Utils/index.js';
-import { Backend, Loader, make } from './Backend.js';
+import { Backend } from './index.js';
 
-export const memoryBackend: () => Future.Future<Backend> = async () => {
-	const storage = MemoryStorage.create();
-	const data = storage.child('data');
-	const state = storage.child('state');
-	const config = storage.child('config');
-	const cache = storage.child('cache');
-	const loader: Loader = async (uri: string) => {
-		const store = storage.child(uri);
-		return Result.ok(store);
-	};
-	return make({ cache, config, data, state, loader });
+export const memoryBackend: () => Future.Future<Backend.Backend> = async () => {
+	const root = MemoryStore.memoryStore();
+	const data = root.child('data');
+	const state = root.child('state');
+	const config = root.child('config');
+	const cache = root.child('cache');
+	return Backend.make({
+		cache,
+		config,
+		data,
+		state,
+		loader: async ({ uri }) => {
+			return Result.ok(root.child(uri));
+		},
+	});
 };

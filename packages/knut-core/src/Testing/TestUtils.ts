@@ -1,22 +1,17 @@
-import * as Path from 'path';
 import invariant from 'tiny-invariant';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { afterAll, describe } from 'vitest';
 import { Backend } from '../Backend/index.js';
-import {
-	Storage,
-	WebStorage,
-	FsStorage,
-	MemoryStorage,
-} from '../Storage/index.js';
 import { Future, pipe, Result } from '../Utils/index.js';
 import { KnutConfigFile } from '../KnutConfigFile.js';
 import { TestUtils } from './index.js';
+import { Path } from '../Data/index.js';
+import { FsStore, MemoryStore, Store, WebStore } from '../Store/index.js';
 
 export type Kegpath = 'samplekeg1' | 'samplekeg2' | 'samplekeg3';
 
-export const FIXTURE_PATH = Path.resolve(__dirname, '..', '..', 'testdata');
+export const FIXTURE_PATH = Path.resolve(__dirname, '../../testdata');
 
 /**
  * Fixtures data path
@@ -61,7 +56,7 @@ export const FIXTURE_PATH_MAP = {
 /**
  * Base fixture file system. DO NOT MUTATE.
  */
-export const fixtures = new FsStorage(FIXTURE_PATH);
+export const fixtures = FsStore.fsStore(FIXTURE_PATH);
 
 export const kegAliasFixtures = [
 	'samplekeg1',
@@ -72,20 +67,20 @@ export const kegAliasFixtures = [
 /**
  * Load fixtures into the backend. This mutates backend
  */
-const loadFixutures = async (backend: Backend.Backend) => {
-	await Storage.overwrite({
+async function loadFixutures(backend: Backend.Backend) {
+	await Store.overwrite({
 		source: fixtures.child(FIXTURE_DATA_PATH),
 		target: backend.data,
 	});
-	await Storage.overwrite({
+	await Store.overwrite({
 		source: fixtures.child(FIXTURE_STATE_PATH),
 		target: backend.state,
 	});
-	await Storage.overwrite({
+	await Store.overwrite({
 		source: fixtures.child(FIXTURE_CONFIG_PATH),
 		target: backend.config,
 	});
-	await Storage.overwrite({
+	await Store.overwrite({
 		source: fixtures.child(FIXTURE_CACHE_PATH),
 		target: backend.cache,
 	});
@@ -95,44 +90,52 @@ const loadFixutures = async (backend: Backend.Backend) => {
 		const path = fixtureKegpath(kegalias);
 
 		invariant(Result.isOk(storage), `Expect fixture to load keg storage`);
-		await Storage.overwrite({
+		await Store.overwrite({
 			source: fixtures.child(path),
 			target: storage.value,
 		});
 	}
+}
+
+type TestBackendOptions = {
+	applyFixtures?: boolean;
 };
 
-let testMemoryStorageCounter = 0;
-export const testMemoryStorage = async () => {
-	const store = WebStorage.create(`memorystore-${testMemoryStorageCounter}`);
-	testMemoryStorageCounter++;
+let testMemoryStoreCounter = 0;
+export async function testMemoryStore() {
+	const store = MemoryStore.memoryStore({
+		uri: `memorystore-${testMemoryStoreCounter}`,
+	});
+	testMemoryStoreCounter++;
 	return store;
-};
+}
 
-export const testMemoryBackend = async (): Future.Future<Backend.Backend> => {
+export async function testMemoryBackend(
+	options?: TestBackendOptions,
+): Future.Future<Backend.Backend> {
 	// Holds knut configuration
-	const storage = MemoryStorage.create();
+	const root = MemoryStore.memoryStore();
 
 	// Child path needs to match up with fixture cache
-	const cache = storage.child('cache');
+	const cache = root.child('cache');
 
 	// data path needs to match up with fixture variable path
-	const data = storage.child('data');
+	const data = root.child('data');
 
 	// state path needs to match up with fixture variable path
-	const state = storage.child('state');
+	const state = root.child('state');
 
 	// Config path needs to match up with fixture path so that config.yaml
 	// resolves to the correct location
-	const config = storage.child('config');
+	const config = root.child('config');
 
-	const kegStorage = storage.child('kegs');
-	await Storage.overwrite({
+	const kegStorage = root.child('kegs');
+	await Store.overwrite({
 		source: fixtures.child('kegs'),
 		target: kegStorage,
 	});
 
-	const loader: Backend.Loader = async (uri) => {
+	const loaderFactory: Backend.LoaderFactory = async ({ uri }) => {
 		const storage = kegStorage.child(uri);
 		return Result.ok(storage);
 	};
@@ -142,29 +145,35 @@ export const testMemoryBackend = async (): Future.Future<Backend.Backend> => {
 		state,
 		config,
 		cache,
-		loader,
+		loader: loaderFactory,
 	});
 
-	await loadFixutures(backend);
+	if (options?.applyFixtures ?? true) {
+		await loadFixutures(backend);
 
-	const knutConfig = Result.unwrap(
-		await KnutConfigFile.fromStorage(config),
-		'Expect load fixture to create valid config',
-	);
-	await knutConfig.toStorage({ storage: config });
+		const knutConfig = Result.unwrap(
+			await KnutConfigFile.fromStore(config),
+			'Expect to load config from storage after applying fixtures',
+		);
+		await knutConfig.toStore({ storage: config });
+	}
 
 	return backend;
-};
+}
 
-let testBrowserStorageCounter = 0;
-export const testBrowserStorage = async () => {
-	const store = WebStorage.create(`webstore-${testBrowserStorageCounter}`);
-	testBrowserStorageCounter++;
+let testWebStoreCounter = 0;
+export async function testWebStore(options?: TestBackendOptions) {
+	const store = WebStore.webStore({
+		uri: `webstore-${testWebStoreCounter}`,
+	});
+	testWebStoreCounter++;
 	return store;
-};
+}
 
-export const testBrowserBackend = async (): Future.Future<Backend.Backend> => {
-	const storage = WebStorage.create('knut');
+export async function testWebBackend(
+	options?: TestBackendOptions,
+): Future.Future<Backend.Backend> {
+	const storage = await testWebStore(options);
 
 	// Child path needs to match up with fixture cache
 	const cacheStore = storage.child('cache');
@@ -179,13 +188,13 @@ export const testBrowserBackend = async (): Future.Future<Backend.Backend> => {
 	// resolves to the correct location
 	const configStore = storage.child('config');
 
-	const kegStorage = WebStorage.create('knut-kegs');
-	await Storage.overwrite({
+	const kegStorage = storage.child('kegs');
+	await Store.overwrite({
 		source: fixtures.child('kegs'),
 		target: kegStorage,
 	});
 
-	const loader: Backend.Loader = async (uri) => {
+	const loaderFactory: Backend.LoaderFactory = async ({ uri }) => {
 		const storage = kegStorage.child(uri);
 		return Result.ok(storage);
 	};
@@ -195,49 +204,48 @@ export const testBrowserBackend = async (): Future.Future<Backend.Backend> => {
 		data: dataStore,
 		state: stateStore,
 		cache: cacheStore,
-		loader,
+		loader: loaderFactory,
 	});
 	await loadFixutures(backend);
 	const config = await KnutConfigFile.fromBackend(backend);
-	await config.relative('/').toStorage({ storage: configStore });
+	await config.relative('/').toStore({ storage: configStore });
 	return backend;
-};
+}
 
 /**
  * An empty file system storage that is located in a temporary location.
- * Removes tempoary directory automatically. Unverified outside of vitest.
+ * Removes temporary directory automatically. Unverified outside of vitest.
  */
-export const tempFsStorage =
-	async (): Future.Future<Storage.GenericStorage> => {
-		const rootPath = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
-		const storage = new FsStorage(rootPath);
+export async function tempFsStore() {
+	const rootPath = await mkdtemp(Path.join(tmpdir(), 'knut-test-'));
+	const storage = FsStore.fsStore(rootPath);
 
-		afterAll(async () => {
-			try {
-				await rm(storage.uri, { recursive: true });
-			} catch (e) {
-				throw new Error(e as any);
-			}
-		});
+	afterAll(async () => {
+		try {
+			await rm(storage.uri, { recursive: true });
+		} catch (e) {
+			throw new Error(e as any);
+		}
+	});
 
-		return storage;
-	};
+	return storage;
+}
 
-export const testEmptyFsBackend = async (): Future.Future<Backend.Backend> => {
-	const root = await tempFsStorage();
+export async function testEmptyFsBackend(): Future.Future<Backend.Backend> {
+	const root = await tempFsStore();
 
 	const cacheStore = root.child('cache');
 	const configStore = root.child('config');
 	const stateStore = root.child('state');
 	const dataStore = root.child('data');
 
-	const loader: Backend.Loader = async (uri) => {
+	const loaderFactory: Backend.LoaderFactory = async ({ uri }) => {
 		const stateConf = pipe(
-			await KnutConfigFile.fromStorage(stateStore),
+			await KnutConfigFile.fromStore(stateStore),
 			Result.getOrElse(() => KnutConfigFile.create(stateStore.uri)),
 		);
 		const userConf = pipe(
-			await KnutConfigFile.fromStorage(configStore),
+			await KnutConfigFile.fromStore(configStore),
 			Result.getOrElse(() => KnutConfigFile.create(dataStore.uri)),
 		);
 		const config = KnutConfigFile.merge(stateConf, userConf);
@@ -250,54 +258,53 @@ export const testEmptyFsBackend = async (): Future.Future<Backend.Backend> => {
 		data: dataStore,
 		state: stateStore,
 		cache: cacheStore,
-		loader,
+		loader: loaderFactory,
 	});
-};
+}
 
 /**
  * Returns a platform with full fixtures
  */
-export const testFsBackend = async (): Future.Future<Backend.Backend> => {
+export async function testFsBackend(): Future.Future<Backend.Backend> {
 	const backend = await testEmptyFsBackend();
 	await loadFixutures(backend);
 	return backend;
-};
+}
 
-export const testFsStorage =
-	async (): Future.Future<Storage.GenericStorage> => {
-		return await tempFsStorage();
-	};
+export async function testFsStorage(): Future.Future<Store.Store> {
+	return await tempFsStore();
+}
 
 type BackendTestCase = {
 	readonly name: string;
 	readonly loadBackend: () => Future.Future<Backend.Backend>;
-	readonly loadStorage: () => Future.Future<Storage.BaseStorage>;
+	readonly loadStore: () => Future.Future<Store.Store>;
 };
 export const backends: BackendTestCase[] = [
 	{
 		name: 'Local file system',
 		loadBackend: testFsBackend,
-		loadStorage: testFsStorage,
+		loadStore: testFsStorage,
 	},
 	{
-		name: 'Browser',
-		loadBackend: testBrowserBackend,
-		loadStorage: testBrowserStorage,
+		name: 'Web',
+		loadBackend: testWebBackend,
+		loadStore: testWebStore,
 	},
 	{
 		name: 'In Memory',
 		loadBackend: testMemoryBackend,
-		loadStorage: testMemoryStorage,
+		loadStore: testMemoryStore,
 	},
 ];
 
-export const describeEachBackend = (
+export function describeEachBackend(
 	desc: string,
 	factory: (args: BackendTestCase) => Future.Future<void>,
-): void => {
+): void {
 	for (const options of TestUtils.backends) {
 		describe(`${desc} (${options.name})`, async () => {
 			await factory(options);
 		});
 	}
-};
+}

@@ -1,8 +1,8 @@
 import invariant from 'tiny-invariant';
 import { NodeContent, NodeId, NodeMeta } from './Data/index.js';
 import { KnutErrorScopeMap } from './Data/KnutError.js';
-import { Storage } from './Storage/index.js';
 import { deepCopy, Future, Optional, Result } from './Utils/index.js';
+import { Store } from './Store/index.js';
 
 export type NodeOptions = {
 	title: string;
@@ -28,7 +28,7 @@ export class KegNode {
 	/**
 	 * test if at least has a content file
 	 */
-	static async hasContent(storage: Storage.GenericStorage) {
+	static async hasContent(storage: Store.Store) {
 		for (const t of NodeContent.NODE_CONTENT_TYPES) {
 			const ok = await NodeContent.hasContentType({ type: t, storage });
 			if (ok) {
@@ -41,7 +41,7 @@ export class KegNode {
 	/**
 	 * test if it has a meta file
 	 */
-	static async hasMeta(storage: Storage.GenericStorage) {
+	static async hasMeta(storage: Store.Store) {
 		for (const t of NodeMeta.NODE_META_TYPES) {
 			const ok = await NodeMeta.hasMetaType({ storage, type: t });
 			if (ok) {
@@ -52,7 +52,7 @@ export class KegNode {
 	}
 
 	static async fromStorage(
-		storage: Storage.GenericStorage,
+		storage: Store.Store,
 		options?: KegNodeOptions,
 	): Future.FutureResult<
 		KegNode,
@@ -89,7 +89,7 @@ export class KegNode {
 	}
 
 	static async create(params: {
-		storage: Storage.GenericStorage;
+		storage: Store.Store;
 		meta?: NodeMeta.NodeMeta;
 		title: string;
 		summary: string;
@@ -117,12 +117,12 @@ export class KegNode {
 		return Result.ok(node);
 	}
 
-	public readonly storage: Storage.GenericStorage;
+	public readonly storage: Store.Store;
 	public readonly options: KegNodeOptions;
 	private content: NodeContent.NodeContent;
 	private meta: NodeMeta.NodeMeta;
 	private constructor(args: {
-		readonly storage: Storage.GenericStorage;
+		readonly storage: Store.Store;
 		readonly options: KegNodeOptions;
 		content: NodeContent.NodeContent;
 		meta: NodeMeta.NodeMeta;
@@ -134,7 +134,7 @@ export class KegNode {
 	}
 
 	async toStorage(
-		storage: Storage.GenericStorage,
+		storage: Store.Store,
 	): Future.FutureResult<true, KnutErrorScopeMap['STORAGE'][]> {
 		const errors = [
 			await NodeContent.toStorage({
@@ -207,7 +207,7 @@ export class KegNode {
 		this.meta.stats.updatedAt = new Date();
 	}
 
-	getUpdate() {
+	getUpdatedAt() {
 		return this.meta.stats?.updatedAt ?? new Date();
 	}
 
@@ -222,6 +222,10 @@ export class KegNode {
 
 	mergeMeta(meta: NodeMeta.NodeMeta) {
 		this.meta = NodeMeta.merge(this.meta, meta);
+	}
+
+	getMeta() {
+		return deepCopy(this.meta);
 	}
 
 	getContent() {

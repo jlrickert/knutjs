@@ -6,6 +6,7 @@ import { resultT } from './ResultT.js';
 export { absurd, pipe } from 'fp-ts/lib/function.js';
 
 export * as BaseError from './BaseError.js';
+export * from './FilterTypes.js';
 export * as Future from './Future.js';
 export * as Optional from './Optional.js';
 export * as Result from './Result.js';

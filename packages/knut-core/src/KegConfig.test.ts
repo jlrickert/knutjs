@@ -3,7 +3,7 @@ import { TestUtils } from './Testing/index.js';
 import { Result } from './Utils/index.js';
 import { KegConfig } from './KegConfig.js';
 
-TestUtils.describeEachBackend('KegFile', async ({ loadBackend }) => {
+TestUtils.describeEachBackend('KegConfig', async ({ loadBackend }) => {
 	test('should be able to parse from a valid yaml file', async () => {
 		const data = Result.unwrap(
 			await TestUtils.fixtures.read('kegs/samplekeg1/keg'),

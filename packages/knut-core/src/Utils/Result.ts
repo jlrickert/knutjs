@@ -60,9 +60,9 @@ export const tryCatch: {
 });
 
 export const fromNullable: {
-	<T, E>(onErr: () => E): (value: T) => Result<T, E>;
-	<T, E>(value: T, onErr: () => E): Result<T, E>;
-} = dual(2, <T, E>(value: T, onErr: () => E): Result<T, E> => {
+	<T, E>(onErr: () => E): (value: T) => Result<NonNullable<T>, E>;
+	<T, E>(value: T, onErr: () => E): Result<NonNullable<T>, E>;
+} = dual(2, <T, E>(value: T, onErr: () => E): Result<NonNullable<T>, E> => {
 	return fromOptional(Optional.fromNullable(value), () => onErr());
 });
 
